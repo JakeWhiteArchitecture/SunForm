@@ -524,20 +524,23 @@
     <!-- Three.js r128 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <!-- GLTFExporter for exporting scene geometry as GLB to send to backend -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
-    <!-- web-ifc for client-side IFC parsing (WASM) -->
+    <!-- web-ifc for client-side IFC parsing -->
     <script src="https://cdn.jsdelivr.net/npm/web-ifc@0.0.57/web-ifc-api-iife.js"></script>
+    <!-- jsPDF for client-side PDF export -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 
     <script>
         // ─── THREE.JS SETUP ───
         let scene, camera, renderer, controls;
         let buildingGroup = null;
+        let buildingMesh = null;  // the actual THREE.Mesh for raycasting
         let heatmapGroup = null;
         let bboxHelper = null;
         let groundPlane = null;
         let ifcApi = null;
         let ifcLoaded = false;
+        let lastAnalysisResults = null;
 
         function initThree() {
             const container = document.getElementById('viewport');
@@ -550,7 +553,7 @@
             camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000);
             camera.position.set(50, 40, 50);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
             renderer.setSize(w, h);
             renderer.setPixelRatio(window.devicePixelRatio);
             container.appendChild(renderer.domElement);
@@ -561,7 +564,6 @@
             controls.target.set(0, 5, 0);
             controls.update();
 
-            // Lights
             const ambient = new THREE.AmbientLight(0x404040, 0.6);
             scene.add(ambient);
 
@@ -573,20 +575,14 @@
             dir2.position.set(-30, 20, -50);
             scene.add(dir2);
 
-            // Ground grid (100m x 100m)
             const grid = new THREE.GridHelper(200, 200, 0x222244, 0x111133);
             scene.add(grid);
 
-            // Axes helper
             const axes = new THREE.AxesHelper(10);
             scene.add(axes);
 
-            // Invisible ground plane for raycasting (bounding box tool)
             const planeGeo = new THREE.PlaneGeometry(2000, 2000);
-            const planeMat = new THREE.MeshBasicMaterial({
-                visible: false,
-                side: THREE.DoubleSide
-            });
+            const planeMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
             groundPlane = new THREE.Mesh(planeGeo, planeMat);
             groundPlane.rotation.x = -Math.PI / 2;
             groundPlane.position.y = 0;
@@ -666,7 +662,6 @@
 
                 const modelID = ifcApi.OpenModel(data);
 
-                // Extract all mesh geometry
                 const allVertices = [];
                 const allIndices = [];
                 let vertexOffset = 0;
@@ -682,21 +677,14 @@
                         const idxPtr = geomData.GetIndexData();
                         const idxSize = geomData.GetIndexDataSize();
 
-                        // Copy data from WASM heap BEFORE calling delete()
-                        const vertsRaw = ifcApi.GetVertexArray(vertPtr, vertSize);
-                        const idxRaw = ifcApi.GetIndexArray(idxPtr, idxSize);
-                        const verts = new Float32Array(vertsRaw);
-                        const indices = new Uint32Array(idxRaw);
-
-                        // Free WASM memory now that we have copies
+                        // Copy from WASM heap BEFORE delete
+                        const verts = new Float32Array(ifcApi.GetVertexArray(vertPtr, vertSize));
+                        const indices = new Uint32Array(ifcApi.GetIndexArray(idxPtr, idxSize));
                         geomData.delete();
 
                         if (verts.length === 0 || indices.length === 0) continue;
 
-                        // web-ifc vertex format: x, y, z, nx, ny, nz per vertex (6 floats)
                         const flatMatrix = placedGeom.flatTransformation;
-
-                        // Parse transform matrix (column-major 4x4)
                         const m = new THREE.Matrix4();
                         m.set(
                             flatMatrix[0], flatMatrix[4], flatMatrix[8],  flatMatrix[12],
@@ -705,12 +693,11 @@
                             flatMatrix[3], flatMatrix[7], flatMatrix[11], flatMatrix[15]
                         );
 
+                        // 6 floats per vertex: x, y, z, nx, ny, nz
                         const numVerts = verts.length / 6;
                         for (let v = 0; v < numVerts; v++) {
                             const pos = new THREE.Vector3(
-                                verts[v * 6],
-                                verts[v * 6 + 1],
-                                verts[v * 6 + 2]
+                                verts[v * 6], verts[v * 6 + 1], verts[v * 6 + 2]
                             );
                             pos.applyMatrix4(m);
                             allVertices.push(pos.x, pos.y, pos.z);
@@ -719,7 +706,6 @@
                         for (let idx = 0; idx < indices.length; idx++) {
                             allIndices.push(indices[idx] + vertexOffset);
                         }
-
                         vertexOffset += numVerts;
                     }
                 });
@@ -730,12 +716,11 @@
                     throw new Error('No geometry found in IFC file');
                 }
 
-                // Build Three.js geometry
                 renderBuildingFromArrays(allVertices, allIndices);
                 ifcLoaded = true;
 
                 uploadZone.classList.add('loaded');
-                document.getElementById('upload-text').textContent = 'IFC loaded (client-side)';
+                document.getElementById('upload-text').textContent = 'IFC loaded';
                 document.getElementById('upload-filename').textContent = file.name;
                 document.getElementById('upload-filename').style.display = 'block';
                 document.getElementById('run-btn').disabled = false;
@@ -745,15 +730,13 @@
             } catch (err) {
                 console.error('IFC parse error:', err);
                 progressBar.classList.remove('visible');
-                document.getElementById('upload-text').textContent =
-                    'Parse error: ' + err.message;
+                document.getElementById('upload-text').textContent = 'Parse error: ' + err.message;
                 uploadZone.classList.remove('loaded');
                 hideStatus();
             }
         }
 
         function renderBuildingFromArrays(vertices, indices) {
-            // Remove old building
             if (buildingGroup) {
                 scene.remove(buildingGroup);
                 buildingGroup.traverse(child => {
@@ -768,55 +751,40 @@
             const geo = new THREE.BufferGeometry();
             const positions = new Float32Array(vertices);
             geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-            // Use Uint32Array for index buffer (models can exceed 65535 vertices)
-            const indexArray = new Uint32Array(indices);
-            geo.setIndex(new THREE.BufferAttribute(indexArray, 1));
+            geo.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
             geo.computeVertexNormals();
 
-            // White massing material — strip all textures/colours
             const mat = new THREE.MeshPhongMaterial({
                 color: 0xdddddd,
                 flatShading: true,
                 side: THREE.DoubleSide,
             });
 
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.name = 'building_mesh';
-            buildingGroup.add(mesh);
+            buildingMesh = new THREE.Mesh(geo, mat);
+            buildingMesh.name = 'building_mesh';
+            buildingGroup.add(buildingMesh);
 
-            // Wireframe edges
             const edges = new THREE.EdgesGeometry(geo, 15);
             const line = new THREE.LineSegments(edges,
                 new THREE.LineBasicMaterial({ color: 0x333355 }));
-            line.name = 'building_edges';
             buildingGroup.add(line);
 
             scene.add(buildingGroup);
 
-            // Fit camera to building bounds
+            // Fit camera
             geo.computeBoundingBox();
             const bb = geo.boundingBox;
             if (bb) {
                 const cx = (bb.min.x + bb.max.x) / 2;
                 const cy = (bb.min.y + bb.max.y) / 2;
                 const cz = (bb.min.z + bb.max.z) / 2;
-                const size = Math.max(
-                    bb.max.x - bb.min.x,
-                    bb.max.y - bb.min.y,
-                    bb.max.z - bb.min.z
-                );
+                const size = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z);
                 const dist = size * 1.5;
                 camera.position.set(cx + dist, cy + dist * 0.7, cz + dist);
                 controls.target.set(cx, cy, cz);
                 controls.update();
 
-                // Auto-fill bounding box with building footprint
-                // web-ifc uses Y-up, so X/Z are the plan coords, Y is height
-                // But Three.js also uses Y-up, so bb.min/max are in Three.js coords
-                // For the backend: IFC X → Three X, IFC Y → Three Z (negated), IFC Z → Three Y
-                // The backend grid uses IFC coords (X, Y at Z=0)
-                // Three.js X = IFC X, Three.js Z = -IFC Y
+                // Auto-fill bounding box (Three.js X = IFC X, Three.js -Z = IFC Y)
                 document.getElementById('bbox_min_x').value = bb.min.x.toFixed(1);
                 document.getElementById('bbox_min_y').value = (-bb.max.z).toFixed(1);
                 document.getElementById('bbox_max_x').value = bb.max.x.toFixed(1);
@@ -824,33 +792,420 @@
             }
         }
 
-        // ─── EXPORT BUILDING AS GLB FOR BACKEND ───
-        async function exportBuildingAsGLB() {
-            return new Promise((resolve, reject) => {
-                if (!buildingGroup) {
-                    reject(new Error('No building geometry to export'));
-                    return;
+        // ─── SUN POSITION CALCULATOR (pure JS — replaces ladybug Sunpath) ───
+        function getSunPositions(latitude, longitude, dateStr, timeStep) {
+            const date = new Date(dateStr + 'T12:00:00');
+            const dayOfYear = getDayOfYear(date);
+            const latRad = latitude * Math.PI / 180;
+
+            // Solar declination (Spencer, 1971)
+            const B = (dayOfYear - 1) * 2 * Math.PI / 365;
+            const declination = 0.006918 - 0.399912 * Math.cos(B) + 0.070257 * Math.sin(B)
+                - 0.006758 * Math.cos(2 * B) + 0.000907 * Math.sin(2 * B)
+                - 0.002697 * Math.cos(3 * B) + 0.00148 * Math.sin(3 * B);
+
+            // Equation of time (minutes)
+            const eot = 229.18 * (0.000075 + 0.001868 * Math.cos(B) - 0.032077 * Math.sin(B)
+                - 0.014615 * Math.cos(2 * B) - 0.04089 * Math.sin(2 * B));
+
+            const positions = [];
+
+            for (let hour = 0; hour < 24; hour += timeStep) {
+                // Solar time
+                const solarTime = hour + (eot + 4 * longitude) / 60;
+                const hourAngle = (solarTime - 12) * 15 * Math.PI / 180;
+
+                // Solar altitude
+                const sinAlt = Math.sin(latRad) * Math.sin(declination)
+                    + Math.cos(latRad) * Math.cos(declination) * Math.cos(hourAngle);
+                const altitude = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+
+                if (altitude <= 0) continue;
+
+                // Solar azimuth (from North, clockwise)
+                const cosAz = (Math.sin(declination) - Math.sin(latRad) * sinAlt)
+                    / (Math.cos(latRad) * Math.cos(altitude));
+                let azimuth = Math.acos(Math.max(-1, Math.min(1, cosAz)));
+                if (hourAngle > 0) azimuth = 2 * Math.PI - azimuth;
+
+                positions.push({
+                    azimuth: azimuth * 180 / Math.PI,
+                    altitude: altitude * 180 / Math.PI,
+                    hour: hour,
+                });
+            }
+
+            return positions;
+        }
+
+        function getDayOfYear(date) {
+            const start = new Date(date.getFullYear(), 0, 0);
+            const diff = date - start;
+            return Math.floor(diff / (1000 * 60 * 60 * 24));
+        }
+
+        // Convert solar azimuth + altitude to 3D direction vector (toward the sun)
+        function sunDirection(azimuthDeg, altitudeDeg) {
+            const az = azimuthDeg * Math.PI / 180;
+            const alt = altitudeDeg * Math.PI / 180;
+            // IFC coords: X=East, Y=North, Z=Up
+            // Three.js: X=East, Y=Up, Z=-North (south)
+            const ifcX = Math.sin(az) * Math.cos(alt);
+            const ifcY = Math.cos(az) * Math.cos(alt);
+            const ifcZ = Math.sin(alt);
+            // Convert to Three.js
+            return new THREE.Vector3(ifcX, ifcZ, -ifcY).normalize();
+        }
+
+        // ─── CLIENT-SIDE RAY CASTING (Three.js Raycaster) ───
+        async function runSunAnalysis(bboxMin, bboxMax, latitude, longitude, cellSize, timeStep, dateStr) {
+            const sunPositions = getSunPositions(latitude, longitude, dateStr, timeStep);
+
+            if (sunPositions.length === 0) {
+                throw new Error('No sun positions above horizon for given date/location');
+            }
+
+            // Generate grid points (in IFC coords: X, Y at Z=0)
+            const xMin = bboxMin[0], yMin = bboxMin[1];
+            const xMax = bboxMax[0], yMax = bboxMax[1];
+            const cols = Math.max(1, Math.floor((xMax - xMin) / cellSize));
+            const rows = Math.max(1, Math.floor((yMax - yMin) / cellSize));
+
+            const gridPoints = [];
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    gridPoints.push({
+                        ifcX: xMin + (col + 0.5) * cellSize,
+                        ifcY: yMin + (row + 0.5) * cellSize,
+                    });
+                }
+            }
+
+            const totalRays = gridPoints.length * sunPositions.length;
+            showStatus(`Casting ${totalRays.toLocaleString()} rays (${gridPoints.length} cells x ${sunPositions.length} sun positions)...`);
+
+            // Pre-compute sun direction vectors
+            const sunDirs = sunPositions.map(sp => sunDirection(sp.azimuth, sp.altitude));
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.firstHitOnly = true;
+
+            const sunHours = new Float32Array(gridPoints.length);
+            let raysProcessed = 0;
+
+            // Process in batches to keep UI responsive
+            const BATCH_SIZE = 500;
+
+            for (let sunIdx = 0; sunIdx < sunDirs.length; sunIdx++) {
+                const dir = sunDirs[sunIdx];
+
+                for (let i = 0; i < gridPoints.length; i += BATCH_SIZE) {
+                    const end = Math.min(i + BATCH_SIZE, gridPoints.length);
+
+                    for (let j = i; j < end; j++) {
+                        const gp = gridPoints[j];
+                        // Ray origin in Three.js coords (IFC X → Three X, IFC Y → Three -Z, Z=0 → Y=0.1)
+                        const origin = new THREE.Vector3(gp.ifcX, 0.1, -gp.ifcY);
+                        raycaster.set(origin, dir);
+
+                        const hits = raycaster.intersectObject(buildingMesh, false);
+                        if (hits.length === 0) {
+                            // No hit = sunlight reaches this cell
+                            sunHours[j] += timeStep;
+                        }
+                    }
+
+                    raysProcessed += (end - i);
+
+                    // Yield to UI every batch
+                    if (raysProcessed % (BATCH_SIZE * 4) === 0) {
+                        const pct = Math.round(raysProcessed / totalRays * 100);
+                        showStatus(`Ray casting... ${pct}%`);
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+            }
+
+            // BRE compliance
+            const thresholdHours = 2.0;
+            let cellsMeeting = 0;
+            for (let i = 0; i < sunHours.length; i++) {
+                if (sunHours[i] >= thresholdHours) cellsMeeting++;
+            }
+            const percentage = (cellsMeeting / sunHours.length) * 100;
+            const passes = percentage >= 50;
+
+            return {
+                gridPoints,
+                gridShape: [rows, cols],
+                sunHours,
+                sunPositions,
+                cellSize,
+                compliance: {
+                    pass: passes,
+                    percentage: Math.round(percentage * 10) / 10,
+                    cells_total: sunHours.length,
+                    cells_meeting: cellsMeeting,
+                    threshold_hours: thresholdHours,
+                    message: `${percentage.toFixed(1)}% of amenity area receives ≥${thresholdHours}h sunlight on 21 March — ${passes ? 'PASS' : 'FAIL'}`,
+                },
+            };
+        }
+
+        // ─── HEAT MAP COLOUR GRADIENT ───
+        const HEAT_COLOURS = [
+            [0, 0.15, 0.0, 0.25],
+            [1, 0.8, 0.1, 0.1],
+            [2, 1.0, 0.5, 0.0],
+            [3, 1.0, 0.85, 0.0],
+            [4, 1.0, 1.0, 0.2],
+            [6, 1.0, 1.0, 0.8],
+        ];
+
+        function lerpColour(hours) {
+            if (hours <= HEAT_COLOURS[0][0]) return [HEAT_COLOURS[0][1], HEAT_COLOURS[0][2], HEAT_COLOURS[0][3]];
+            if (hours >= HEAT_COLOURS[HEAT_COLOURS.length-1][0]) {
+                const c = HEAT_COLOURS[HEAT_COLOURS.length-1];
+                return [c[1], c[2], c[3]];
+            }
+            for (let i = 0; i < HEAT_COLOURS.length - 1; i++) {
+                const [h0, r0, g0, b0] = HEAT_COLOURS[i];
+                const [h1, r1, g1, b1] = HEAT_COLOURS[i + 1];
+                if (hours >= h0 && hours <= h1) {
+                    const t = (hours - h0) / (h1 - h0);
+                    return [r0 + t * (r1 - r0), g0 + t * (g1 - g0), b0 + t * (b1 - b0)];
+                }
+            }
+            const c = HEAT_COLOURS[HEAT_COLOURS.length-1];
+            return [c[1], c[2], c[3]];
+        }
+
+        // ─── RUN ANALYSIS ───
+        async function runAnalysis() {
+            const btn = document.getElementById('run-btn');
+            const bboxMinX = parseFloat(document.getElementById('bbox_min_x').value);
+            const bboxMinY = parseFloat(document.getElementById('bbox_min_y').value);
+            const bboxMaxX = parseFloat(document.getElementById('bbox_max_x').value);
+            const bboxMaxY = parseFloat(document.getElementById('bbox_max_y').value);
+
+            if (isNaN(bboxMinX) || isNaN(bboxMinY) || isNaN(bboxMaxX) || isNaN(bboxMaxY)) {
+                alert('Please define the amenity area bounding box first.');
+                return;
+            }
+            if (!ifcLoaded || !buildingMesh) {
+                alert('Please upload an IFC file first.');
+                return;
+            }
+
+            btn.textContent = 'Analysing...';
+            btn.disabled = true;
+
+            try {
+                const results = await runSunAnalysis(
+                    [bboxMinX, bboxMinY],
+                    [bboxMaxX, bboxMaxY],
+                    parseFloat(document.getElementById('latitude').value),
+                    parseFloat(document.getElementById('longitude').value),
+                    parseFloat(document.getElementById('cell_size').value),
+                    parseFloat(document.getElementById('time_step').value),
+                    document.getElementById('analysis_date').value
+                );
+
+                lastAnalysisResults = results;
+                renderHeatmap(results);
+                showCompliance(results.compliance);
+                document.getElementById('glb-btn').disabled = false;
+                document.getElementById('pdf-btn').disabled = false;
+                showStatus(
+                    `Analysis complete — ${results.sunPositions.length} sun positions, ` +
+                    `${results.gridShape[0]}x${results.gridShape[1]} grid`
+                );
+                setTimeout(hideStatus, 5000);
+
+            } catch (err) {
+                alert('Analysis failed: ' + err.message);
+                hideStatus();
+            } finally {
+                btn.textContent = 'Run Analysis';
+                btn.disabled = false;
+            }
+        }
+
+        // ─── RENDER HEAT MAP ───
+        function renderHeatmap(results) {
+            if (heatmapGroup) {
+                scene.remove(heatmapGroup);
+                heatmapGroup.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                });
+            }
+
+            heatmapGroup = new THREE.Group();
+            heatmapGroup.name = 'heatmap';
+
+            const half = results.cellSize / 2;
+            const positions = [];
+            const colors = [];
+
+            for (let i = 0; i < results.gridPoints.length; i++) {
+                const gp = results.gridPoints[i];
+                const hours = results.sunHours[i];
+                const [r, g, b] = lerpColour(hours);
+
+                // IFC (x, y) → Three.js (x, 0.02, -y)
+                const cx = gp.ifcX;
+                const cz = -gp.ifcY;
+
+                const v0 = [cx - half, 0.02, cz + half];
+                const v1 = [cx + half, 0.02, cz + half];
+                const v2 = [cx + half, 0.02, cz - half];
+                const v3 = [cx - half, 0.02, cz - half];
+
+                positions.push(...v0, ...v1, ...v2, ...v0, ...v2, ...v3);
+                for (let k = 0; k < 6; k++) colors.push(r, g, b);
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.name = 'heatmap_mesh';
+            heatmapGroup.add(mesh);
+            scene.add(heatmapGroup);
+        }
+
+        // ─── COMPLIANCE DISPLAY ───
+        function showCompliance(compliance) {
+            const panel = document.getElementById('compliance-panel');
+            panel.classList.add('visible');
+
+            const status = document.getElementById('compliance-status');
+            status.textContent = compliance.pass ? 'PASS' : 'FAIL';
+            status.className = 'compliance-result ' + (compliance.pass ? 'pass' : 'fail');
+
+            document.getElementById('compliance-pct').textContent = compliance.percentage.toFixed(1) + '%';
+            document.getElementById('compliance-message').textContent =
+                'of amenity area receives ≥' + compliance.threshold_hours + 'h sunlight on 21 March';
+            document.getElementById('compliance-detail').innerHTML =
+                'Total cells: ' + compliance.cells_total +
+                ' &nbsp;|&nbsp; Cells meeting threshold: ' + compliance.cells_meeting +
+                '<br>BRE BR209 requires ≥50% of area receiving ≥2h sunlight';
+        }
+
+        // ─── EXPORT GLB (client-side via GLTFExporter) ───
+        function downloadGLB() {
+            const btn = document.getElementById('glb-btn');
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+
+            // Export building + heatmap
+            const exportScene = new THREE.Scene();
+            if (buildingMesh) {
+                const clone = buildingMesh.clone();
+                clone.material = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+                exportScene.add(clone);
+            }
+            if (heatmapGroup) {
+                exportScene.add(heatmapGroup.clone());
+            }
+
+            const exporter = new THREE.GLTFExporter();
+            exporter.parse(exportScene, (result) => {
+                const blob = new Blob([result], { type: 'model/gltf-binary' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const d = new Date();
+                a.download = `SunForm_${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}.glb`;
+                a.click();
+                URL.revokeObjectURL(url);
+                btn.textContent = 'Download GLB';
+                btn.disabled = false;
+            }, (err) => {
+                alert('GLB export error: ' + err);
+                btn.textContent = 'Download GLB';
+                btn.disabled = false;
+            }, { binary: true });
+        }
+
+        // ─── EXPORT PDF (client-side via jsPDF) ───
+        function downloadPDF() {
+            if (!lastAnalysisResults) return;
+            const btn = document.getElementById('pdf-btn');
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                const c = lastAnalysisResults.compliance;
+                const lat = document.getElementById('latitude').value;
+                const lng = document.getElementById('longitude').value;
+
+                // Title
+                doc.setFontSize(22);
+                doc.setTextColor(233, 69, 96);
+                doc.text('SUNFORM', 20, 25);
+                doc.setFontSize(14);
+                doc.setTextColor(100);
+                doc.text('Sun Hours Analysis Report', 20, 33);
+
+                // Date
+                doc.setFontSize(10);
+                doc.setTextColor(80);
+                doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), 20, 42);
+
+                // Site info
+                doc.setFontSize(13);
+                doc.setTextColor(0);
+                doc.text('Site Information', 20, 55);
+                doc.setFontSize(10);
+                doc.setTextColor(60);
+                doc.text('Latitude: ' + lat, 20, 63);
+                doc.text('Longitude: ' + lng, 20, 69);
+                doc.text('Analysis date: 21 March (Spring Equinox)', 20, 75);
+
+                // BRE result
+                doc.setFontSize(13);
+                doc.setTextColor(0);
+                doc.text('BRE BR209 Compliance', 20, 90);
+
+                doc.setFontSize(24);
+                if (c.pass) {
+                    doc.setTextColor(76, 175, 80);
+                    doc.text('PASS', 20, 102);
+                } else {
+                    doc.setTextColor(244, 67, 54);
+                    doc.text('FAIL', 20, 102);
                 }
 
-                // Export only the building mesh (not edges/lines) as GLB
-                const exportGroup = new THREE.Group();
-                buildingGroup.traverse(child => {
-                    if (child.isMesh && child.name === 'building_mesh') {
-                        // Clone with a plain material (strip everything)
-                        const clone = child.clone();
-                        clone.material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                        exportGroup.add(clone);
-                    }
-                });
+                doc.setFontSize(10);
+                doc.setTextColor(60);
+                doc.text(c.message, 20, 112);
+                doc.text('Total cells: ' + c.cells_total + '  |  Cells meeting threshold: ' + c.cells_meeting, 20, 119);
 
-                const exporter = new THREE.GLTFExporter();
-                exporter.parse(exportGroup, (result) => {
-                    // result is an ArrayBuffer for binary GLB
-                    resolve(result);
-                }, (err) => {
-                    reject(err);
-                }, { binary: true });
-            });
+                // Capture heat map from canvas
+                renderer.render(scene, camera);
+                const imgData = renderer.domElement.toDataURL('image/png');
+                doc.addImage(imgData, 'PNG', 20, 130, 170, 100);
+
+                // Disclaimer
+                doc.setFontSize(8);
+                doc.setTextColor(120);
+                doc.text('SUNFORM — Indicative sun hours analysis only. User must verify all outputs before use in any planning submission.', 20, 245);
+                doc.text('This tool does not constitute a professional daylight and sunlight assessment.', 20, 250);
+
+                doc.save('SunForm_Report.pdf');
+
+            } catch (err) {
+                alert('PDF export error: ' + err.message);
+            } finally {
+                btn.textContent = 'Download PDF';
+                btn.disabled = false;
+            }
         }
 
         // ─── BOUNDING BOX DRAWING TOOL ───
@@ -872,8 +1227,7 @@
                 btn.textContent = 'Cancel Drawing';
                 btn.style.background = '#e94560';
                 btn.style.color = '#fff';
-                document.getElementById('bbox-hint').textContent =
-                    'Click first corner on the ground plane';
+                document.getElementById('bbox-hint').textContent = 'Click first corner on the ground plane';
                 document.getElementById('bbox-coords').textContent = '';
                 controls.enabled = false;
             } else {
@@ -899,10 +1253,7 @@
         function drawBboxRect(x1, y1, x2, y2, color) {
             removeTempBbox();
             removeBboxHelper();
-
             const group = new THREE.Group();
-
-            // Rectangle outline on ground
             const points = [
                 new THREE.Vector3(x1, 0.05, -y1),
                 new THREE.Vector3(x2, 0.05, -y1),
@@ -910,25 +1261,17 @@
                 new THREE.Vector3(x1, 0.05, -y2),
                 new THREE.Vector3(x1, 0.05, -y1),
             ];
-            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-            const lineMat = new THREE.LineBasicMaterial({ color: color });
-            group.add(new THREE.Line(lineGeo, lineMat));
-
-            // Semi-transparent fill
-            const fillGeo = new THREE.PlaneGeometry(
-                Math.abs(x2 - x1), Math.abs(y2 - y1)
-            );
-            const fillMat = new THREE.MeshBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.15,
-                side: THREE.DoubleSide,
-            });
-            const fill = new THREE.Mesh(fillGeo, fillMat);
+            group.add(new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints(points),
+                new THREE.LineBasicMaterial({ color })
+            ));
+            const fillGeo = new THREE.PlaneGeometry(Math.abs(x2 - x1), Math.abs(y2 - y1));
+            const fill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({
+                color, transparent: true, opacity: 0.15, side: THREE.DoubleSide
+            }));
             fill.rotation.x = -Math.PI / 2;
             fill.position.set((x1 + x2) / 2, 0.04, -(y1 + y2) / 2);
             group.add(fill);
-
             scene.add(group);
             return group;
         }
@@ -954,321 +1297,49 @@
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(mouse, camera);
             const hits = raycaster.intersectObject(groundPlane);
-            if (hits.length > 0) {
-                return hits[0].point;
-            }
-            return null;
+            return hits.length > 0 ? hits[0].point : null;
         }
 
         document.getElementById('viewport').addEventListener('click', (event) => {
             if (!bboxMode) return;
-
             const pt = getGroundIntersection(event);
             if (!pt) return;
-
-            // Convert Three.js coords (x, y=0, z) to IFC coords (x, -z)
-            const ifcX = pt.x;
-            const ifcY = -pt.z;
+            const ifcX = pt.x, ifcY = -pt.z;
 
             if (!bboxCorner1) {
                 bboxCorner1 = { x: ifcX, y: ifcY };
-                document.getElementById('bbox-hint').textContent =
-                    'Click second corner';
+                document.getElementById('bbox-hint').textContent = 'Click second corner';
                 document.getElementById('bbox-coords').textContent =
                     `Corner 1: (${ifcX.toFixed(1)}, ${ifcY.toFixed(1)})`;
-
-                // Draw a marker at corner 1
                 const markerGeo = new THREE.SphereGeometry(0.3, 8, 8);
-                const markerMat = new THREE.MeshBasicMaterial({ color: 0xe94560 });
-                bboxTempHelper = new THREE.Mesh(markerGeo, markerMat);
+                bboxTempHelper = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: 0xe94560 }));
                 bboxTempHelper.position.set(pt.x, 0.2, pt.z);
                 scene.add(bboxTempHelper);
             } else {
-                // Second corner — finalise bbox
                 const x1 = Math.min(bboxCorner1.x, ifcX);
                 const y1 = Math.min(bboxCorner1.y, ifcY);
                 const x2 = Math.max(bboxCorner1.x, ifcX);
                 const y2 = Math.max(bboxCorner1.y, ifcY);
-
                 document.getElementById('bbox_min_x').value = x1.toFixed(1);
                 document.getElementById('bbox_min_y').value = y1.toFixed(1);
                 document.getElementById('bbox_max_x').value = x2.toFixed(1);
                 document.getElementById('bbox_max_y').value = y2.toFixed(1);
-
-                // Draw permanent bbox rectangle
                 bboxHelper = drawBboxRect(x1, y1, x2, y2, 0x00ccff);
-
-                // Exit bbox mode
                 toggleBboxMode();
             }
         });
 
         document.getElementById('viewport').addEventListener('mousemove', (event) => {
             if (!bboxMode || !bboxCorner1) return;
-
             const pt = getGroundIntersection(event);
             if (!pt) return;
-
-            const ifcX = pt.x;
-            const ifcY = -pt.z;
-
+            const ifcX = pt.x, ifcY = -pt.z;
             document.getElementById('bbox-coords').textContent =
                 `Corner 1: (${bboxCorner1.x.toFixed(1)}, ${bboxCorner1.y.toFixed(1)})` +
                 `  →  (${ifcX.toFixed(1)}, ${ifcY.toFixed(1)})`;
-
-            // Live preview of bbox rectangle
             removeTempBbox();
-            bboxTempHelper = drawBboxRect(
-                bboxCorner1.x, bboxCorner1.y, ifcX, ifcY, 0xe94560
-            );
+            bboxTempHelper = drawBboxRect(bboxCorner1.x, bboxCorner1.y, ifcX, ifcY, 0xe94560);
         });
-
-        // ─── RUN ANALYSIS ───
-        async function runAnalysis() {
-            const btn = document.getElementById('run-btn');
-            const bboxMinX = parseFloat(document.getElementById('bbox_min_x').value);
-            const bboxMinY = parseFloat(document.getElementById('bbox_min_y').value);
-            const bboxMaxX = parseFloat(document.getElementById('bbox_max_x').value);
-            const bboxMaxY = parseFloat(document.getElementById('bbox_max_y').value);
-
-            if (isNaN(bboxMinX) || isNaN(bboxMinY) || isNaN(bboxMaxX) || isNaN(bboxMaxY)) {
-                alert('Please define the amenity area bounding box first.');
-                return;
-            }
-
-            if (!ifcLoaded) {
-                alert('Please upload an IFC file first.');
-                return;
-            }
-
-            btn.textContent = 'Exporting geometry...';
-            btn.disabled = true;
-            showStatus('Exporting building geometry as GLB...');
-
-            try {
-                // Step 1: Export building geometry from Three.js as GLB
-                const glbArrayBuffer = await exportBuildingAsGLB();
-                const glbBlob = new Blob([glbArrayBuffer], { type: 'model/gltf-binary' });
-
-                // Step 2: Upload GLB to backend
-                showStatus('Uploading geometry to server...');
-                const uploadForm = new FormData();
-                uploadForm.append('file', glbBlob, 'building.glb');
-
-                const uploadResp = await fetch('/api/upload_glb', {
-                    method: 'POST',
-                    body: uploadForm,
-                });
-                const uploadData = await uploadResp.json();
-                if (!uploadData.success) {
-                    throw new Error(uploadData.error);
-                }
-
-                // Step 3: Run analysis
-                showStatus('Calculating sun hours...');
-                btn.textContent = 'Analysing...';
-
-                const params = {
-                    bbox_min_x: bboxMinX,
-                    bbox_min_y: bboxMinY,
-                    bbox_max_x: bboxMaxX,
-                    bbox_max_y: bboxMaxY,
-                    latitude: parseFloat(document.getElementById('latitude').value),
-                    longitude: parseFloat(document.getElementById('longitude').value),
-                    cell_size: parseFloat(document.getElementById('cell_size').value),
-                    time_step: parseFloat(document.getElementById('time_step').value),
-                    date: document.getElementById('analysis_date').value,
-                };
-
-                const analyseResp = await fetch('/api/analyse', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(params),
-                });
-                const analyseData = await analyseResp.json();
-
-                if (analyseData.success) {
-                    renderHeatmap(analyseData.heatmap_cells, analyseData.cell_size);
-                    showCompliance(analyseData.compliance);
-                    document.getElementById('glb-btn').disabled = false;
-                    document.getElementById('pdf-btn').disabled = false;
-                    showStatus(
-                        `Analysis complete — ${analyseData.num_sun_positions} sun positions, ` +
-                        `${analyseData.grid_shape[0]}x${analyseData.grid_shape[1]} grid`
-                    );
-                    setTimeout(hideStatus, 5000);
-                } else {
-                    throw new Error(analyseData.error);
-                }
-
-            } catch (err) {
-                alert('Analysis failed: ' + err.message);
-                hideStatus();
-            } finally {
-                btn.textContent = 'Run Analysis';
-                btn.disabled = false;
-            }
-        }
-
-        // ─── RENDER HEAT MAP ───
-        function renderHeatmap(cells, cellSize) {
-            // Remove old heatmap
-            if (heatmapGroup) {
-                scene.remove(heatmapGroup);
-                heatmapGroup.traverse(child => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) child.material.dispose();
-                });
-            }
-
-            heatmapGroup = new THREE.Group();
-
-            const half = cellSize / 2;
-            const positions = [];
-            const colors = [];
-
-            for (const cell of cells) {
-                // IFC coords: x, y at z=0 → Three.js: x, 0.02, -y
-                const cx = cell.x;
-                const cz = -cell.y;
-                const [r, g, b] = cell.color;
-
-                // Quad as two triangles
-                // v0--v1
-                // |  / |
-                // v3--v2
-                const v0 = [cx - half, 0.02, cz + half];
-                const v1 = [cx + half, 0.02, cz + half];
-                const v2 = [cx + half, 0.02, cz - half];
-                const v3 = [cx - half, 0.02, cz - half];
-
-                positions.push(
-                    ...v0, ...v1, ...v2,
-                    ...v0, ...v2, ...v3
-                );
-
-                // 6 vertices, same colour
-                for (let i = 0; i < 6; i++) {
-                    colors.push(r, g, b);
-                }
-            }
-
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position',
-                new THREE.Float32BufferAttribute(positions, 3));
-            geo.setAttribute('color',
-                new THREE.Float32BufferAttribute(colors, 3));
-
-            const mat = new THREE.MeshBasicMaterial({
-                vertexColors: true,
-                side: THREE.DoubleSide,
-            });
-
-            const mesh = new THREE.Mesh(geo, mat);
-            heatmapGroup.add(mesh);
-            scene.add(heatmapGroup);
-        }
-
-        // ─── COMPLIANCE DISPLAY ───
-        function showCompliance(compliance) {
-            const panel = document.getElementById('compliance-panel');
-            const status = document.getElementById('compliance-status');
-            const msg = document.getElementById('compliance-message');
-            const pct = document.getElementById('compliance-pct');
-            const detail = document.getElementById('compliance-detail');
-
-            panel.classList.add('visible');
-
-            if (compliance.pass) {
-                status.textContent = 'PASS';
-                status.className = 'compliance-result pass';
-            } else {
-                status.textContent = 'FAIL';
-                status.className = 'compliance-result fail';
-            }
-
-            pct.textContent = compliance.percentage.toFixed(1) + '%';
-            msg.textContent = 'of amenity area receives ≥' +
-                compliance.threshold_hours + 'h sunlight on 21 March';
-            detail.innerHTML =
-                'Total cells: ' + compliance.cells_total +
-                ' &nbsp;|&nbsp; Cells meeting threshold: ' + compliance.cells_meeting +
-                '<br>BRE BR209 requires ≥50% of area receiving ≥2h sunlight';
-        }
-
-        // ─── EXPORT DOWNLOADS ───
-        function downloadGLB() {
-            const btn = document.getElementById('glb-btn');
-            btn.textContent = 'Generating...';
-            btn.disabled = true;
-
-            fetch('/api/download_glb', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({}),
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('GLB generation failed');
-                return response.blob();
-            })
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                const today = new Date();
-                const dd = String(today.getDate()).padStart(2, '0');
-                const mm = String(today.getMonth() + 1).padStart(2, '0');
-                const yy = String(today.getFullYear()).slice(-2);
-                a.download = `SunForm_${dd}-${mm}-${yy}.glb`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            })
-            .catch(err => alert('GLB export error: ' + err.message))
-            .finally(() => {
-                btn.textContent = 'Download GLB';
-                btn.disabled = false;
-            });
-        }
-
-        function downloadPDF() {
-            const btn = document.getElementById('pdf-btn');
-            btn.textContent = 'Generating...';
-            btn.disabled = true;
-
-            fetch('/api/download_pdf', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    latitude: parseFloat(document.getElementById('latitude').value),
-                    longitude: parseFloat(document.getElementById('longitude').value),
-                }),
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('PDF generation failed');
-                return response.blob();
-            })
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                const today = new Date();
-                const dd = String(today.getDate()).padStart(2, '0');
-                const mm = String(today.getMonth() + 1).padStart(2, '0');
-                const yy = String(today.getFullYear()).slice(-2);
-                a.download = `SunForm_Report_${dd}-${mm}-${yy}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            })
-            .catch(err => alert('PDF export error: ' + err.message))
-            .finally(() => {
-                btn.textContent = 'Download PDF';
-                btn.disabled = false;
-            });
-        }
 
         // ─── STATUS HELPERS ───
         function showStatus(msg) {
