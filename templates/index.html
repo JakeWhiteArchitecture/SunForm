@@ -676,8 +676,20 @@
                     for (let i = 0; i < placedGeometries.size(); i++) {
                         const placedGeom = placedGeometries.get(i);
                         const geomData = ifcApi.GetGeometry(modelID, placedGeom.geometryExpressID);
-                        const verts = ifcApi.GetVertexArray(geomData.GetVertexData(), geomData.GetVertexDataSize());
-                        const indices = ifcApi.GetIndexArray(geomData.GetIndexData(), geomData.GetIndexDataSize());
+
+                        const vertPtr = geomData.GetVertexData();
+                        const vertSize = geomData.GetVertexDataSize();
+                        const idxPtr = geomData.GetIndexData();
+                        const idxSize = geomData.GetIndexDataSize();
+
+                        // Copy data from WASM heap BEFORE calling delete()
+                        const vertsRaw = ifcApi.GetVertexArray(vertPtr, vertSize);
+                        const idxRaw = ifcApi.GetIndexArray(idxPtr, idxSize);
+                        const verts = new Float32Array(vertsRaw);
+                        const indices = new Uint32Array(idxRaw);
+
+                        // Free WASM memory now that we have copies
+                        geomData.delete();
 
                         if (verts.length === 0 || indices.length === 0) continue;
 
@@ -709,8 +721,6 @@
                         }
 
                         vertexOffset += numVerts;
-
-                        geomData.delete();
                     }
                 });
 
@@ -758,7 +768,10 @@
             const geo = new THREE.BufferGeometry();
             const positions = new Float32Array(vertices);
             geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geo.setIndex(indices);
+
+            // Use Uint32Array for index buffer (models can exceed 65535 vertices)
+            const indexArray = new Uint32Array(indices);
+            geo.setIndex(new THREE.BufferAttribute(indexArray, 1));
             geo.computeVertexNormals();
 
             // White massing material — strip all textures/colours
