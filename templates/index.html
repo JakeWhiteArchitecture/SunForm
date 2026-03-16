@@ -790,6 +790,150 @@
                 document.getElementById('bbox_max_x').value = bb.max.x.toFixed(1);
                 document.getElementById('bbox_max_y').value = (-bb.min.z).toFixed(1);
             }
+
+            // Build BVH for fast ray casting
+            showStatus('Building BVH acceleration structure...');
+            const posArr = geo.attributes.position.array;
+            const idxArr = geo.index.array;
+            sceneBVH = new BVH(posArr, idxArr);
+            console.log('BVH built:', (idxArr.length / 3) + ' triangles');
+            hideStatus();
+        }
+
+        // ─── BVH (Bounding Volume Hierarchy) for fast ray casting ───
+        let sceneBVH = null;  // built after IFC load
+
+        class BVH {
+            constructor(positions, index) {
+                // Extract triangle data
+                const triCount = index.length / 3;
+                const tris = new Array(triCount);
+                for (let i = 0; i < triCount; i++) {
+                    const i0 = index[i * 3] * 3, i1 = index[i * 3 + 1] * 3, i2 = index[i * 3 + 2] * 3;
+                    const ax = positions[i0], ay = positions[i0+1], az = positions[i0+2];
+                    const bx = positions[i1], by = positions[i1+1], bz = positions[i1+2];
+                    const cx = positions[i2], cy = positions[i2+1], cz = positions[i2+2];
+                    tris[i] = {
+                        ax, ay, az, bx, by, bz, cx, cy, cz,
+                        centX: (ax + bx + cx) / 3,
+                        centY: (ay + by + cy) / 3,
+                        centZ: (az + bz + cz) / 3,
+                    };
+                }
+                this.root = this._build(tris, 0, tris.length);
+            }
+
+            _build(tris, start, end) {
+                // Compute AABB
+                let mnx = Infinity, mny = Infinity, mnz = Infinity;
+                let mxx = -Infinity, mxy = -Infinity, mxz = -Infinity;
+                for (let i = start; i < end; i++) {
+                    const t = tris[i];
+                    mnx = Math.min(mnx, t.ax, t.bx, t.cx);
+                    mny = Math.min(mny, t.ay, t.by, t.cy);
+                    mnz = Math.min(mnz, t.az, t.bz, t.cz);
+                    mxx = Math.max(mxx, t.ax, t.bx, t.cx);
+                    mxy = Math.max(mxy, t.ay, t.by, t.cy);
+                    mxz = Math.max(mxz, t.az, t.bz, t.cz);
+                }
+                const node = { minX: mnx, minY: mny, minZ: mnz, maxX: mxx, maxY: mxy, maxZ: mxz };
+                const count = end - start;
+
+                if (count <= 8) {
+                    // Leaf node — store triangles directly as flat Float64Array for cache performance
+                    const buf = new Float64Array(count * 9);
+                    for (let i = start; i < end; i++) {
+                        const t = tris[i], o = (i - start) * 9;
+                        buf[o] = t.ax; buf[o+1] = t.ay; buf[o+2] = t.az;
+                        buf[o+3] = t.bx; buf[o+4] = t.by; buf[o+5] = t.bz;
+                        buf[o+6] = t.cx; buf[o+7] = t.cy; buf[o+8] = t.cz;
+                    }
+                    node.tris = buf;
+                    node.triCount = count;
+                    return node;
+                }
+
+                // Split along longest axis at median centroid
+                const dx = mxx - mnx, dy = mxy - mny, dz = mxz - mnz;
+                const axis = dx >= dy && dx >= dz ? 'centX' : dy >= dz ? 'centY' : 'centZ';
+
+                // Partition using nth_element style (partial sort at median)
+                const mid = (start + end) >> 1;
+                // Simple in-place partition: sort slice by axis
+                const slice = tris.slice(start, end);
+                slice.sort((a, b) => a[axis] - b[axis]);
+                for (let i = 0; i < slice.length; i++) tris[start + i] = slice[i];
+
+                node.left = this._build(tris, start, mid);
+                node.right = this._build(tris, mid, end);
+                return node;
+            }
+
+            // Returns true if ray hits ANY triangle (early exit)
+            intersectsAny(ox, oy, oz, dx, dy, dz) {
+                const invDx = 1 / dx, invDy = 1 / dy, invDz = 1 / dz;
+                return this._query(this.root, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz);
+            }
+
+            _query(node, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz) {
+                // Ray-AABB slab test
+                let tmin, tmax, tymin, tymax, tzmin, tzmax;
+                if (invDx >= 0) {
+                    tmin = (node.minX - ox) * invDx;
+                    tmax = (node.maxX - ox) * invDx;
+                } else {
+                    tmin = (node.maxX - ox) * invDx;
+                    tmax = (node.minX - ox) * invDx;
+                }
+                if (invDy >= 0) {
+                    tymin = (node.minY - oy) * invDy;
+                    tymax = (node.maxY - oy) * invDy;
+                } else {
+                    tymin = (node.maxY - oy) * invDy;
+                    tymax = (node.minY - oy) * invDy;
+                }
+                if (tmin > tymax || tymin > tmax) return false;
+                if (tymin > tmin) tmin = tymin;
+                if (tymax < tmax) tmax = tymax;
+                if (invDz >= 0) {
+                    tzmin = (node.minZ - oz) * invDz;
+                    tzmax = (node.maxZ - oz) * invDz;
+                } else {
+                    tzmin = (node.maxZ - oz) * invDz;
+                    tzmax = (node.minZ - oz) * invDz;
+                }
+                if (tmin > tzmax || tzmin > tmax) return false;
+                if (tzmin > tmin) tmin = tzmin;
+                if (tzmax < tmax) tmax = tzmax;
+                if (tmax < 0) return false;
+
+                // Leaf node — Möller-Trumbore ray-triangle test
+                if (node.tris) {
+                    const buf = node.tris;
+                    for (let i = 0; i < node.triCount; i++) {
+                        const o = i * 9;
+                        const e1x = buf[o+3] - buf[o], e1y = buf[o+4] - buf[o+1], e1z = buf[o+5] - buf[o+2];
+                        const e2x = buf[o+6] - buf[o], e2y = buf[o+7] - buf[o+1], e2z = buf[o+8] - buf[o+2];
+                        const px = dy * e2z - dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y - dy * e2x;
+                        const det = e1x * px + e1y * py + e1z * pz;
+                        if (det > -1e-10 && det < 1e-10) continue;
+                        const invDet = 1 / det;
+                        const tx = ox - buf[o], ty = oy - buf[o+1], tz = oz - buf[o+2];
+                        const u = (tx * px + ty * py + tz * pz) * invDet;
+                        if (u < 0 || u > 1) continue;
+                        const qx = ty * e1z - tz * e1y, qy = tz * e1x - tx * e1z, qz = tx * e1y - ty * e1x;
+                        const v = (dx * qx + dy * qy + dz * qz) * invDet;
+                        if (v < 0 || u + v > 1) continue;
+                        const t = (e2x * qx + e2y * qy + e2z * qz) * invDet;
+                        if (t > 1e-4) return true;  // hit!
+                    }
+                    return false;
+                }
+
+                // Internal node — recurse both children
+                return this._query(node.left, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz)
+                    || this._query(node.right, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz);
+            }
         }
 
         // ─── SUN POSITION CALCULATOR (pure JS — replaces ladybug Sunpath) ───
@@ -884,20 +1028,20 @@
             const totalRays = gridPoints.length * sunPositions.length;
             showStatus(`Casting ${totalRays.toLocaleString()} rays (${gridPoints.length} cells x ${sunPositions.length} sun positions)...`);
 
-            // Pre-compute sun direction vectors
-            const sunDirs = sunPositions.map(sp => sunDirection(sp.azimuth, sp.altitude));
-
-            const raycaster = new THREE.Raycaster();
-            raycaster.firstHitOnly = true;
+            // Pre-compute sun direction vectors as plain arrays for BVH
+            const sunDirs = sunPositions.map(sp => {
+                const v = sunDirection(sp.azimuth, sp.altitude);
+                return [v.x, v.y, v.z];
+            });
 
             const sunHours = new Float32Array(gridPoints.length);
             let raysProcessed = 0;
 
             // Process in batches to keep UI responsive
-            const BATCH_SIZE = 500;
+            const BATCH_SIZE = 2000;
 
             for (let sunIdx = 0; sunIdx < sunDirs.length; sunIdx++) {
-                const dir = sunDirs[sunIdx];
+                const [dx, dy, dz] = sunDirs[sunIdx];
 
                 for (let i = 0; i < gridPoints.length; i += BATCH_SIZE) {
                     const end = Math.min(i + BATCH_SIZE, gridPoints.length);
@@ -905,12 +1049,7 @@
                     for (let j = i; j < end; j++) {
                         const gp = gridPoints[j];
                         // Ray origin in Three.js coords (IFC X → Three X, IFC Y → Three -Z, Z=0 → Y=0.1)
-                        const origin = new THREE.Vector3(gp.ifcX, 0.1, -gp.ifcY);
-                        raycaster.set(origin, dir);
-
-                        const hits = raycaster.intersectObject(buildingMesh, false);
-                        if (hits.length === 0) {
-                            // No hit = sunlight reaches this cell
+                        if (!sceneBVH.intersectsAny(gp.ifcX, 0.1, -gp.ifcY, dx, dy, dz)) {
                             sunHours[j] += timeStep;
                         }
                     }
