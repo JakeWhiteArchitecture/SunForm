@@ -1,140 +1,214 @@
 """
-IFC Staircase Generator — Flask Application
+SUNFORM — Sun Hours Analysis Tool
 
-A locally-hosted web application that generates valid IFC 2x3 files
-for parametric staircases (straight, single-winder, double-winder).
+Flask backend for calculating sun hours on outdoor amenity areas
+to support UK planning applications (BRE BR209 compliance).
 """
 
 import os
-from datetime import date
-from flask import Flask, render_template, request, jsonify, send_file
-from ifc_generator import meshes_to_ifc
-from stair_preview import generate_preview_geometry
+import tempfile
+import traceback
+from datetime import date, datetime
+
+from flask import Flask, make_response, render_template, request, jsonify, \
+    send_file
+
+from sun_analysis import (
+    parse_ifc,
+    parse_ifc_to_json,
+    run_analysis,
+    generate_heatmap_mesh,
+    export_glb,
+    export_pdf,
+    render_heatmap_image,
+)
 
 app = Flask(__name__)
+
+# Store uploaded IFC mesh in memory per session (simple single-user approach)
+_state = {
+    "building_mesh": None,
+    "ifc_metadata": None,
+    "last_results": None,
+}
 
 
 @app.route("/")
 def index():
-    response = render_template("index.html")
-    from flask import make_response
-    resp = make_response(response)
-    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp = make_response(render_template("index.html"))
+    resp.headers["Cache-Control"] = (
+        "no-store, no-cache, must-revalidate, max-age=0"
+    )
     resp.headers["Pragma"] = "no-cache"
     resp.headers["Expires"] = "0"
     return resp
 
 
-@app.route("/stair_preview.py")
-def serve_stair_preview():
-    """Serve stair_preview.py so the Pyodide frontend can fetch it."""
-    from flask import send_from_directory
-    resp = send_from_directory(os.path.dirname(__file__), "stair_preview.py",
-                               mimetype="text/plain")
-    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    return resp
+@app.route("/api/upload_ifc", methods=["POST"])
+def upload_ifc():
+    """Upload and parse an IFC file. Returns geometry for Three.js preview."""
+    if "file" not in request.files:
+        return jsonify({"success": False, "error": "No file uploaded"}), 400
 
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"success": False, "error": "No file selected"}), 400
 
-@app.route("/ifc_generator.py")
-def serve_ifc_generator():
-    """Serve ifc_generator.py so the Pyodide frontend can fetch it for IFC export."""
-    from flask import send_from_directory
-    resp = send_from_directory(os.path.dirname(__file__), "ifc_generator.py",
-                               mimetype="text/plain")
-    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    return resp
-
-
-@app.route("/dxf_generator.py")
-def serve_dxf_generator():
-    """Serve dxf_generator.py so the Pyodide frontend can fetch it for DXF export."""
-    from flask import send_from_directory
-    resp = send_from_directory(os.path.dirname(__file__), "dxf_generator.py",
-                               mimetype="text/plain")
-    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    return resp
-
-
-@app.route("/StairSmith-Logo.png")
-def serve_logo():
-    """Serve the StairSmith logo image."""
-    from flask import send_from_directory
-    return send_from_directory(os.path.dirname(__file__), "StairSmith-Logo.png",
-                               mimetype="image/png")
-
-
-@app.route("/api/preview", methods=["POST"])
-def preview():
-    """
-    Return 3D geometry data as JSON for the Three.js preview.
-    This generates the staircase geometry as mesh data without creating an IFC file.
-    Also returns plan dimension data so the 3D viewer can show matching dimensions.
-    """
-    params = request.get_json()
+    # Save to temp file
+    fd, filepath = tempfile.mkstemp(suffix=".ifc")
+    os.close(fd)
     try:
-        geometry = generate_preview_geometry(params)
-        # Compute plan dimensions (same logic as DXF output)
-        try:
-            from dxf_generator import _compute_plan_dimensions
-            dims = _compute_plan_dimensions(geometry, params, 0, 0)
-            # Convert to simple format for JS: [{p1:[x,y], p2:[x,y], label:str}]
-            import math
-            dim_data = []
-            for d in dims:
-                length = math.hypot(d["p2"][0] - d["p1"][0],
-                                    d["p2"][1] - d["p1"][1])
-                lbl = d.get("label") or ("%.0f" % length)
-                dim_data.append({
-                    "p1": list(d["p1"]),
-                    "p2": list(d["p2"]),
-                    "label": lbl,
-                })
-        except Exception:
-            dim_data = []
-        return jsonify({"success": True, "geometry": geometry,
-                        "dimensions": dim_data})
+        f.save(filepath)
+        geometry_json = parse_ifc_to_json(filepath)
+        mesh, metadata = parse_ifc(filepath)
+
+        _state["building_mesh"] = mesh
+        _state["ifc_metadata"] = metadata
+        _state["last_results"] = None
+
+        return jsonify({
+            "success": True,
+            "geometry": geometry_json,
+        })
     except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 400
+    finally:
+        if os.path.exists(filepath):
+            os.unlink(filepath)
+
+
+@app.route("/api/analyse", methods=["POST"])
+def analyse():
+    """Run sun hours analysis on the uploaded IFC with user-defined parameters."""
+    if _state["building_mesh"] is None:
+        return jsonify({
+            "success": False,
+            "error": "No IFC file uploaded. Please upload an IFC first.",
+        }), 400
+
+    params = request.get_json()
+    if not params:
+        return jsonify({"success": False, "error": "No parameters"}), 400
+
+    try:
+        bbox_min = [float(params["bbox_min_x"]), float(params["bbox_min_y"])]
+        bbox_max = [float(params["bbox_max_x"]), float(params["bbox_max_y"])]
+        latitude = float(params["latitude"])
+        longitude = float(params["longitude"])
+        cell_size = float(params.get("cell_size", 0.5))
+        time_step = float(params.get("time_step", 1.0))
+
+        # Parse analysis date (default 21 March)
+        date_str = params.get("date", "2024-03-21")
+        analysis_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+        results = run_analysis(
+            building_mesh=_state["building_mesh"],
+            bbox_min=bbox_min,
+            bbox_max=bbox_max,
+            latitude=latitude,
+            longitude=longitude,
+            cell_size=cell_size,
+            date=analysis_date,
+            time_step=time_step,
+        )
+
+        _state["last_results"] = results
+
+        return jsonify({
+            "success": True,
+            "compliance": results["compliance"],
+            "heatmap_cells": results["heatmap_cells"],
+            "cell_size": results["cell_size"],
+            "grid_shape": list(results["grid_shape"]),
+            "num_sun_positions": len(results["sun_positions"]),
+            "sun_positions": results["sun_positions"],
+        })
+
+    except Exception as e:
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 400
 
 
-@app.route("/api/download", methods=["POST"])
-def download():
-    """Generate and download an IFC file.
+@app.route("/api/download_glb", methods=["POST"])
+def download_glb():
+    """Export the analysis results as a GLB file."""
+    results = _state["last_results"]
+    building = _state["building_mesh"]
 
-    Uses the same preview geometry as the 3D preview, converted to IFC.
-    This guarantees the IFC file matches what the user sees on screen.
-    """
-    params = request.get_json()
+    if results is None:
+        return jsonify({
+            "success": False,
+            "error": "No analysis results. Run analysis first.",
+        }), 400
+
     try:
-        meshes = generate_preview_geometry(params)
-        filepath = meshes_to_ifc(meshes)
+        heatmap_mesh = generate_heatmap_mesh(
+            results["grid_points"],
+            results["grid_shape"],
+            results["sun_hours"],
+            results["cell_size"],
+        )
+
+        filepath = export_glb(building, heatmap_mesh)
         today = date.today().strftime("%d-%m-%y")
-        return send_file(
+        resp = send_file(
             filepath,
             as_attachment=True,
-            download_name=f"StairSmith_{today}_1.ifc",
-            mimetype="application/x-step",
+            download_name=f"SunForm_{today}.glb",
+            mimetype="model/gltf-binary",
         )
+        return resp
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 400
 
 
-@app.route("/api/download_dxf", methods=["POST"])
-def download_dxf():
-    """Generate and download a DXF plan-view file."""
-    from dxf_generator import meshes_to_dxf
-    params = request.get_json()
+@app.route("/api/download_pdf", methods=["POST"])
+def download_pdf():
+    """Export the analysis results as a PDF report."""
+    results = _state["last_results"]
+    if results is None:
+        return jsonify({
+            "success": False,
+            "error": "No analysis results. Run analysis first.",
+        }), 400
+
+    params = request.get_json() or {}
+    latitude = float(params.get("latitude", 51.5))
+    longitude = float(params.get("longitude", -0.1))
+
     try:
-        meshes = generate_preview_geometry(params)
-        filepath = meshes_to_dxf(meshes, params)
-        return send_file(
+        # Render heat map image
+        img_path = render_heatmap_image(
+            results["grid_points"],
+            results["grid_shape"],
+            results["sun_hours"],
+            results["cell_size"],
+        )
+
+        filepath = export_pdf(
+            compliance=results["compliance"],
+            latitude=latitude,
+            longitude=longitude,
+            heatmap_image_path=img_path,
+        )
+
+        today = date.today().strftime("%d-%m-%y")
+        resp = send_file(
             filepath,
             as_attachment=True,
-            download_name=f"StairSmith_{date.today().strftime('%d-%m-%y')}_1.dxf",
-            mimetype="application/dxf",
+            download_name=f"SunForm_Report_{today}.pdf",
+            mimetype="application/pdf",
         )
+
+        # Clean up temp image
+        if img_path and os.path.exists(img_path):
+            os.unlink(img_path)
+
+        return resp
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 400
 
