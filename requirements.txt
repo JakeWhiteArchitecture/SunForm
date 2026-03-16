@@ -1,5 +1,4 @@
 flask>=3.0
-ifcopenshell>=0.7
 trimesh>=4.0
 rtree>=1.0
 numpy>=1.24

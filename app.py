@@ -6,7 +6,6 @@ to support UK planning applications (BRE BR209 compliance).
 """
 
 import os
-import tempfile
 import traceback
 from datetime import date, datetime
 
@@ -14,8 +13,7 @@ from flask import Flask, make_response, render_template, request, jsonify, \
     send_file
 
 from sun_analysis import (
-    parse_ifc,
-    parse_ifc_to_json,
+    load_glb,
     run_analysis,
     generate_heatmap_mesh,
     export_glb,
@@ -44,23 +42,23 @@ def index():
     return resp
 
 
-@app.route("/api/upload_ifc", methods=["POST"])
-def upload_ifc():
-    """Upload and parse an IFC file. Returns geometry for Three.js preview."""
+@app.route("/api/upload_glb", methods=["POST"])
+def upload_glb():
+    """Receive GLB geometry exported from the client-side Three.js scene.
+
+    The frontend parses the IFC using web-ifc (WASM), renders it, then
+    exports the building meshes as GLB via Three.js GLTFExporter.
+    """
     if "file" not in request.files:
-        return jsonify({"success": False, "error": "No file uploaded"}), 400
+        return jsonify({"success": False, "error": "No GLB file uploaded"}), 400
 
     f = request.files["file"]
     if not f.filename:
         return jsonify({"success": False, "error": "No file selected"}), 400
 
-    # Save to temp file
-    fd, filepath = tempfile.mkstemp(suffix=".ifc")
-    os.close(fd)
     try:
-        f.save(filepath)
-        geometry_json = parse_ifc_to_json(filepath)
-        mesh, metadata = parse_ifc(filepath)
+        glb_data = f.read()
+        mesh, metadata = load_glb(glb_data)
 
         _state["building_mesh"] = mesh
         _state["ifc_metadata"] = metadata
@@ -68,14 +66,11 @@ def upload_ifc():
 
         return jsonify({
             "success": True,
-            "geometry": geometry_json,
+            "metadata": metadata,
         })
     except Exception as e:
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 400
-    finally:
-        if os.path.exists(filepath):
-            os.unlink(filepath)
 
 
 @app.route("/api/analyse", methods=["POST"])
@@ -84,7 +79,7 @@ def analyse():
     if _state["building_mesh"] is None:
         return jsonify({
             "success": False,
-            "error": "No IFC file uploaded. Please upload an IFC first.",
+            "error": "No building geometry loaded. Please upload an IFC first.",
         }), 400
 
     params = request.get_json()

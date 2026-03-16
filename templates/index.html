@@ -346,27 +346,6 @@
             border-top: 1px solid #0f3460;
         }
 
-        /* ─── TOGGLE FIELD ─── */
-        .toggle-field {
-            margin-bottom: 8px;
-        }
-
-        .toggle-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            font-size: 13px;
-            color: #ccc;
-        }
-
-        .toggle-label input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            accent-color: #e94560;
-            cursor: pointer;
-        }
-
         /* ─── LEGEND ─── */
         .legend {
             display: flex;
@@ -542,9 +521,13 @@
         <div class="status-overlay" id="status-overlay" style="display:none;"></div>
     </div>
 
-    <!-- Three.js -->
+    <!-- Three.js r128 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- GLTFExporter for exporting scene geometry as GLB to send to backend -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+    <!-- web-ifc for client-side IFC parsing (WASM) -->
+    <script src="https://cdn.jsdelivr.net/npm/web-ifc@0.0.57/web-ifc-api-iife.js"></script>
 
     <script>
         // ─── THREE.JS SETUP ───
@@ -553,6 +536,8 @@
         let heatmapGroup = null;
         let bboxHelper = null;
         let groundPlane = null;
+        let ifcApi = null;
+        let ifcLoaded = false;
 
         function initThree() {
             const container = document.getElementById('viewport');
@@ -624,7 +609,19 @@
             renderer.render(scene, camera);
         }
 
-        // ─── IFC UPLOAD ───
+        // ─── INIT WEB-IFC ───
+        async function initWebIfc() {
+            try {
+                ifcApi = new WebIFC.IfcAPI();
+                await ifcApi.Init();
+                console.log('web-ifc initialised');
+            } catch (err) {
+                console.error('web-ifc init failed:', err);
+                ifcApi = null;
+            }
+        }
+
+        // ─── IFC UPLOAD (client-side parsing) ───
         const uploadZone = document.getElementById('upload-zone');
 
         uploadZone.addEventListener('dragover', (e) => {
@@ -641,56 +638,111 @@
             uploadZone.classList.remove('dragover');
             const files = e.dataTransfer.files;
             if (files.length > 0 && files[0].name.toLowerCase().endsWith('.ifc')) {
-                uploadIFCFile(files[0]);
+                parseIFCClientSide(files[0]);
             }
         });
 
         function handleFileUpload(input) {
             if (input.files.length > 0) {
-                uploadIFCFile(input.files[0]);
+                parseIFCClientSide(input.files[0]);
             }
         }
 
-        function uploadIFCFile(file) {
-            const formData = new FormData();
-            formData.append('file', file);
+        async function parseIFCClientSide(file) {
+            if (!ifcApi) {
+                document.getElementById('upload-text').textContent =
+                    'web-ifc not ready. Please wait and try again.';
+                return;
+            }
 
             const progressBar = document.getElementById('upload-progress');
             progressBar.classList.add('visible');
+            document.getElementById('upload-text').textContent = 'Parsing IFC (client-side)...';
+            showStatus('Parsing IFC file in browser...');
 
-            document.getElementById('upload-text').textContent = 'Uploading & parsing...';
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
 
-            showStatus('Parsing IFC file...');
+                const modelID = ifcApi.OpenModel(data);
 
-            fetch('/api/upload_ifc', {
-                method: 'POST',
-                body: formData,
-            })
-            .then(r => r.json())
-            .then(data => {
-                progressBar.classList.remove('visible');
-                if (data.success) {
-                    uploadZone.classList.add('loaded');
-                    document.getElementById('upload-text').textContent = 'IFC loaded';
-                    document.getElementById('upload-filename').textContent = file.name;
-                    document.getElementById('upload-filename').style.display = 'block';
-                    renderBuilding(data.geometry);
-                    document.getElementById('run-btn').disabled = false;
-                    hideStatus();
-                } else {
-                    document.getElementById('upload-text').textContent = 'Upload failed: ' + data.error;
-                    uploadZone.classList.remove('loaded');
-                    hideStatus();
+                // Extract all mesh geometry
+                const allVertices = [];
+                const allIndices = [];
+                let vertexOffset = 0;
+
+                ifcApi.StreamAllMeshes(modelID, (mesh) => {
+                    const placedGeometries = mesh.geometries;
+                    for (let i = 0; i < placedGeometries.size(); i++) {
+                        const placedGeom = placedGeometries.get(i);
+                        const geomData = ifcApi.GetGeometry(modelID, placedGeom.geometryExpressID);
+                        const verts = ifcApi.GetVertexArray(geomData.GetVertexData(), geomData.GetVertexDataSize());
+                        const indices = ifcApi.GetIndexArray(geomData.GetIndexData(), geomData.GetIndexDataSize());
+
+                        if (verts.length === 0 || indices.length === 0) continue;
+
+                        // web-ifc vertex format: x, y, z, nx, ny, nz per vertex (6 floats)
+                        const flatMatrix = placedGeom.flatTransformation;
+
+                        // Parse transform matrix (column-major 4x4)
+                        const m = new THREE.Matrix4();
+                        m.set(
+                            flatMatrix[0], flatMatrix[4], flatMatrix[8],  flatMatrix[12],
+                            flatMatrix[1], flatMatrix[5], flatMatrix[9],  flatMatrix[13],
+                            flatMatrix[2], flatMatrix[6], flatMatrix[10], flatMatrix[14],
+                            flatMatrix[3], flatMatrix[7], flatMatrix[11], flatMatrix[15]
+                        );
+
+                        const numVerts = verts.length / 6;
+                        for (let v = 0; v < numVerts; v++) {
+                            const pos = new THREE.Vector3(
+                                verts[v * 6],
+                                verts[v * 6 + 1],
+                                verts[v * 6 + 2]
+                            );
+                            pos.applyMatrix4(m);
+                            allVertices.push(pos.x, pos.y, pos.z);
+                        }
+
+                        for (let idx = 0; idx < indices.length; idx++) {
+                            allIndices.push(indices[idx] + vertexOffset);
+                        }
+
+                        vertexOffset += numVerts;
+
+                        geomData.delete();
+                    }
+                });
+
+                ifcApi.CloseModel(modelID);
+
+                if (allVertices.length === 0) {
+                    throw new Error('No geometry found in IFC file');
                 }
-            })
-            .catch(err => {
+
+                // Build Three.js geometry
+                renderBuildingFromArrays(allVertices, allIndices);
+                ifcLoaded = true;
+
+                uploadZone.classList.add('loaded');
+                document.getElementById('upload-text').textContent = 'IFC loaded (client-side)';
+                document.getElementById('upload-filename').textContent = file.name;
+                document.getElementById('upload-filename').style.display = 'block';
+                document.getElementById('run-btn').disabled = false;
                 progressBar.classList.remove('visible');
-                document.getElementById('upload-text').textContent = 'Upload error: ' + err.message;
                 hideStatus();
-            });
+
+            } catch (err) {
+                console.error('IFC parse error:', err);
+                progressBar.classList.remove('visible');
+                document.getElementById('upload-text').textContent =
+                    'Parse error: ' + err.message;
+                uploadZone.classList.remove('loaded');
+                hideStatus();
+            }
         }
 
-        function renderBuilding(geometry) {
+        function renderBuildingFromArrays(vertices, indices) {
             // Remove old building
             if (buildingGroup) {
                 scene.remove(buildingGroup);
@@ -701,29 +753,15 @@
             }
 
             buildingGroup = new THREE.Group();
+            buildingGroup.name = 'buildings';
 
-            const vertices = geometry.vertices;
-            const faces = geometry.faces;
-
-            // Create buffer geometry
             const geo = new THREE.BufferGeometry();
-            const positions = new Float32Array(faces.length * 3 * 3);
-
-            for (let i = 0; i < faces.length; i++) {
-                const [a, b, c] = faces[i];
-                const va = vertices[a];
-                const vb = vertices[b];
-                const vc = vertices[c];
-                const idx = i * 9;
-                positions[idx]     = va[0]; positions[idx + 1] = va[2]; positions[idx + 2] = -va[1];
-                positions[idx + 3] = vb[0]; positions[idx + 4] = vb[2]; positions[idx + 5] = -vb[1];
-                positions[idx + 6] = vc[0]; positions[idx + 7] = vc[2]; positions[idx + 8] = -vc[1];
-            }
-
+            const positions = new Float32Array(vertices);
             geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geo.setIndex(indices);
             geo.computeVertexNormals();
 
-            // White massing material
+            // White massing material — strip all textures/colours
             const mat = new THREE.MeshPhongMaterial({
                 color: 0xdddddd,
                 flatShading: true,
@@ -731,28 +769,29 @@
             });
 
             const mesh = new THREE.Mesh(geo, mat);
+            mesh.name = 'building_mesh';
             buildingGroup.add(mesh);
 
             // Wireframe edges
             const edges = new THREE.EdgesGeometry(geo, 15);
             const line = new THREE.LineSegments(edges,
                 new THREE.LineBasicMaterial({ color: 0x333355 }));
+            line.name = 'building_edges';
             buildingGroup.add(line);
 
             scene.add(buildingGroup);
 
             // Fit camera to building bounds
-            const meta = geometry.metadata;
-            if (meta) {
-                const bmin = meta.bounds_min;
-                const bmax = meta.bounds_max;
-                const cx = (bmin[0] + bmax[0]) / 2;
-                const cy = (bmin[2] + bmax[2]) / 2;  // IFC Z → Three.js Y
-                const cz = -(bmin[1] + bmax[1]) / 2;  // IFC Y → Three.js -Z
+            geo.computeBoundingBox();
+            const bb = geo.boundingBox;
+            if (bb) {
+                const cx = (bb.min.x + bb.max.x) / 2;
+                const cy = (bb.min.y + bb.max.y) / 2;
+                const cz = (bb.min.z + bb.max.z) / 2;
                 const size = Math.max(
-                    bmax[0] - bmin[0],
-                    bmax[1] - bmin[1],
-                    bmax[2] - bmin[2]
+                    bb.max.x - bb.min.x,
+                    bb.max.y - bb.min.y,
+                    bb.max.z - bb.min.z
                 );
                 const dist = size * 1.5;
                 camera.position.set(cx + dist, cy + dist * 0.7, cz + dist);
@@ -760,11 +799,45 @@
                 controls.update();
 
                 // Auto-fill bounding box with building footprint
-                document.getElementById('bbox_min_x').value = bmin[0].toFixed(1);
-                document.getElementById('bbox_min_y').value = bmin[1].toFixed(1);
-                document.getElementById('bbox_max_x').value = bmax[0].toFixed(1);
-                document.getElementById('bbox_max_y').value = bmax[1].toFixed(1);
+                // web-ifc uses Y-up, so X/Z are the plan coords, Y is height
+                // But Three.js also uses Y-up, so bb.min/max are in Three.js coords
+                // For the backend: IFC X → Three X, IFC Y → Three Z (negated), IFC Z → Three Y
+                // The backend grid uses IFC coords (X, Y at Z=0)
+                // Three.js X = IFC X, Three.js Z = -IFC Y
+                document.getElementById('bbox_min_x').value = bb.min.x.toFixed(1);
+                document.getElementById('bbox_min_y').value = (-bb.max.z).toFixed(1);
+                document.getElementById('bbox_max_x').value = bb.max.x.toFixed(1);
+                document.getElementById('bbox_max_y').value = (-bb.min.z).toFixed(1);
             }
+        }
+
+        // ─── EXPORT BUILDING AS GLB FOR BACKEND ───
+        async function exportBuildingAsGLB() {
+            return new Promise((resolve, reject) => {
+                if (!buildingGroup) {
+                    reject(new Error('No building geometry to export'));
+                    return;
+                }
+
+                // Export only the building mesh (not edges/lines) as GLB
+                const exportGroup = new THREE.Group();
+                buildingGroup.traverse(child => {
+                    if (child.isMesh && child.name === 'building_mesh') {
+                        // Clone with a plain material (strip everything)
+                        const clone = child.clone();
+                        clone.material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                        exportGroup.add(clone);
+                    }
+                });
+
+                const exporter = new THREE.GLTFExporter();
+                exporter.parse(exportGroup, (result) => {
+                    // result is an ArrayBuffer for binary GLB
+                    resolve(result);
+                }, (err) => {
+                    reject(err);
+                }, { binary: true });
+            });
         }
 
         // ─── BOUNDING BOX DRAWING TOOL ───
@@ -938,7 +1011,7 @@
         });
 
         // ─── RUN ANALYSIS ───
-        function runAnalysis() {
+        async function runAnalysis() {
             const btn = document.getElementById('run-btn');
             const bboxMinX = parseFloat(document.getElementById('bbox_min_x').value);
             const bboxMinY = parseFloat(document.getElementById('bbox_min_y').value);
@@ -950,53 +1023,78 @@
                 return;
             }
 
-            btn.textContent = 'Analysing...';
+            if (!ifcLoaded) {
+                alert('Please upload an IFC file first.');
+                return;
+            }
+
+            btn.textContent = 'Exporting geometry...';
             btn.disabled = true;
-            showStatus('Calculating sun hours...');
+            showStatus('Exporting building geometry as GLB...');
 
-            const params = {
-                bbox_min_x: bboxMinX,
-                bbox_min_y: bboxMinY,
-                bbox_max_x: bboxMaxX,
-                bbox_max_y: bboxMaxY,
-                latitude: parseFloat(document.getElementById('latitude').value),
-                longitude: parseFloat(document.getElementById('longitude').value),
-                cell_size: parseFloat(document.getElementById('cell_size').value),
-                time_step: parseFloat(document.getElementById('time_step').value),
-                date: document.getElementById('analysis_date').value,
-            };
+            try {
+                // Step 1: Export building geometry from Three.js as GLB
+                const glbArrayBuffer = await exportBuildingAsGLB();
+                const glbBlob = new Blob([glbArrayBuffer], { type: 'model/gltf-binary' });
 
-            fetch('/api/analyse', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(params),
-            })
-            .then(r => r.json())
-            .then(data => {
-                btn.textContent = 'Run Analysis';
-                btn.disabled = false;
+                // Step 2: Upload GLB to backend
+                showStatus('Uploading geometry to server...');
+                const uploadForm = new FormData();
+                uploadForm.append('file', glbBlob, 'building.glb');
 
-                if (data.success) {
-                    renderHeatmap(data.heatmap_cells, data.cell_size);
-                    showCompliance(data.compliance);
+                const uploadResp = await fetch('/api/upload_glb', {
+                    method: 'POST',
+                    body: uploadForm,
+                });
+                const uploadData = await uploadResp.json();
+                if (!uploadData.success) {
+                    throw new Error(uploadData.error);
+                }
+
+                // Step 3: Run analysis
+                showStatus('Calculating sun hours...');
+                btn.textContent = 'Analysing...';
+
+                const params = {
+                    bbox_min_x: bboxMinX,
+                    bbox_min_y: bboxMinY,
+                    bbox_max_x: bboxMaxX,
+                    bbox_max_y: bboxMaxY,
+                    latitude: parseFloat(document.getElementById('latitude').value),
+                    longitude: parseFloat(document.getElementById('longitude').value),
+                    cell_size: parseFloat(document.getElementById('cell_size').value),
+                    time_step: parseFloat(document.getElementById('time_step').value),
+                    date: document.getElementById('analysis_date').value,
+                };
+
+                const analyseResp = await fetch('/api/analyse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params),
+                });
+                const analyseData = await analyseResp.json();
+
+                if (analyseData.success) {
+                    renderHeatmap(analyseData.heatmap_cells, analyseData.cell_size);
+                    showCompliance(analyseData.compliance);
                     document.getElementById('glb-btn').disabled = false;
                     document.getElementById('pdf-btn').disabled = false;
                     showStatus(
-                        `Analysis complete — ${data.num_sun_positions} sun positions, ` +
-                        `${data.grid_shape[0]}x${data.grid_shape[1]} grid`
+                        `Analysis complete — ${analyseData.num_sun_positions} sun positions, ` +
+                        `${analyseData.grid_shape[0]}x${analyseData.grid_shape[1]} grid`
                     );
                     setTimeout(hideStatus, 5000);
                 } else {
-                    alert('Analysis failed: ' + data.error);
-                    hideStatus();
+                    throw new Error(analyseData.error);
                 }
-            })
-            .catch(err => {
+
+            } catch (err) {
+                alert('Analysis failed: ' + err.message);
+                hideStatus();
+            } finally {
                 btn.textContent = 'Run Analysis';
                 btn.disabled = false;
-                alert('Analysis error: ' + err.message);
-                hideStatus();
-            });
+            }
         }
 
         // ─── RENDER HEAT MAP ───
@@ -1179,6 +1277,7 @@
 
         // ─── INIT ───
         initThree();
+        initWebIfc();
     </script>
 </body>
 </html>

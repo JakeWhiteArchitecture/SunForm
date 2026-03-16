@@ -2,7 +2,7 @@
 SUNFORM — Sun Hours Analysis Engine
 
 Core module for:
-- IFC parsing → triangulated trimesh
+- GLB loading → triangulated trimesh (geometry parsed client-side)
 - Ground grid generation
 - Solar position calculation (ladybug Sunpath)
 - Ray casting for shadow analysis
@@ -11,6 +11,7 @@ Core module for:
 - PDF report generation
 """
 
+import io
 import math
 import os
 import tempfile
@@ -27,12 +28,6 @@ try:
     from ladybug.sunpath import Sunpath
 except ImportError:
     Sunpath = None
-
-try:
-    import ifcopenshell
-    import ifcopenshell.geom
-except ImportError:
-    ifcopenshell = None
 
 
 # ── Colour gradient for heat map ──
@@ -67,88 +62,52 @@ def lerp_colour(hours):
 
 
 # ─────────────────────────────────────────────
-# Step 1: Parse IFC → single concatenated trimesh
+# Step 1: Load GLB → single concatenated trimesh
+# (IFC parsing now happens client-side via web-ifc)
 # ─────────────────────────────────────────────
 
-def parse_ifc(filepath):
+def load_glb(file_data):
     """
-    Parse an IFC file and return a single concatenated trimesh.Trimesh
-    containing all building geometry as white massing.
+    Load a GLB file (bytes or file-like object) and return a single
+    concatenated trimesh.Trimesh for ray casting.
+
+    The GLB is exported from the Three.js scene after client-side IFC parsing.
+    It may contain multiple meshes — we concatenate them all.
 
     Returns (trimesh.Trimesh, dict) — mesh and metadata.
     """
-    if ifcopenshell is None:
-        raise ImportError("ifcopenshell is not installed")
     if trimesh is None:
         raise ImportError("trimesh is not installed")
 
-    ifc_file = ifcopenshell.open(filepath)
+    if isinstance(file_data, (bytes, bytearray)):
+        file_data = io.BytesIO(file_data)
 
-    settings = ifcopenshell.geom.settings()
-    settings.set(settings.USE_WORLD_COORDS, True)
+    loaded = trimesh.load(file_data, file_type="glb", force="scene")
 
-    all_vertices = []
-    all_faces = []
-    vertex_offset = 0
+    # Concatenate all meshes in the scene into a single Trimesh
+    meshes = []
+    for name, geom in loaded.geometry.items():
+        if isinstance(geom, trimesh.Trimesh):
+            meshes.append(geom)
 
-    for product in ifc_file.by_type("IfcProduct"):
-        if product.Representation is None:
-            continue
-        try:
-            shape = ifcopenshell.geom.create_shape(settings, product)
-        except Exception:
-            continue
+    if not meshes:
+        raise ValueError("No triangle meshes found in GLB file")
 
-        verts = shape.geometry.verts
-        faces = shape.geometry.faces
-
-        if len(verts) == 0 or len(faces) == 0:
-            continue
-
-        # verts is flat [x0,y0,z0,x1,y1,z1,...], faces is flat [i0,i1,i2,...]
-        v = np.array(verts, dtype=np.float64).reshape(-1, 3)
-        f = np.array(faces, dtype=np.int32).reshape(-1, 3)
-
-        all_vertices.append(v)
-        all_faces.append(f + vertex_offset)
-        vertex_offset += len(v)
-
-    if not all_vertices:
-        raise ValueError("No geometry found in IFC file")
-
-    combined_verts = np.concatenate(all_vertices, axis=0)
-    combined_faces = np.concatenate(all_faces, axis=0)
-
-    mesh = trimesh.Trimesh(vertices=combined_verts, faces=combined_faces,
-                           process=False)
+    if len(meshes) == 1:
+        mesh = meshes[0]
+    else:
+        mesh = trimesh.util.concatenate(meshes)
 
     # Compute bounding box for metadata
     bounds = mesh.bounds  # [[min_x, min_y, min_z], [max_x, max_y, max_z]]
     metadata = {
         "bounds_min": bounds[0].tolist(),
         "bounds_max": bounds[1].tolist(),
-        "num_vertices": len(combined_verts),
-        "num_faces": len(combined_faces),
+        "num_vertices": int(len(mesh.vertices)),
+        "num_faces": int(len(mesh.faces)),
     }
 
     return mesh, metadata
-
-
-def parse_ifc_to_json(filepath):
-    """
-    Parse IFC and return geometry as JSON-serialisable dict for Three.js.
-    All geometry returned as white massing triangles.
-    """
-    mesh, metadata = parse_ifc(filepath)
-
-    vertices = mesh.vertices.tolist()
-    faces = mesh.faces.tolist()
-
-    return {
-        "vertices": vertices,
-        "faces": faces,
-        "metadata": metadata,
-    }
 
 
 # ─────────────────────────────────────────────
