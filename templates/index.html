@@ -741,7 +741,7 @@
     <!-- ─── DISCLAIMER MODAL ─── -->
     <div class="modal-overlay" id="disclaimer-modal">
         <div class="modal-box">
-            <img src="/static/img/sunform-logo.png" alt="SunForm" class="modal-logo">
+            <img src="/sunform-logo.png" alt="SunForm" class="modal-logo">
             <h2>SunForm <span class="beta-badge">Beta</span></h2>
             <div class="modal-subtitle">Indicative Sun Hours Analysis Tool</div>
 
@@ -820,7 +820,7 @@
 
     <div class="panel">
       <div class="panel-scroll">
-        <img src="/static/img/sunform-logo.png" alt="SunForm" class="logo-img">
+        <img src="/sunform-logo.png" alt="SunForm" class="logo-img">
         <h1 style="display:flex; align-items:center; gap:6px;">SunForm <span style="font-size:9px; background:#D4880F; color:#000; padding:1px 5px; border-radius:3px; font-weight:700; letter-spacing:0.5px;">BETA</span></h1>
         <p class="subtitle">Indicative Sun Hours Analysis</p>
 
@@ -2025,115 +2025,6 @@
             return tris;
         }
 
-        // ─── MESH HOLE HEALING ───
-        // Finds boundary edges (edges belonging to only one triangle) in the
-        // top-surface mesh, chains them into closed loops, and fills each loop
-        // with a fan of new triangles from the loop centroid.
-        function healMeshHoles(tris) {
-            // Build edge -> count map using a canonical key
-            function edgeKey(a, b) {
-                // Round to avoid float precision mismatches
-                const ax = a[0].toFixed(4), ay = a[1].toFixed(4), az = a[2].toFixed(4);
-                const bx = b[0].toFixed(4), by = b[1].toFixed(4), bz = b[2].toFixed(4);
-                const ka = `${ax},${ay},${az}`;
-                const kb = `${bx},${by},${bz}`;
-                return ka < kb ? ka + '|' + kb : kb + '|' + ka;
-            }
-
-            function vertKey(v) {
-                return `${v[0].toFixed(4)},${v[1].toFixed(4)},${v[2].toFixed(4)}`;
-            }
-
-            // Count how many triangles each edge belongs to
-            const edgeCounts = new Map();
-            const edgeVerts = new Map(); // key -> [vertA, vertB]
-            for (const tri of tris) {
-                const [a, b, c] = tri;
-                const edges = [[a, b], [b, c], [c, a]];
-                for (const [ea, eb] of edges) {
-                    const key = edgeKey(ea, eb);
-                    edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1);
-                    if (!edgeVerts.has(key)) edgeVerts.set(key, [ea, eb]);
-                }
-            }
-
-            // Boundary edges: count === 1
-            const boundaryEdges = [];
-            for (const [key, count] of edgeCounts) {
-                if (count === 1) {
-                    boundaryEdges.push(edgeVerts.get(key));
-                }
-            }
-
-            if (boundaryEdges.length === 0) return; // no holes
-
-            // Build adjacency: vertex -> list of connected boundary vertices
-            const adj = new Map();
-            for (const [a, b] of boundaryEdges) {
-                const ka = vertKey(a), kb = vertKey(b);
-                if (!adj.has(ka)) adj.set(ka, []);
-                if (!adj.has(kb)) adj.set(kb, []);
-                adj.get(ka).push({ key: kb, vert: b });
-                adj.get(kb).push({ key: ka, vert: a });
-            }
-
-            // Walk boundary edges into closed loops
-            const visited = new Set();
-            const loops = [];
-            for (const [startKey] of adj) {
-                if (visited.has(startKey)) continue;
-                const loop = [];
-                let currentKey = startKey;
-                let stuck = false;
-                while (!visited.has(currentKey)) {
-                    visited.add(currentKey);
-                    const neighbours = adj.get(currentKey);
-                    if (!neighbours || neighbours.length === 0) { stuck = true; break; }
-                    loop.push(neighbours[0].vert); // store the vertex coords
-                    // Pick the next unvisited neighbour
-                    let found = false;
-                    for (const nb of neighbours) {
-                        if (!visited.has(nb.key)) {
-                            currentKey = nb.key;
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) break;
-                }
-                if (loop.length >= 3 && !stuck) {
-                    loops.push(loop);
-                }
-            }
-
-            // Fill each loop with fan triangles from the centroid
-            let filled = 0;
-            for (const loop of loops) {
-                // Skip very large loops (likely outer boundary, not a hole)
-                if (loop.length > 500) continue;
-
-                // Compute centroid
-                let cx = 0, cy = 0, cz = 0;
-                for (const v of loop) {
-                    cx += v[0]; cy += v[1]; cz += v[2];
-                }
-                cx /= loop.length; cy /= loop.length; cz /= loop.length;
-                const center = [cx, cy, cz];
-
-                // Fan triangulate
-                for (let i = 0; i < loop.length; i++) {
-                    const a = loop[i];
-                    const b = loop[(i + 1) % loop.length];
-                    tris.push([a, b, center]);
-                    filled++;
-                }
-            }
-
-            if (filled > 0) {
-                console.log(`Hole healing: found ${loops.length} loops, filled with ${filled} triangles`);
-            }
-        }
-
         // ─── PREPARE GRID CELLS (merge + slice — done ONCE, cached) ───
         let cachedCellData = null;  // reused across seasons
         let cachedGridSize = null;
@@ -2194,11 +2085,9 @@
                 ]);
             }
 
-            // 2. Extract top surface
-            showStatus(`Extracting top surface from ${allMergedTris.length} faces...`);
+            // 2. Filter to upward-facing surfaces only (reject walls, soffits, bottoms)
+            showStatus(`Filtering ${allMergedTris.length} faces to upward-facing surfaces...`);
             await new Promise(r => setTimeout(r, 0));
-
-            const terrainBVH = new BVH(new Float32Array(mergedVerts), new Uint32Array(mergedIdx));
 
             const worldTris = [];
             const MIN_UPWARD_NY = 0.1;
@@ -2212,31 +2101,15 @@
                 const fnz = e1x*e2y - e1y*e2x;
                 const fnLen = Math.sqrt(fnx*fnx + fny*fny + fnz*fnz);
                 if (fnLen === 0) continue;
-                const nyNorm = Math.abs(fny) / fnLen;
-                if (nyNorm < MIN_UPWARD_NY) continue;
+                // Keep only faces whose normal has a meaningful upward (+Y) component
+                if (fny / fnLen < MIN_UPWARD_NY) continue;
 
-                const cx = (a[0] + b[0] + c[0]) / 3;
-                const cy = (a[1] + b[1] + c[1]) / 3;
-                const cz = (a[2] + b[2] + c[2]) / 3;
-                const rayOriginY = cy + 0.005;
-                const hasAbove = terrainBVH.intersectsAny(cx, rayOriginY, cz, 0, 1, 0);
-                if (!hasAbove) worldTris.push(tri);
-
-                if (f % 1000 === 0 && f > 0) {
-                    showStatus(`Extracting top surface... ${Math.round(f / allMergedTris.length * 100)}%`);
-                    await new Promise(r => setTimeout(r, 0));
-                }
+                worldTris.push(tri);
             }
 
-            showStatus(`Top surface: ${worldTris.length} of ${allMergedTris.length} faces kept`);
+            showStatus(`Upward faces: ${worldTris.length} of ${allMergedTris.length} kept`);
 
-            // 3. Heal holes in the top surface mesh
-            showStatus('Healing mesh holes...');
-            await new Promise(r => setTimeout(r, 0));
-            healMeshHoles(worldTris);
-            showStatus(`Healed mesh: ${worldTris.length} triangles`);
-
-            // 4. Slice every triangle along grid lines
+            // 3. Slice every triangle along grid lines
             showStatus(`Slicing ${worldTris.length} triangles along ${gridSize}m grid...`);
             await new Promise(r => setTimeout(r, 0));
 
