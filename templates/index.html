@@ -1640,14 +1640,11 @@
                 // World-space angle CW from screen-up (-Z)
                 const worldAngleDeg = Math.atan2(dx, -dz) * 180 / Math.PI;
 
-                // Model-local angle = world angle + current rotation
-                const localAngleDeg = worldAngleDeg + northRotationDeg;
-
                 // Target direction (0=N, 90=E, 180=S, 270=W) — same as screen angles
                 const targetAngleDeg = parseFloat(document.getElementById('orient-direction').value);
 
-                // Rotation needed so model-local vector appears at target on screen
-                let newRotation = localAngleDeg - targetAngleDeg;
+                // Adjust rotation so the clicked vector aligns with the target direction
+                let newRotation = northRotationDeg + (targetAngleDeg - worldAngleDeg);
                 while (newRotation > 180) newRotation -= 360;
                 while (newRotation <= -180) newRotation += 360;
 
