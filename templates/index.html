@@ -745,17 +745,17 @@
             <h2>SunForm &mdash; Terms of Use</h2>
 
             <div id="disclaimer-terms">
-                <p>SunForm is beta software. All outputs are indicative only and intended to support early-stage design exploration. They are not verified analysis and must not be treated as such.</p>
+                <p>SunForm is currently in active beta development. You are using unfinished software. Outputs may be incomplete, inaccurate, or incorrect &mdash; this is expected at this stage and is part of why your testing matters.</p>
 
-                <p>SunForm is not a substitute for professional daylighting consultancy. It does not verify compliance with any building regulation, standard, or code of practice &mdash; including BRE 209, BS EN 17037, or the Building Regulations 2010. No warranty is made that any output meets any regulatory requirement.</p>
+                <p>All outputs are indicative only. They have not been validated against any building regulation, standard, or code of practice &mdash; including BRE 209, BS EN 17037, or the Building Regulations 2010. Do not use them for any formal purpose.</p>
+
+                <p>As a beta tester you are asked to use SunForm critically. If something looks wrong, it may well be. Please report anything unexpected so the tool can be improved.</p>
 
                 <p>Outputs must not be exported, shared, or presented in any context where others may place reliance on them without expert professional verification.</p>
 
-                <p>SunForm is provided &ldquo;as is&rdquo; and entirely at your own risk. To the fullest extent permitted by law, Jake White Architecture accepts no liability for any loss, damage, or expense arising from use of or reliance upon its outputs.</p>
+                <p>SunForm is provided free of charge and entirely at your own risk. To the fullest extent permitted by law, Jake White Architecture accepts no liability for any loss or damage arising from use of or reliance upon its outputs. No contribution or donation alters these terms.</p>
 
-                <p>The tool and its source code remain the intellectual property of Jake White Architecture. Outputs may be used freely at your own risk. SunForm is provided free of charge and no contribution or donation alters these terms in any way.</p>
-
-                <p>These terms may be updated from time to time. Continued use constitutes acceptance.</p>
+                <p>The tool and its source code remain the intellectual property of Jake White Architecture.</p>
 
                 <p style="margin-top:14px; font-size:11px; color:#888;">SunForm is provided by Jake White Architecture. For professional Architectural Technology services, visit <a href="https://www.jakewhitearchitecture.com" target="_blank" style="color:#00CFC8;">jakewhitearchitecture.com</a></p>
             </div>
@@ -766,15 +766,15 @@
             <div id="disclaimer-checkboxes">
                 <label class="checkbox-row">
                     <input type="checkbox" id="disclaimer-check1" onchange="updateDisclaimerAccept()">
-                    <span>I have read and accept these terms. I understand that SunForm is beta software and all outputs are indicative only.</span>
+                    <span>I understand that SunForm is beta software and outputs may be inaccurate. I will not use them for any formal purpose.</span>
                 </label>
                 <label class="checkbox-row">
                     <input type="checkbox" id="disclaimer-check2" onchange="updateDisclaimerAccept()">
-                    <span>I understand that SunForm is not a substitute for professional daylighting consultancy and I will not present its outputs to others as verified analysis.</span>
+                    <span>I confirm that I am competent to interpret solar analysis outputs and would be able to identify inconsistencies or errors in the results.</span>
                 </label>
                 <label class="checkbox-row">
                     <input type="checkbox" id="disclaimer-check3" onchange="updateDisclaimerAccept()">
-                    <span>I confirm that I am competent to interpret solar analysis outputs and would be able to identify inconsistencies or errors in the results.</span>
+                    <span>I understand that SunForm is not a substitute for professional daylighting consultancy and I will not present its outputs to others as verified analysis.</span>
                 </label>
             </div>
 
@@ -1881,8 +1881,11 @@
                 let azimuth = Math.acos(Math.max(-1, Math.min(1, cosAz)));
                 if (hourAngle > 0) azimuth = 2 * Math.PI - azimuth;
 
+                // Convert from geographic (0°=North CW) to AutoCAD (0°=East CW)
+                const azimuthAutocad = ((azimuth * 180 / Math.PI) - 90 + 360) % 360;
+
                 positions.push({
-                    azimuth: azimuth * 180 / Math.PI,
+                    azimuth: azimuthAutocad,
                     altitude: altitude * 180 / Math.PI,
                     hour: hour,
                 });
@@ -1898,11 +1901,13 @@
         }
 
         function sunDirection(azimuthDeg, altitudeDeg) {
+            // Azimuth: 0°=East, 90°=South, 180°=West, 270°=North (CW from East)
             const az = azimuthDeg * Math.PI / 180;
             const alt = altitudeDeg * Math.PI / 180;
-            const ifcX = Math.sin(az) * Math.cos(alt);
-            const ifcY = Math.cos(az) * Math.cos(alt);
-            const ifcZ = Math.sin(alt);
+            const ifcX = Math.cos(az) * Math.cos(alt);   // East component
+            const ifcY = -Math.sin(az) * Math.cos(alt);  // North component (negative for CW)
+            const ifcZ = Math.sin(alt);                   // Up component
+            // Three.js: X=east, Y=up, Z=-north
             return new THREE.Vector3(ifcX, ifcZ, -ifcY).normalize();
         }
 
