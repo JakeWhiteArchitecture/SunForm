@@ -562,6 +562,18 @@
                 <hr style="border-color:#0f3460; margin:12px 0;">
                 <div class="field-row">
                     <div class="field">
+                        <label>Grid Resolution <span class="unit">m</span></label>
+                        <select id="grid_resolution">
+                            <option value="0.5">0.5 m</option>
+                            <option value="1" selected>1 m</option>
+                            <option value="2">2 m</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="font-size:11px; color:#666; margin-bottom:8px;">Smaller grid = more detail but slower analysis.</div>
+                <hr style="border-color:#0f3460; margin:12px 0;">
+                <div class="field-row">
+                    <div class="field">
                         <label>Latitude</label>
                         <input type="number" id="latitude" value="51.5074" min="-90" max="90" step="0.0001">
                     </div>
@@ -1471,7 +1483,19 @@
                 throw new Error('No sun positions above horizon for given date/location');
             }
 
-            // Get bounding box filter if using bbox mode
+            const gridSize = parseFloat(document.getElementById('grid_resolution').value) || 1.0;
+
+            // Compute world-space bounding box of all selected ground meshes
+            const groundBBox = new THREE.Box3();
+            for (const gm of selectedGroundMeshes) {
+                gm.updateWorldMatrix(true, false);
+                const geo = gm.geometry;
+                if (!geo.boundingBox) geo.computeBoundingBox();
+                const meshBox = geo.boundingBox.clone().applyMatrix4(gm.matrixWorld);
+                groundBBox.union(meshBox);
+            }
+
+            // Apply bbox filter if set
             let bboxFilter = null;
             if (!useEntireGroundMesh) {
                 const bx1 = parseFloat(document.getElementById('bbox_min_x').value);
@@ -1484,90 +1508,93 @@
                 }
             }
 
-            // Extract face data from ALL selected ground meshes
-            const faceCentroids = [];  // {x, y, z}
-            const faceNormals = [];    // {x, y, z}
-            const faceAreas = [];      // scalar
-            const faceIndices = [];    // original face index within its mesh
-            const faceMeshIdx = [];    // which ground mesh this face belongs to
+            // Build a THREE.Raycaster for downward probing onto ground meshes
+            const downRay = new THREE.Raycaster();
+            downRay.far = (groundBBox.max.y - groundBBox.min.y) + 10;
 
-            for (let mi = 0; mi < selectedGroundMeshes.length; mi++) {
-                const groundMesh = selectedGroundMeshes[mi];
-                groundMesh.updateWorldMatrix(true, false);
-                const wm = groundMesh.matrixWorld;
+            // Generate regular grid over the XZ bounding box, ray-cast down to find ground
+            showStatus('Building analysis grid...');
+            await new Promise(r => setTimeout(r, 0));
 
-                const geo = groundMesh.geometry;
-                const pos = geo.attributes.position.array;
-                const idx = geo.index ? geo.index.array : null;
-                const faceCount = idx ? idx.length / 3 : pos.length / 9;
+            const gridPoints = [];   // {x, y, z} world positions on ground surface
+            const gridNormals = [];  // {x, y, z} surface normal at each point
+            const gridCols = [];     // grid column index
+            const gridRows = [];     // grid row index
 
-                for (let f = 0; f < faceCount; f++) {
-                    let i0, i1, i2;
-                    if (idx) {
-                        i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
-                    } else {
-                        i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
-                    }
+            const startX = Math.floor(groundBBox.min.x / gridSize) * gridSize;
+            const startZ = Math.floor(groundBBox.min.z / gridSize) * gridSize;
+            const endX = Math.ceil(groundBBox.max.x / gridSize) * gridSize;
+            const endZ = Math.ceil(groundBBox.max.z / gridSize) * gridSize;
+            const probeY = groundBBox.max.y + 5; // cast from above
 
-                    const a = new THREE.Vector3(pos[i0*3], pos[i0*3+1], pos[i0*3+2]).applyMatrix4(wm);
-                    const b = new THREE.Vector3(pos[i1*3], pos[i1*3+1], pos[i1*3+2]).applyMatrix4(wm);
-                    const c = new THREE.Vector3(pos[i2*3], pos[i2*3+1], pos[i2*3+2]).applyMatrix4(wm);
+            let col = 0;
+            for (let gx = startX; gx < endX; gx += gridSize) {
+                let row = 0;
+                for (let gz = startZ; gz < endZ; gz += gridSize) {
+                    const cx = gx + gridSize * 0.5;
+                    const cz = gz + gridSize * 0.5;
 
-                    const centroid = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1/3);
-
+                    // Bbox filter (IFC coords: X = Three X, Y = -Three Z)
                     if (bboxFilter) {
-                        const ifcX = centroid.x;
-                        const ifcY = -centroid.z;
+                        const ifcX = cx;
+                        const ifcY = -cz;
                         if (ifcX < bboxFilter.minX || ifcX > bboxFilter.maxX ||
-                            ifcY < bboxFilter.minY || ifcY > bboxFilter.maxY) continue;
+                            ifcY < bboxFilter.minY || ifcY > bboxFilter.maxY) {
+                            row++;
+                            continue;
+                        }
                     }
 
-                    const edge1 = new THREE.Vector3().subVectors(b, a);
-                    const edge2 = new THREE.Vector3().subVectors(c, a);
-                    const normal = new THREE.Vector3().crossVectors(edge1, edge2);
-                    const area = normal.length() * 0.5;
-                    normal.normalize();
-
-                    faceCentroids.push({ x: centroid.x, y: centroid.y, z: centroid.z });
-                    faceNormals.push({ x: normal.x, y: normal.y, z: normal.z });
-                    faceAreas.push(area);
-                    faceIndices.push(f);
-                    faceMeshIdx.push(mi);
+                    // Cast ray downward to hit ground meshes
+                    downRay.set(new THREE.Vector3(cx, probeY, cz), new THREE.Vector3(0, -1, 0));
+                    const hits = downRay.intersectObjects(selectedGroundMeshes, false);
+                    if (hits.length > 0) {
+                        const hit = hits[0];
+                        gridPoints.push({ x: hit.point.x, y: hit.point.y, z: hit.point.z });
+                        const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
+                                           : new THREE.Vector3(0, 1, 0);
+                        gridNormals.push({ x: n.x, y: n.y, z: n.z });
+                        gridCols.push(col);
+                        gridRows.push(row);
+                    }
+                    row++;
                 }
+                col++;
             }
 
-            if (faceCentroids.length === 0) {
-                throw new Error('No faces found in the selected area');
+            if (gridPoints.length === 0) {
+                throw new Error('No grid points found on the selected ground meshes');
             }
 
-            const totalRays = faceCentroids.length * sunPositions.length;
-            showStatus(`Casting ${totalRays.toLocaleString()} rays (${faceCentroids.length} faces x ${sunPositions.length} sun positions)...`);
+            const cellArea = gridSize * gridSize;
+            const totalRays = gridPoints.length * sunPositions.length;
+            showStatus(`Casting ${totalRays.toLocaleString()} rays (${gridPoints.length} grid cells x ${sunPositions.length} sun positions)...`);
 
             const sunDirs = sunPositions.map(sp => {
                 const v = sunDirection(sp.azimuth, sp.altitude);
                 return [v.x, v.y, v.z];
             });
 
-            const faceSunHours = new Float32Array(faceCentroids.length);
+            const gridSunHours = new Float32Array(gridPoints.length);
             let raysProcessed = 0;
             const BATCH_SIZE = 2000;
 
             for (let sunIdx = 0; sunIdx < sunDirs.length; sunIdx++) {
                 const [dx, dy, dz] = sunDirs[sunIdx];
 
-                for (let i = 0; i < faceCentroids.length; i += BATCH_SIZE) {
-                    const end = Math.min(i + BATCH_SIZE, faceCentroids.length);
+                for (let i = 0; i < gridPoints.length; i += BATCH_SIZE) {
+                    const end = Math.min(i + BATCH_SIZE, gridPoints.length);
 
                     for (let j = i; j < end; j++) {
-                        const fc = faceCentroids[j];
-                        const fn = faceNormals[j];
-                        // Offset origin 10mm along face normal to avoid self-intersection
-                        const ox = fc.x + fn.x * 0.01;
-                        const oy = fc.y + fn.y * 0.01;
-                        const oz = fc.z + fn.z * 0.01;
+                        const gp = gridPoints[j];
+                        const gn = gridNormals[j];
+                        // Offset origin slightly above surface to avoid self-intersection
+                        const ox = gp.x + gn.x * 0.01;
+                        const oy = gp.y + gn.y * 0.01;
+                        const oz = gp.z + gn.z * 0.01;
 
                         if (!shadowBVH.intersectsAny(ox, oy, oz, dx, dy, dz)) {
-                            faceSunHours[j] += timeStep;
+                            gridSunHours[j] += timeStep;
                         }
                     }
 
@@ -1580,24 +1607,22 @@
                 }
             }
 
-            // BRE compliance using actual face areas
+            // BRE compliance using uniform grid cell areas
             const thresholdHours = 2.0;
-            let areaMeeting = 0;
-            let totalArea = 0;
-            for (let i = 0; i < faceSunHours.length; i++) {
-                totalArea += faceAreas[i];
-                if (faceSunHours[i] >= thresholdHours) areaMeeting += faceAreas[i];
+            let cellsMeeting = 0;
+            for (let i = 0; i < gridSunHours.length; i++) {
+                if (gridSunHours[i] >= thresholdHours) cellsMeeting++;
             }
-            const percentage = totalArea > 0 ? (areaMeeting / totalArea) * 100 : 0;
+            const totalArea = gridPoints.length * cellArea;
+            const areaMeeting = cellsMeeting * cellArea;
+            const percentage = gridPoints.length > 0 ? (cellsMeeting / gridPoints.length) * 100 : 0;
             const passes = percentage >= 50;
 
             return {
-                faceCentroids,
-                faceNormals,
-                faceAreas,
-                faceIndices,
-                faceMeshIdx,
-                faceSunHours,
+                gridPoints,
+                gridNormals,
+                gridSunHours,
+                gridSize,
                 sunPositions,
                 totalArea,
                 areaMeeting,
@@ -1606,7 +1631,7 @@
                     percentage: Math.round(percentage * 10) / 10,
                     area_total: totalArea.toFixed(1),
                     area_meeting: areaMeeting.toFixed(1),
-                    faces_total: faceSunHours.length,
+                    cells_total: gridPoints.length,
                     threshold_hours: thresholdHours,
                     message: `${percentage.toFixed(1)}% of amenity area receives \u2265${thresholdHours}h sunlight on 21 March \u2014 ${passes ? 'PASS' : 'FAIL'}`,
                 },
@@ -1641,7 +1666,7 @@
             return [c[1], c[2], c[3]];
         }
 
-        // ─── PAINT FLAT-COLOURED TILES ONTO GROUND MESHES ───
+        // ─── PAINT REGULAR GRID TILES ONTO GROUND ───
         function paintGroundMesh(results) {
             if (selectedGroundMeshes.length === 0) return;
 
@@ -1657,53 +1682,34 @@
             heatmapGroup = new THREE.Group();
             heatmapGroup.name = 'heatmap';
 
-            // Build per-mesh lookup: meshIdx -> { faceIdx -> analysisIdx }
-            const perMesh = [];
-            for (let mi = 0; mi < selectedGroundMeshes.length; mi++) {
-                perMesh.push({});
-            }
-            for (let i = 0; i < results.faceIndices.length; i++) {
-                perMesh[results.faceMeshIdx[i]][results.faceIndices[i]] = i;
-            }
+            const gs = results.gridSize;
+            const half = gs * 0.5;
+            const off = 0.02; // 20mm offset above surface
 
             const tilePositions = [];
             const tileColors = [];
 
-            for (let mi = 0; mi < selectedGroundMeshes.length; mi++) {
-                const groundMesh = selectedGroundMeshes[mi];
-                const geo = groundMesh.geometry;
-                const pos = geo.attributes.position.array;
-                const idx = geo.index ? geo.index.array : null;
+            for (let i = 0; i < results.gridPoints.length; i++) {
+                const gp = results.gridPoints[i];
+                const gn = results.gridNormals[i];
+                const hours = results.gridSunHours[i];
+                const [r, g, b] = lerpColour(hours);
 
-                groundMesh.updateWorldMatrix(true, false);
-                const wm = groundMesh.matrixWorld;
+                // Offset the center point slightly above the surface
+                const cy = gp.y + gn.y * off + off;
 
-                const faceToAnalysis = perMesh[mi];
-                const totalFaces = idx ? idx.length / 3 : pos.length / 9;
+                // Build a flat square quad (2 triangles) centered on the grid point
+                // Corners: SW, SE, NE, NW in XZ plane
+                const x0 = gp.x - half, x1 = gp.x + half;
+                const z0 = gp.z - half, z1 = gp.z + half;
 
-                for (let f = 0; f < totalFaces; f++) {
-                    const analysisIdx = faceToAnalysis[f];
-                    if (analysisIdx === undefined) continue;
+                // Triangle 1: SW, SE, NE
+                tilePositions.push(x0, cy, z0,  x1, cy, z0,  x1, cy, z1);
+                tileColors.push(r, g, b,  r, g, b,  r, g, b);
 
-                    const hours = results.faceSunHours[analysisIdx];
-                    const [r, g, b] = lerpColour(hours);
-                    const fn = results.faceNormals[analysisIdx];
-
-                    let i0, i1, i2;
-                    if (idx) {
-                        i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
-                    } else {
-                        i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
-                    }
-
-                    const off = 0.02; // 20mm offset to sit above surface
-                    for (const vi of [i0, i1, i2]) {
-                        const p = new THREE.Vector3(pos[vi*3], pos[vi*3+1], pos[vi*3+2]);
-                        p.applyMatrix4(wm);
-                        tilePositions.push(p.x + fn.x * off, p.y + fn.y * off, p.z + fn.z * off);
-                        tileColors.push(r, g, b);
-                    }
-                }
+                // Triangle 2: SW, NE, NW
+                tilePositions.push(x0, cy, z0,  x1, cy, z1,  x0, cy, z1);
+                tileColors.push(r, g, b,  r, g, b,  r, g, b);
             }
 
             if (tilePositions.length > 0) {
@@ -1751,7 +1757,7 @@
                 showCompliance(results.compliance);
                 showStatus(
                     `Analysis complete \u2014 ${results.sunPositions.length} sun positions, ` +
-                    `${results.faceSunHours.length} faces`
+                    `${results.gridPoints.length} grid cells (${results.gridSize}m)`
                 );
                 setTimeout(hideStatus, 5000);
 
@@ -1779,7 +1785,7 @@
             document.getElementById('compliance-detail').innerHTML =
                 'Total area: ' + compliance.area_total + 'm\u00b2' +
                 ' &nbsp;|&nbsp; Area meeting threshold: ' + compliance.area_meeting + 'm\u00b2' +
-                '<br>Faces analysed: ' + compliance.faces_total +
+                '<br>Grid cells analysed: ' + compliance.cells_total +
                 '<br>BRE BR209 requires \u226550% of area receiving \u22652h sunlight';
         }
 
@@ -1859,7 +1865,7 @@
                 doc.text('Longitude: ' + lng, 20, 69);
                 doc.text('Analysis date: 21 March (Spring Equinox)', 20, 75);
                 doc.text('Total area analysed: ' + c.area_total + ' m2', 20, 81);
-                doc.text('Faces analysed: ' + c.faces_total, 20, 87);
+                doc.text('Grid cells analysed: ' + c.cells_total, 20, 87);
 
                 doc.setFontSize(13);
                 doc.setTextColor(0);
