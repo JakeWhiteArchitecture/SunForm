@@ -1624,19 +1624,6 @@
 
             showStatus(`Top surface: ${worldTris.length} of ${allMergedTris.length} faces kept`);
 
-            // 2a. Ensure all top-surface face normals point upward (+Y)
-            // Flip winding order on any triangle whose cross-product Y < 0
-            for (let i = 0; i < worldTris.length; i++) {
-                const [a, b, c] = worldTris[i];
-                const e1x = b[0]-a[0], e1y = b[1]-a[1], e1z = b[2]-a[2];
-                const e2x = c[0]-a[0], e2y = c[1]-a[1], e2z = c[2]-a[2];
-                const ny = e1z*e2x - e1x*e2z; // Y component of cross product
-                if (ny < 0) {
-                    // Swap b and c to flip the normal
-                    worldTris[i] = [a, c, b];
-                }
-            }
-
             // 2. Slice every triangle along grid lines
             showStatus(`Slicing ${worldTris.length} triangles along ${gridSize}m grid...`);
             await new Promise(r => setTimeout(r, 0));
@@ -1691,9 +1678,11 @@
                     cell.sumCy += cy * area;
                     cell.sumCz += cz * area;
                     if (len > 0) {
-                        cell.sumNx += (nx / len) * area;
-                        cell.sumNy += (ny / len) * area;
-                        cell.sumNz += (nz / len) * area;
+                        // Force normal to point upward (+Y) regardless of winding
+                        const sign = ny >= 0 ? 1 : -1;
+                        cell.sumNx += sign * (nx / len) * area;
+                        cell.sumNy += sign * (ny / len) * area;
+                        cell.sumNz += sign * (nz / len) * area;
                     }
                 }
 
@@ -1720,7 +1709,7 @@
                     tris: c.tris,
                     area: c.area,
                     centroid: { x: c.sumCx / a, y: c.sumCy / a, z: c.sumCz / a },
-                    normal: nLen > 0
+                    normal: (nLen > 0 && c.sumNy > 0)
                         ? { x: c.sumNx / nLen, y: c.sumNy / nLen, z: c.sumNz / nLen }
                         : { x: 0, y: 1, z: 0 },
                 };
