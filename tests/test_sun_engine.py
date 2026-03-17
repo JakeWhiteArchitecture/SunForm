@@ -3,10 +3,20 @@ Deterministic unit tests for the SUNFORM analysis engine.
 
 All tests use known geometry, known sun positions, and known expected answers.
 No external API calls, no randomness.
+
+Run with: python -m pytest tests/ -v   (from project root)
+    or:   python3 tests/test_sun_engine.py   (standalone)
 """
 
 import math
+import sys
+import os
 import pytest
+
+# Ensure the project root is on sys.path so `sunform_engine` can be imported
+# regardless of whether we run via pytest from root or python3 from tests/
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from sunform_engine import (
     get_sun_positions,
     sun_direction,
@@ -308,3 +318,7 @@ class TestSunPositions:
         dx, dy, dz = sun_direction(180.0, 45.0)
         # Should point upward (dy > 0) and somewhat toward -Z (north in Three.js = -Z)
         assert dy > 0, f"Sun at 45° altitude should have positive Y, got {dy}"
+
+
+if __name__ == '__main__':
+    pytest.main([__file__, '-v'])
