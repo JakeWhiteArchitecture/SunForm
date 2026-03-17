@@ -1624,6 +1624,19 @@
 
             showStatus(`Top surface: ${worldTris.length} of ${allMergedTris.length} faces kept`);
 
+            // 2a. Ensure all top-surface face normals point upward (+Y)
+            // Flip winding order on any triangle whose cross-product Y < 0
+            for (let i = 0; i < worldTris.length; i++) {
+                const [a, b, c] = worldTris[i];
+                const e1x = b[0]-a[0], e1y = b[1]-a[1], e1z = b[2]-a[2];
+                const e2x = c[0]-a[0], e2y = c[1]-a[1], e2z = c[2]-a[2];
+                const ny = e1z*e2x - e1x*e2z; // Y component of cross product
+                if (ny < 0) {
+                    // Swap b and c to flip the normal
+                    worldTris[i] = [a, c, b];
+                }
+            }
+
             // 2. Slice every triangle along grid lines
             showStatus(`Slicing ${worldTris.length} triangles along ${gridSize}m grid...`);
             await new Promise(r => setTimeout(r, 0));
