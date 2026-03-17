@@ -424,6 +424,95 @@
 
         .hint { font-size: 12px; color: #aaa; margin-bottom: 8px; line-height: 1.5; }
 
+        /* ─── LOCATION MAP ─── */
+        .location-map {
+            width: 100%;
+            height: 180px;
+            border-radius: 4px;
+            border: 1px solid #0f3460;
+            margin-bottom: 8px;
+        }
+        .location-search {
+            width: 100%;
+            padding: 6px 10px;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+        .location-search:focus { outline: none; border-color: #e94560; }
+
+        /* ─── SEASON TOGGLES ─── */
+        .season-toggles {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .season-toggle {
+            flex: 1;
+            padding: 6px 4px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #888;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+        .season-toggle.active {
+            border-color: #e94560;
+            color: #e0e0e0;
+            background: rgba(233, 69, 96, 0.15);
+        }
+
+        /* ─── SEASON SWITCHER (viewport overlay) ─── */
+        .season-switcher {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(22, 33, 62, 0.95);
+            border-radius: 6px;
+            border: 1px solid #0f3460;
+            padding: 4px;
+            gap: 4px;
+        }
+        .season-switcher.visible { display: flex; }
+        .season-sw-btn {
+            padding: 5px 12px;
+            border: none;
+            border-radius: 3px;
+            background: transparent;
+            color: #888;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .season-sw-btn.active {
+            background: #e94560;
+            color: #fff;
+        }
+
+        /* ─── BUG REPORT ─── */
+        .bug-report {
+            font-size: 10px;
+            color: #666;
+            margin-top: 6px;
+            text-align: center;
+        }
+        .bug-report a {
+            color: #888;
+            text-decoration: none;
+        }
+        .bug-report a:hover { color: #e94560; text-decoration: underline; }
+
         /* ─── SELECTED MESH INDICATOR ─── */
         .selected-mesh-name {
             font-size: 12px;
@@ -545,6 +634,9 @@
                 </div>
                 <div style="font-size:11px; color:#666; margin-bottom:8px;">Smaller grid = more detail but slower analysis.</div>
                 <hr style="border-color:#0f3460; margin:12px 0;">
+                <label style="font-size:12px; color:#aaa; margin-bottom:3px; display:block;">Site Location</label>
+                <input type="text" class="location-search" id="location-search" placeholder="Search place name or postcode..." autocomplete="off">
+                <div class="location-map" id="location-map"></div>
                 <div class="field-row">
                     <div class="field">
                         <label>Latitude</label>
@@ -555,7 +647,14 @@
                         <input type="number" id="longitude" value="-0.1278" min="-180" max="180" step="0.0001">
                     </div>
                 </div>
-                <div style="font-size:11px; color:#666; margin-bottom:8px;">Default: London, UK.</div>
+                <hr style="border-color:#0f3460; margin:12px 0;">
+                <label style="font-size:12px; color:#aaa; margin-bottom:3px; display:block;">Seasons to Analyse</label>
+                <div class="season-toggles">
+                    <div class="season-toggle" id="season-winter" onclick="toggleSeason('winter')">Winter<br><span style="font-weight:400; font-size:10px;">21 Dec</span></div>
+                    <div class="season-toggle active" id="season-spring" onclick="toggleSeason('spring')">Spring/Autumn<br><span style="font-weight:400; font-size:10px;">21 Mar</span></div>
+                    <div class="season-toggle" id="season-summer" onclick="toggleSeason('summer')">Summer<br><span style="font-weight:400; font-size:10px;">21 Jun</span></div>
+                </div>
+                <div style="font-size:11px; color:#666; margin-bottom:8px;">Select one or more seasons. At least one must be active.</div>
                 <div class="field-row">
                     <div class="field">
                         <label>Time Step <span class="unit">hours</span></label>
@@ -564,12 +663,7 @@
                             <option value="1" selected>1 hour</option>
                         </select>
                     </div>
-                    <div class="field">
-                        <label>Analysis Date</label>
-                        <input type="date" id="analysis_date" value="2024-03-21">
-                    </div>
                 </div>
-                <div style="font-size:11px; color:#666; margin-bottom:8px;">Default: 21 March (spring equinox)</div>
                 <button class="btn btn-run" id="run-btn" onclick="event.stopPropagation(); runAnalysis();">Run Analysis</button>
             </div>
         </div>
@@ -592,6 +686,9 @@
                     <button class="btn btn-secondary" id="pdf-btn" onclick="event.stopPropagation(); downloadPDF();" style="flex:1;">Download PDF</button>
                 </div>
                 <button class="btn btn-secondary" onclick="event.stopPropagation(); resetWorkflow();" style="margin-top:8px;">New Analysis</button>
+                <div class="bug-report">
+                    Results look wrong? <a id="bug-report-link" href="#">Report an issue</a>
+                </div>
             </div>
         </div>
 
@@ -629,8 +726,17 @@
             </div>
             <div class="legend-label">0h</div>
         </div>
+        <div class="season-switcher" id="season-switcher">
+            <button class="season-sw-btn" id="sw-winter" onclick="switchVisibleSeason('winter')">Winter</button>
+            <button class="season-sw-btn" id="sw-spring" onclick="switchVisibleSeason('spring')">Spring/Autumn</button>
+            <button class="season-sw-btn" id="sw-summer" onclick="switchVisibleSeason('summer')">Summer</button>
+        </div>
         <div class="status-overlay" id="status-overlay" style="display:none;"></div>
     </div>
+
+    <!-- Leaflet.js for location picker -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- Three.js r128 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -662,6 +768,26 @@
         let useEntireGroundMesh = true;
         let northRotationDeg = 0;
         let modelRotationGroup = null;
+
+        // Season analysis state
+        const SEASON_DATES = {
+            winter: '2024-12-21',
+            spring: '2024-03-21',
+            summer: '2024-06-21',
+        };
+        const SEASON_LABELS = {
+            winter: 'Winter (21 Dec)',
+            spring: 'Spring/Autumn (21 Mar)',
+            summer: 'Summer (21 Jun)',
+        };
+        let activeSeasons = { winter: false, spring: true, summer: false };
+        let seasonResults = {};         // { winter: {results}, spring: {results}, ... }
+        let seasonHeatmaps = {};        // { winter: THREE.Group, ... }
+        let visibleSeason = 'spring';   // currently displayed season
+
+        // Leaflet map state
+        let locationMap = null;
+        let locationMarker = null;
 
         // ─── THREE.JS SETUP ───
         function initThree() {
@@ -807,6 +933,15 @@
             if (n === 2) switchToOrtho();
             else switchToPersp();
             setPickMode(n === 3);
+
+            // Lazy-init Leaflet map when step 4 first opens
+            if (n === 4 && !mapInitialized) {
+                mapInitialized = true;
+                setTimeout(() => {
+                    initLocationMap();
+                    locationMap.invalidateSize();
+                }, 100);
+            }
         }
 
         function completeStep(n, summary) {
@@ -838,6 +973,18 @@
                 scene.remove(heatmapGroup);
                 heatmapGroup = null;
             }
+            // Remove all season heatmaps
+            for (const [key, group] of Object.entries(seasonHeatmaps)) {
+                scene.remove(group);
+                group.traverse(c => {
+                    if (c.geometry) c.geometry.dispose();
+                    if (c.material) c.material.dispose();
+                });
+            }
+            seasonHeatmaps = {};
+            seasonResults = {};
+            visibleSeason = 'spring';
+            document.getElementById('season-switcher').classList.remove('visible');
             clearAllHighlights();
             removeBboxHelper();
             allMeshes = [];
@@ -1110,13 +1257,22 @@
         }
 
         function addHighlight(mesh) {
+            // Tint the mesh faces to cyan-ish so selection is clearly visible
+            if (!mesh.userData._origColor) {
+                mesh.userData._origColor = mesh.material.color.getHex();
+            }
+            mesh.material = mesh.material.clone();
+            mesh.material.color.setHex(0x00aacc);
+            mesh.material.opacity = 0.7;
+            mesh.material.transparent = true;
+
             const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
             const hl = new THREE.LineSegments(edges,
                 new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 }));
             hl.position.copy(mesh.position);
             hl.rotation.copy(mesh.rotation);
             hl.scale.copy(mesh.scale);
-            hl.userData._groundRef = mesh; // back-reference for removal
+            hl.userData._groundRef = mesh;
             if (mesh.parent) {
                 mesh.parent.add(hl);
             } else {
@@ -1126,6 +1282,14 @@
         }
 
         function removeHighlight(mesh) {
+            // Restore original mesh colour
+            if (mesh.userData._origColor !== undefined) {
+                mesh.material = mesh.material.clone();
+                mesh.material.color.setHex(mesh.userData._origColor);
+                mesh.material.opacity = 1.0;
+                mesh.material.transparent = false;
+            }
+
             const idx = groundHighlights.findIndex(hl => hl.userData._groundRef === mesh);
             if (idx === -1) return;
             const hl = groundHighlights[idx];
@@ -1598,9 +1762,23 @@
             const terrainBVH = new BVH(new Float32Array(mergedVerts), new Uint32Array(mergedIdx));
 
             const worldTris = []; // filtered top-surface triangles
+            const MIN_UPWARD_NY = 0.1; // face normal Y must be > 0.1 (excludes walls & bottom)
             for (let f = 0; f < allMergedTris.length; f++) {
                 const tri = allMergedTris[f];
                 const [a, b, c] = tri;
+
+                // Compute face normal to reject side walls and bottom faces early
+                const e1x = b[0]-a[0], e1y = b[1]-a[1], e1z = b[2]-a[2];
+                const e2x = c[0]-a[0], e2y = c[1]-a[1], e2z = c[2]-a[2];
+                const fnx = e1y*e2z - e1z*e2y;
+                const fny = e1z*e2x - e1x*e2z;
+                const fnz = e1x*e2y - e1y*e2x;
+                const fnLen = Math.sqrt(fnx*fnx + fny*fny + fnz*fnz);
+                if (fnLen === 0) continue; // degenerate triangle
+                // Normalise and check — keep only faces with upward component
+                const nyNorm = Math.abs(fny) / fnLen;
+                if (nyNorm < MIN_UPWARD_NY) continue; // vertical wall or bottom
+
                 // Centroid of this face
                 const cx = (a[0] + b[0] + c[0]) / 3;
                 const cy = (a[1] + b[1] + c[1]) / 3;
@@ -1811,21 +1989,11 @@
             return [c[1], c[2], c[3]];
         }
 
-        // ─── PAINT GRID-SLICED MESH TILES (20mm OFFSET) ───
-        function paintGroundMesh(results) {
-            if (!results.cellData || results.cellData.length === 0) return;
-
-            // Remove previous heatmap overlay
-            if (heatmapGroup) {
-                scene.remove(heatmapGroup);
-                heatmapGroup.traverse(c => {
-                    if (c.geometry) c.geometry.dispose();
-                    if (c.material) c.material.dispose();
-                });
-            }
-
-            heatmapGroup = new THREE.Group();
-            heatmapGroup.name = 'heatmap';
+        // ─── CREATE HEATMAP GROUP (20mm OFFSET) ───
+        function createHeatmapGroup(results) {
+            const group = new THREE.Group();
+            group.name = 'heatmap_' + (results.season || 'default');
+            if (!results.cellData || results.cellData.length === 0) return group;
 
             const off = 0.02; // 20mm offset above surface
 
@@ -1838,7 +2006,6 @@
                 const [r, g, b] = lerpColour(hours);
                 const n = cd.normal;
 
-                // Paint each sub-triangle in this cell with the same colour
                 for (const tri of cd.tris) {
                     for (const v of tri) {
                         tilePositions.push(
@@ -1863,16 +2030,13 @@
 
                 const tileMesh = new THREE.Mesh(tileGeo, tileMat);
                 tileMesh.name = 'heatmap_mesh';
-                heatmapGroup.add(tileMesh);
+                group.add(tileMesh);
             }
 
-            scene.add(heatmapGroup);
-
-            // Show colour legend
-            document.getElementById('colour-legend').classList.add('visible');
+            return group;
         }
 
-        // ─── RUN ANALYSIS ───
+        // ─── RUN ANALYSIS (multi-season) ───
         async function runAnalysis() {
             const btn = document.getElementById('run-btn');
             if (!ifcLoaded || selectedGroundMeshes.length === 0) {
@@ -1880,27 +2044,84 @@
                 return;
             }
 
+            const seasons = getActiveSeasonKeys();
+            if (seasons.length === 0) {
+                alert('Please select at least one season.');
+                return;
+            }
+
             btn.textContent = 'Analysing...';
             btn.disabled = true;
 
-            try {
-                const results = await runTerrainAnalysis(
-                    parseFloat(document.getElementById('latitude').value),
-                    parseFloat(document.getElementById('longitude').value),
-                    parseFloat(document.getElementById('time_step').value),
-                    document.getElementById('analysis_date').value
-                );
+            // Clear previous season heatmaps
+            for (const [key, group] of Object.entries(seasonHeatmaps)) {
+                scene.remove(group);
+                group.traverse(c => {
+                    if (c.geometry) c.geometry.dispose();
+                    if (c.material) c.material.dispose();
+                });
+            }
+            seasonHeatmaps = {};
+            seasonResults = {};
 
-                lastAnalysisResults = results;
-                paintGroundMesh(results);
-                showResults(results.summary);
-                showStatus(
-                    `Analysis complete \u2014 ${results.sunPositions.length} sun positions, ` +
-                    `${results.cellData.length} grid cells (${results.gridSize}m)`
-                );
+            try {
+                const lat = parseFloat(document.getElementById('latitude').value);
+                const lng = parseFloat(document.getElementById('longitude').value);
+                const timeStep = parseFloat(document.getElementById('time_step').value);
+
+                for (let si = 0; si < seasons.length; si++) {
+                    const season = seasons[si];
+                    const dateStr = SEASON_DATES[season];
+                    showStatus(`Analysing ${SEASON_LABELS[season]} (${si + 1}/${seasons.length})...`);
+
+                    const results = await runTerrainAnalysis(lat, lng, timeStep, dateStr);
+                    results.season = season;
+                    results.seasonLabel = SEASON_LABELS[season];
+                    seasonResults[season] = results;
+
+                    // Paint heatmap for this season
+                    const hm = createHeatmapGroup(results);
+                    seasonHeatmaps[season] = hm;
+                    scene.add(hm);
+                    hm.visible = false; // hide initially
+                }
+
+                // Show first analysed season
+                visibleSeason = seasons[0];
+                seasonHeatmaps[visibleSeason].visible = true;
+                lastAnalysisResults = seasonResults[visibleSeason];
+
+                // Show results
+                showResults(seasonResults[visibleSeason].summary, visibleSeason);
+
+                // Show season switcher if > 1 season
+                const switcher = document.getElementById('season-switcher');
+                if (seasons.length > 1) {
+                    switcher.classList.add('visible');
+                    document.querySelectorAll('.season-sw-btn').forEach(btn => {
+                        const key = btn.id.replace('sw-', '');
+                        btn.style.display = seasonResults[key] ? '' : 'none';
+                        btn.classList.toggle('active', key === visibleSeason);
+                    });
+                } else {
+                    switcher.classList.remove('visible');
+                }
+
+                // Show colour legend
+                document.getElementById('colour-legend').classList.add('visible');
+
+                const totalCells = seasonResults[visibleSeason].cellData.length;
+                showStatus(`Analysis complete \u2014 ${seasons.length} season(s), ${totalCells} grid cells`);
                 setTimeout(hideStatus, 5000);
 
-                completeStep(4, `Avg ${results.summary.avg_hours}h`);
+                // Build summary for step completion
+                const avgList = seasons.map(s => {
+                    const label = s === 'spring' ? 'Spr' : s === 'winter' ? 'Win' : 'Sum';
+                    return label + ' ' + seasonResults[s].summary.avg_hours + 'h';
+                });
+                completeStep(4, avgList.join(' | '));
+
+                updateBugReportLink();
 
             } catch (err) {
                 alert('Analysis failed: ' + err.message);
@@ -1913,14 +2134,21 @@
         }
 
         // ─── RESULTS DISPLAY ───
-        function showResults(summary) {
-            document.getElementById('results-title').textContent = 'Sun Hours Summary';
-            document.getElementById('results-detail').innerHTML =
-                'Total area analysed: ' + summary.area_total + ' m\u00b2' +
-                ' &nbsp;|&nbsp; Grid cells: ' + summary.cells_total +
-                '<br>Min: ' + summary.min_hours + 'h' +
-                ' &nbsp;|&nbsp; Max: ' + summary.max_hours + 'h' +
-                ' &nbsp;|&nbsp; Avg: ' + summary.avg_hours + 'h (area-weighted)';
+        function showResults(summary, seasonKey) {
+            const label = seasonKey ? SEASON_LABELS[seasonKey] : 'Sun Hours Summary';
+            document.getElementById('results-title').textContent = label;
+
+            // Build per-season summary lines
+            let html = '';
+            const keys = getActiveSeasonKeys();
+            for (const k of keys) {
+                if (!seasonResults[k]) continue;
+                const s = seasonResults[k].summary;
+                const bold = k === seasonKey ? 'color:#e0e0e0; font-weight:600;' : '';
+                html += `<div style="${bold}">${SEASON_LABELS[k]}: avg ${s.avg_hours}h (min ${s.min_hours}h, max ${s.max_hours}h)</div>`;
+            }
+            html += `<div style="margin-top:4px;">Total area: ${summary.area_total} m\u00b2 &nbsp;|&nbsp; Grid cells: ${summary.cells_total}</div>`;
+            document.getElementById('results-detail').innerHTML = html;
         }
 
         // ─── EXPORT GLB (coloured ground + grey buildings) ───
@@ -1931,9 +2159,10 @@
 
             const exportScene = new THREE.Scene();
 
-            // Add heatmap tile overlay (coloured faces)
-            if (heatmapGroup) {
-                exportScene.add(heatmapGroup.clone());
+            // Add currently visible season heatmap
+            const activeHeatmap = seasonHeatmaps[visibleSeason];
+            if (activeHeatmap) {
+                exportScene.add(activeHeatmap.clone());
             }
 
             // Add all meshes as grey context geometry
@@ -1965,9 +2194,10 @@
             }, { binary: true });
         }
 
-        // ─── EXPORT PDF (client-side via jsPDF) ───
+        // ─── EXPORT PDF (client-side via jsPDF, multi-season) ───
         function downloadPDF() {
-            if (!lastAnalysisResults) return;
+            const analysedSeasons = Object.keys(seasonResults);
+            if (analysedSeasons.length === 0) return;
             const btn = document.getElementById('pdf-btn');
             btn.textContent = 'Generating...';
             btn.disabled = true;
@@ -1975,10 +2205,9 @@
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-                const s = lastAnalysisResults.summary;
                 const lat = document.getElementById('latitude').value;
                 const lng = document.getElementById('longitude').value;
-                const dateStr = document.getElementById('analysis_date').value;
+                const firstSummary = seasonResults[analysedSeasons[0]].summary;
 
                 doc.setFontSize(22);
                 doc.setTextColor(233, 69, 96);
@@ -1998,28 +2227,51 @@
                 doc.setTextColor(60);
                 doc.text('Latitude: ' + lat, 20, 63);
                 doc.text('Longitude: ' + lng, 20, 69);
-                doc.text('Analysis date: ' + dateStr, 20, 75);
-                doc.text('Total area analysed: ' + s.area_total + ' m2', 20, 81);
-                doc.text('Grid cells analysed: ' + s.cells_total, 20, 87);
+                doc.text('Total area analysed: ' + firstSummary.area_total + ' m2', 20, 75);
+                doc.text('Grid cells analysed: ' + firstSummary.cells_total, 20, 81);
 
-                doc.setFontSize(13);
-                doc.setTextColor(0);
-                doc.text('Sun Hours Summary', 20, 100);
+                let y = 95;
+                for (let si = 0; si < analysedSeasons.length; si++) {
+                    const season = analysedSeasons[si];
+                    const s = seasonResults[season].summary;
 
-                doc.setFontSize(10);
-                doc.setTextColor(60);
-                doc.text('Minimum: ' + s.min_hours + ' hours', 20, 110);
-                doc.text('Maximum: ' + s.max_hours + ' hours', 20, 116);
-                doc.text('Average (area-weighted): ' + s.avg_hours + ' hours', 20, 122);
+                    if (si > 0) {
+                        doc.addPage();
+                        y = 25;
+                    }
 
-                renderer.render(scene, camera);
-                const imgData = renderer.domElement.toDataURL('image/png');
-                doc.addImage(imgData, 'PNG', 20, 135, 170, 100);
+                    doc.setFontSize(13);
+                    doc.setTextColor(0);
+                    doc.text(SEASON_LABELS[season], 20, y);
+                    y += 10;
 
+                    doc.setFontSize(10);
+                    doc.setTextColor(60);
+                    doc.text('Minimum: ' + s.min_hours + ' hours', 20, y); y += 6;
+                    doc.text('Maximum: ' + s.max_hours + ' hours', 20, y); y += 6;
+                    doc.text('Average (area-weighted): ' + s.avg_hours + ' hours', 20, y); y += 10;
+
+                    // Show this season's heatmap, render, capture
+                    for (const [k, group] of Object.entries(seasonHeatmaps)) {
+                        group.visible = (k === season);
+                    }
+                    renderer.render(scene, camera);
+                    const imgData = renderer.domElement.toDataURL('image/png');
+                    doc.addImage(imgData, 'PNG', 20, y, 170, 100);
+                    y += 108;
+                }
+
+                // Restore visible season
+                for (const [k, group] of Object.entries(seasonHeatmaps)) {
+                    group.visible = (k === visibleSeason);
+                }
+
+                // Disclaimer on last page
                 doc.setFontSize(8);
                 doc.setTextColor(120);
-                doc.text('SUNFORM \u2014 Indicative sun hours analysis for early design decisions only. Results are approximate.', 20, 250);
-                doc.text('This tool does not constitute a professional daylight or sunlight assessment.', 20, 255);
+                const dy = doc.internal.pageSize.height - 15;
+                doc.text('SUNFORM \u2014 Indicative sun hours analysis for early design decisions only. Results are approximate.', 20, dy);
+                doc.text('This tool does not constitute a professional daylight or sunlight assessment.', 20, dy + 5);
 
                 doc.save('SunForm_Report.pdf');
 
@@ -2191,9 +2443,127 @@
             }
         });
 
+        // ─── LOCATION PICKER (Leaflet) ───
+        function initLocationMap() {
+            locationMap = L.map('location-map', {
+                zoomControl: true,
+                attributionControl: false,
+            }).setView([54.0, -2.0], 6); // UK overview
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+            }).addTo(locationMap);
+
+            locationMarker = L.marker([51.5074, -0.1278]).addTo(locationMap);
+
+            locationMap.on('click', (e) => {
+                const { lat, lng } = e.latlng;
+                locationMarker.setLatLng([lat, lng]);
+                document.getElementById('latitude').value = lat.toFixed(4);
+                document.getElementById('longitude').value = lng.toFixed(4);
+            });
+
+            // Sync: when lat/lng fields change, update map
+            ['latitude', 'longitude'].forEach(id => {
+                document.getElementById(id).addEventListener('change', () => {
+                    const lat = parseFloat(document.getElementById('latitude').value) || 51.5074;
+                    const lng = parseFloat(document.getElementById('longitude').value) || -0.1278;
+                    locationMarker.setLatLng([lat, lng]);
+                    locationMap.setView([lat, lng], Math.max(locationMap.getZoom(), 10));
+                });
+            });
+
+            // Search box (Nominatim)
+            let searchTimeout = null;
+            document.getElementById('location-search').addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                const query = e.target.value.trim();
+                if (query.length < 3) return;
+                searchTimeout = setTimeout(() => {
+                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`, {
+                        headers: { 'Accept': 'application/json' }
+                    })
+                    .then(r => r.json())
+                    .then(results => {
+                        if (results.length > 0) {
+                            const lat = parseFloat(results[0].lat);
+                            const lng = parseFloat(results[0].lon);
+                            document.getElementById('latitude').value = lat.toFixed(4);
+                            document.getElementById('longitude').value = lng.toFixed(4);
+                            locationMarker.setLatLng([lat, lng]);
+                            locationMap.setView([lat, lng], 14);
+                        }
+                    })
+                    .catch(() => {});
+                }, 600);
+            });
+
+            document.getElementById('location-search').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') e.preventDefault();
+            });
+        }
+
+        // ─── SEASON TOGGLES ───
+        function toggleSeason(season) {
+            // Count currently active
+            const count = Object.values(activeSeasons).filter(Boolean).length;
+            if (activeSeasons[season] && count <= 1) return; // must keep at least one
+            activeSeasons[season] = !activeSeasons[season];
+            document.getElementById('season-' + season).classList.toggle('active', activeSeasons[season]);
+        }
+
+        function getActiveSeasonKeys() {
+            return Object.keys(activeSeasons).filter(k => activeSeasons[k]);
+        }
+
+        // ─── SEASON SWITCHER ───
+        function switchVisibleSeason(season) {
+            if (!seasonResults[season]) return;
+            visibleSeason = season;
+            // Hide all heatmaps, show selected
+            for (const [key, group] of Object.entries(seasonHeatmaps)) {
+                group.visible = (key === season);
+            }
+            // Update switcher buttons
+            document.querySelectorAll('.season-sw-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('sw-' + season).classList.add('active');
+            // Update results panel for this season
+            showResults(seasonResults[season].summary, season);
+        }
+
+        // ─── BUG REPORT ───
+        function updateBugReportLink() {
+            const lat = document.getElementById('latitude').value;
+            const lng = document.getElementById('longitude').value;
+            const seasons = getActiveSeasonKeys().join(', ');
+            const grid = document.getElementById('grid_resolution').value;
+            const ua = navigator.userAgent;
+            const ts = new Date().toISOString();
+            const body = [
+                'SUNFORM Bug Report',
+                '---',
+                'Latitude: ' + lat,
+                'Longitude: ' + lng,
+                'Seasons analysed: ' + seasons,
+                'Grid resolution: ' + grid + 'm',
+                'Browser: ' + ua,
+                'Timestamp: ' + ts,
+                '',
+                'Description of issue:',
+                '',
+            ].join('\n');
+            const link = document.getElementById('bug-report-link');
+            link.href = 'mailto:jake@jakewhitearchitecture.com?subject=' +
+                encodeURIComponent('SUNFORM Bug Report') +
+                '&body=' + encodeURIComponent(body);
+        }
+
         // ─── INIT ───
         initThree();
         initWebIfc();
+        // Leaflet must init after DOM is ready and step-4 is visible at least once
+        // We defer map init to when step 4 opens
+        let mapInitialized = false;
     </script>
 </body>
 </html>
