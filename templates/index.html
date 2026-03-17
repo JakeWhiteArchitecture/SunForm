@@ -850,11 +850,14 @@
                         <option value="180">South</option>
                         <option value="270">West</option>
                     </select>
-                    <button class="btn btn-secondary" id="orient-two-point-btn" onclick="event.stopPropagation(); startTwoPointOrient();" style="flex:1; margin-top:0;">Set by Two Points</button>
-                    <button class="btn btn-secondary" id="orient-clear-btn" onclick="event.stopPropagation(); clearTwoPointOrient();" style="flex:0 0 auto; margin-top:0; display:none;">Clear</button>
+                    <button class="btn btn-secondary" id="orient-two-point-btn" onclick="event.stopPropagation(); startEdgeOrient();" style="flex:1; margin-top:0;">Set by Edge</button>
+                    <button class="btn btn-secondary" id="orient-clear-btn" onclick="event.stopPropagation(); clearEdgeOrient();" style="flex:0 0 auto; margin-top:0; display:none;">Clear</button>
                 </div>
                 <div style="font-size:11px; color:#666; margin-bottom:8px;">
-                    Select a direction, then click two points on the model. The line from point 1 to point 2 will be aligned to that direction.
+                    Select a direction, then hover over an edge on the model and click to select it. Click again to flip the arrow. Apply to align.
+                </div>
+                <div id="orient-apply-row" style="display:none; margin-bottom:8px;">
+                    <button class="btn btn-secondary" onclick="event.stopPropagation(); applyEdgeOrient();" style="margin-top:0;">Apply Edge Orientation</button>
                 </div>
                 <button class="btn btn-primary" onclick="event.stopPropagation(); confirmOrientation();">Confirm Orientation</button>
             </div>
@@ -1016,7 +1019,7 @@
         </div>
         <div class="orient-overlay" id="orient-overlay">
             <div style="color:#D4880F; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Set Orientation</div>
-            <div style="color:#aaa; font-size:12px;" id="orient-hint">Click the first point on the model</div>
+            <div style="color:#aaa; font-size:12px;" id="orient-hint">Hover over the model to highlight an edge, then click to select</div>
         </div>
         <div class="pick-overlay" id="pick-overlay">
             <div style="color:#00CFC8; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Ground Mesh</div>
@@ -1076,9 +1079,13 @@
         let northRotationDeg = 0;
         let modelRotationGroup = null;
         let orientMode = false;
-        let orientPoint1 = null;
-        let orientTempMarkers = [];
         let orientMouseDown = null;
+        let orientEdgeCache = new Map();   // Map<mesh, Float32Array> — cached edge positions
+        let orientHoveredEdge = null;      // { p1: Vector3, p2: Vector3 } world-space
+        let orientSelectedEdge = null;     // { p1: Vector3, p2: Vector3 } world-space, after click
+        let orientEdgeFlipped = false;     // whether user has flipped the arrow direction
+        let orientHighlightLine = null;    // THREE.Line for hover highlight
+        let orientSelectionGroup = null;   // THREE.Group for selected edge visuals (line + arrow + dots)
 
         // Season analysis state
         const SEASON_DATES = {
@@ -1247,10 +1254,10 @@
             currentStep = n;
 
             // Step-specific modes
-            if (n === 2) { switchToOrtho(); clearTwoPointOrient(); }
+            if (n === 2) { switchToOrtho(); clearEdgeOrient(); }
             else switchToPersp();
             setPickMode(n === 3);
-            if (n !== 2 && orientMode) stopTwoPointOrient();
+            if (n !== 2 && orientMode) stopEdgeOrient();
 
             // Mesh visibility: when going back to step 3 (select mesh), show meshes
             // and gray out previous results. On step 5 (results), hide meshes.
@@ -1575,99 +1582,232 @@
             completeStep(2, summary);
         }
 
-        // ─── TWO-POINT ORIENTATION ───
-        function startTwoPointOrient() {
-            orientMode = true;
-            orientPoint1 = null;
-            clearOrientMarkers();
-            controls.enabled = false;
-            document.getElementById('orient-overlay').classList.add('visible');
-            document.getElementById('orient-hint').textContent = 'Click the first point on the model';
-            document.getElementById('viewport').classList.add('picking-mesh');
+        // ─── EDGE-BASED ORIENTATION ───
+
+        function ensureOrientEdgeCache() {
+            if (orientEdgeCache.size > 0) return;
+            for (const mesh of allMeshes) {
+                const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
+                const posArray = edges.attributes.position.array.slice();
+                orientEdgeCache.set(mesh, posArray);
+                edges.dispose();
+            }
         }
 
-        function stopTwoPointOrient() {
+        function findClosestEdge(mesh, worldHitPoint) {
+            const posArray = orientEdgeCache.get(mesh);
+            if (!posArray) return null;
+
+            mesh.updateWorldMatrix(true, false);
+            const wm = mesh.matrixWorld;
+            const invWm = new THREE.Matrix4().copy(wm).invert();
+            const localHit = worldHitPoint.clone().applyMatrix4(invWm);
+
+            let bestDist = Infinity;
+            let bestI = -1;
+
+            for (let i = 0; i < posArray.length; i += 6) {
+                const ax = posArray[i],     ay = posArray[i+1], az = posArray[i+2];
+                const bx = posArray[i+3],   by = posArray[i+4], bz = posArray[i+5];
+
+                // Closest point on segment a-b to localHit
+                const abx = bx - ax, aby = by - ay, abz = bz - az;
+                const len2 = abx*abx + aby*aby + abz*abz;
+                if (len2 < 1e-10) continue;
+                let t = ((localHit.x - ax)*abx + (localHit.y - ay)*aby + (localHit.z - az)*abz) / len2;
+                t = Math.max(0, Math.min(1, t));
+                const cx = ax + abx*t, cy = ay + aby*t, cz = az + abz*t;
+                const dx = localHit.x - cx, dy = localHit.y - cy, dz = localHit.z - cz;
+                const dist = dx*dx + dy*dy + dz*dz;
+
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestI = i;
+                }
+            }
+
+            if (bestI < 0) return null;
+            const p1 = new THREE.Vector3(posArray[bestI], posArray[bestI+1], posArray[bestI+2]).applyMatrix4(wm);
+            const p2 = new THREE.Vector3(posArray[bestI+3], posArray[bestI+4], posArray[bestI+5]).applyMatrix4(wm);
+
+            // Default direction: left-to-right (by X), or down-to-up (by Z) if mostly vertical on screen
+            const ddx = p2.x - p1.x, ddz = p2.z - p1.z;
+            if (Math.abs(ddx) >= Math.abs(ddz)) {
+                // Horizontal-ish: ensure left-to-right (+X)
+                return ddx >= 0 ? { p1: p1, p2: p2 } : { p1: p2, p2: p1 };
+            } else {
+                // Vertical-ish: ensure down-to-up (-Z = screen up)
+                return ddz <= 0 ? { p1: p1, p2: p2 } : { p1: p2, p2: p1 };
+            }
+        }
+
+        function setOrientHoverHighlight(edge) {
+            clearOrientHoverHighlight();
+            if (!edge) return;
+            const geo = new THREE.BufferGeometry().setFromPoints([edge.p1, edge.p2]);
+            const mat = new THREE.LineBasicMaterial({ color: 0xFFD700, linewidth: 2, depthTest: false });
+            orientHighlightLine = new THREE.Line(geo, mat);
+            orientHighlightLine.renderOrder = 999;
+            scene.add(orientHighlightLine);
+        }
+
+        function clearOrientHoverHighlight() {
+            if (orientHighlightLine) {
+                scene.remove(orientHighlightLine);
+                orientHighlightLine.geometry.dispose();
+                orientHighlightLine.material.dispose();
+                orientHighlightLine = null;
+            }
+        }
+
+        function showOrientSelection(edge) {
+            clearOrientSelection();
+            const group = new THREE.Group();
+            group.renderOrder = 999;
+
+            // Edge line (gold)
+            const lineGeo = new THREE.BufferGeometry().setFromPoints([edge.p1, edge.p2]);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0xFFD700, linewidth: 2, depthTest: false });
+            const line = new THREE.Line(lineGeo, lineMat);
+            line.renderOrder = 999;
+            group.add(line);
+
+            // Dots at endpoints
+            const dotGeo = new THREE.SphereGeometry(0.3, 8, 8);
+            const dotMat = new THREE.MeshBasicMaterial({ color: 0xFFD700, depthTest: false });
+            const dot1 = new THREE.Mesh(dotGeo, dotMat);
+            dot1.position.copy(edge.p1);
+            dot1.renderOrder = 999;
+            group.add(dot1);
+            const dot2 = new THREE.Mesh(dotGeo.clone(), dotMat.clone());
+            dot2.position.copy(edge.p2);
+            dot2.renderOrder = 999;
+            group.add(dot2);
+
+            // Arrow: cone at p2 end pointing in the edge direction
+            const dir = new THREE.Vector3().subVectors(edge.p2, edge.p1);
+            const len = dir.length();
+            if (len > 0.01) {
+                const arrowLen = Math.min(len * 0.2, 1.5);
+                const coneGeo = new THREE.ConeGeometry(arrowLen * 0.4, arrowLen, 8);
+                const coneMat = new THREE.MeshBasicMaterial({ color: 0xFFD700, depthTest: false });
+                const cone = new THREE.Mesh(coneGeo, coneMat);
+                // Position cone at 85% along the edge (near p2)
+                const mid = new THREE.Vector3().lerpVectors(edge.p1, edge.p2, 0.85);
+                cone.position.copy(mid);
+                // Orient cone to point along edge direction
+                const up = new THREE.Vector3(0, 1, 0);
+                const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize());
+                cone.quaternion.copy(quat);
+                cone.renderOrder = 999;
+                group.add(cone);
+            }
+
+            scene.add(group);
+            orientSelectionGroup = group;
+        }
+
+        function clearOrientSelection() {
+            if (orientSelectionGroup) {
+                orientSelectionGroup.traverse(function(child) {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                });
+                scene.remove(orientSelectionGroup);
+                orientSelectionGroup = null;
+            }
+        }
+
+        function startEdgeOrient() {
+            orientMode = true;
+            orientSelectedEdge = null;
+            orientHoveredEdge = null;
+            orientEdgeFlipped = false;
+            clearOrientHoverHighlight();
+            clearOrientSelection();
+            controls.enabled = false;
+            document.getElementById('orient-overlay').classList.add('visible');
+            document.getElementById('orient-hint').textContent = 'Hover over the model to highlight an edge, then click to select';
+            document.getElementById('viewport').classList.add('picking-mesh');
+            document.getElementById('orient-apply-row').style.display = 'none';
+        }
+
+        function stopEdgeOrient() {
             orientMode = false;
-            orientPoint1 = null;
-            clearOrientMarkers();
+            orientSelectedEdge = null;
+            orientHoveredEdge = null;
+            orientEdgeFlipped = false;
+            clearOrientHoverHighlight();
+            clearOrientSelection();
             controls.enabled = true;
             document.getElementById('orient-overlay').classList.remove('visible');
             document.getElementById('viewport').classList.remove('picking-mesh');
-            // Disable the button so further clicks don't re-enter orient mode;
-            // show Clear button to allow resetting
+            document.getElementById('orient-apply-row').style.display = 'none';
             document.getElementById('orient-two-point-btn').disabled = true;
             document.getElementById('orient-clear-btn').style.display = '';
         }
 
-        function clearTwoPointOrient() {
+        function clearEdgeOrient() {
+            orientEdgeCache.clear();
+            clearOrientHoverHighlight();
+            clearOrientSelection();
+            document.getElementById('orient-apply-row').style.display = 'none';
             document.getElementById('orient-two-point-btn').disabled = false;
             document.getElementById('orient-clear-btn').style.display = 'none';
         }
 
-        function clearOrientMarkers() {
-            for (const m of orientTempMarkers) {
-                scene.remove(m);
-                m.geometry.dispose();
-                m.material.dispose();
-            }
-            orientTempMarkers = [];
-        }
+        function applyEdgeOrient() {
+            if (!orientSelectedEdge) return;
+            const edge = orientSelectedEdge;
+            const p1 = orientEdgeFlipped ? edge.p2 : edge.p1;
+            const p2 = orientEdgeFlipped ? edge.p1 : edge.p2;
 
-        function addOrientMarker(point) {
-            const geo = new THREE.SphereGeometry(0.4, 8, 8);
-            const mat = new THREE.MeshBasicMaterial({ color: 0xD4880F });
-            const marker = new THREE.Mesh(geo, mat);
-            marker.position.copy(point);
-            scene.add(marker);
-            orientTempMarkers.push(marker);
+            // Edge direction in world space
+            const dx = p2.x - p1.x;
+            const dz = p2.z - p1.z;
+            const worldAngleDeg = Math.atan2(dx, -dz) * 180 / Math.PI;
+
+            // User's target bearing for this edge direction
+            const targetAngleDeg = parseFloat(document.getElementById('orient-direction').value);
+
+            let newRotation = northRotationDeg + (targetAngleDeg - worldAngleDeg);
+            while (newRotation > 180) newRotation -= 360;
+            while (newRotation <= -180) newRotation += 360;
+
+            const targetDeg = Math.round(newRotation * 10) / 10;
+            stopEdgeOrient();
+            animateRotation(targetDeg);
         }
 
         function handleOrientClick(event) {
+            // Drag guard
             if (orientMouseDown) {
                 const ddx = event.clientX - orientMouseDown.x;
                 const ddy = event.clientY - orientMouseDown.y;
                 if (ddx * ddx + ddy * ddy > 25) return;
             }
-            const container = document.getElementById('viewport');
-            const rect = container.getBoundingClientRect();
-            const mouse = new THREE.Vector2(
-                ((event.clientX - rect.left) / rect.width) * 2 - 1,
-                -((event.clientY - rect.top) / rect.height) * 2 + 1
-            );
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(mouse, camera);
-            const hits = raycaster.intersectObjects(allMeshes, false);
-            if (hits.length === 0) return;
 
-            const hitPoint = hits[0].point;
-
-            if (!orientPoint1) {
-                orientPoint1 = hitPoint.clone();
-                addOrientMarker(hitPoint);
-                document.getElementById('orient-hint').textContent = 'Click the second point on the model';
-            } else {
-                addOrientMarker(hitPoint);
-                const p2 = hitPoint.clone();
-
-                // P1→P2 vector in world space (already includes current rotation)
-                const dx = p2.x - orientPoint1.x;
-                const dz = p2.z - orientPoint1.z;
-
-                // World-space angle CW from screen-up (-Z)
-                const worldAngleDeg = Math.atan2(dx, -dz) * 180 / Math.PI;
-
-                // Target direction (0=N, 90=E, 180=S, 270=W) — same as screen angles
-                const targetAngleDeg = parseFloat(document.getElementById('orient-direction').value);
-
-                // Adjust rotation so the clicked vector aligns with the target direction
-                let newRotation = northRotationDeg + (targetAngleDeg - worldAngleDeg);
-                while (newRotation > 180) newRotation -= 360;
-                while (newRotation <= -180) newRotation += 360;
-
-                const targetDeg = Math.round(newRotation * 10) / 10;
-                stopTwoPointOrient();
-                animateRotation(targetDeg);
+            // If an edge is already selected, a second click flips the arrow direction
+            if (orientSelectedEdge) {
+                orientEdgeFlipped = !orientEdgeFlipped;
+                const edge = orientSelectedEdge;
+                const displayed = orientEdgeFlipped
+                    ? { p1: edge.p2, p2: edge.p1 }
+                    : { p1: edge.p1, p2: edge.p2 };
+                showOrientSelection(displayed);
+                document.getElementById('orient-hint').textContent = 'Arrow flipped. Click again to flip, or set direction and apply.';
+                return;
             }
+
+            // First click: select the hovered edge
+            if (!orientHoveredEdge) return;
+
+            orientSelectedEdge = { p1: orientHoveredEdge.p1.clone(), p2: orientHoveredEdge.p2.clone() };
+            orientEdgeFlipped = false;
+            clearOrientHoverHighlight();
+            showOrientSelection(orientSelectedEdge);
+            document.getElementById('orient-hint').textContent = 'Edge selected. Click to flip direction, or set direction and apply.';
+            document.getElementById('orient-apply-row').style.display = '';
         }
 
         function animateRotation(targetDeg, duration) {
@@ -2940,6 +3080,29 @@
         }
 
         document.getElementById('viewport').addEventListener('mousemove', (event) => {
+            // Edge-orient hover highlight
+            if (orientMode && !orientSelectedEdge) {
+                ensureOrientEdgeCache();
+                const container = document.getElementById('viewport');
+                const rect = container.getBoundingClientRect();
+                const mouse = new THREE.Vector2(
+                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                    -((event.clientY - rect.top) / rect.height) * 2 + 1
+                );
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(mouse, camera);
+                const hits = raycaster.intersectObjects(allMeshes, false);
+                if (hits.length === 0) {
+                    orientHoveredEdge = null;
+                    clearOrientHoverHighlight();
+                    return;
+                }
+                const edge = findClosestEdge(hits[0].object, hits[0].point);
+                orientHoveredEdge = edge;
+                setOrientHoverHighlight(edge);
+                return;
+            }
+
             if (!bboxMode || !bboxCorner1) return;
             const pt = getGroundIntersection(event);
             if (!pt) return;
