@@ -856,9 +856,6 @@
                 <div style="font-size:11px; color:#666; margin-bottom:8px;">
                     Select a direction, then hover over an edge on the model and click to select it. Click again to flip the arrow. Apply to align.
                 </div>
-                <div id="orient-apply-row" style="display:none; margin-bottom:8px;">
-                    <button class="btn btn-secondary" onclick="event.stopPropagation(); applyEdgeOrient();" style="margin-top:0;">Apply Edge Orientation</button>
-                </div>
                 <button class="btn btn-primary" onclick="event.stopPropagation(); confirmOrientation();">Confirm Orientation</button>
             </div>
         </div>
@@ -1017,6 +1014,11 @@
             </svg>
             <div>N</div>
         </div>
+        <div id="orient-arc-input" onclick="event.stopPropagation();" style="display:none; position:absolute; z-index:20; background:rgba(10,10,26,0.92); border:1px solid #D4880F; border-radius:6px; padding:6px 10px; pointer-events:auto;">
+            <label style="color:#D4880F; font-size:11px; font-weight:600;" id="orient-arc-label">+ Rotation \u00b0</label>
+            <input type="number" id="orient-arc-degrees" style="width:70px; background:#0a0e1a; color:#e0e0e0; border:1px solid #333; border-radius:4px; padding:4px 6px; font-size:13px; margin-left:4px;" placeholder="0">
+            <button class="btn btn-secondary" onclick="event.stopPropagation(); confirmArcRotation();" style="margin-left:4px; padding:2px 8px; font-size:11px; margin-top:0;">OK</button>
+        </div>
         <div class="orient-overlay" id="orient-overlay">
             <div style="color:#D4880F; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Set Orientation</div>
             <div style="color:#aaa; font-size:12px;" id="orient-hint">Hover over the model to highlight an edge, then click to select</div>
@@ -1086,6 +1088,7 @@
         let orientEdgeFlipped = false;     // whether user has flipped the arrow direction
         let orientHighlightLine = null;    // THREE.Line for hover highlight
         let orientSelectionGroup = null;   // THREE.Group for selected edge visuals (line + arrow + dots)
+        let orientArcSign = 1;             // +1 for CCW (positive rotation), -1 for CW (negative)
 
         // Season analysis state
         const SEASON_DATES = {
@@ -1692,15 +1695,97 @@
                 const coneGeo = new THREE.ConeGeometry(arrowLen * 0.4, arrowLen, 8);
                 const coneMat = new THREE.MeshBasicMaterial({ color: 0xFFD700, depthTest: false });
                 const cone = new THREE.Mesh(coneGeo, coneMat);
-                // Position cone at 85% along the edge (near p2)
-                const mid = new THREE.Vector3().lerpVectors(edge.p1, edge.p2, 0.85);
-                cone.position.copy(mid);
-                // Orient cone to point along edge direction
+                const conePos = new THREE.Vector3().lerpVectors(edge.p1, edge.p2, 0.85);
+                cone.position.copy(conePos);
                 const up = new THREE.Vector3(0, 1, 0);
                 const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize());
                 cone.quaternion.copy(quat);
                 cone.renderOrder = 999;
                 group.add(cone);
+            }
+
+            // ─── Directional arcs ───
+            if (len > 0.01) {
+                const mid = new THREE.Vector3().lerpVectors(edge.p1, edge.p2, 0.5);
+                const radius = len * 0.4;
+                // Edge direction angle in XZ plane
+                const baseAngle = Math.atan2(dir.z, dir.x);
+                var nSegs = 20;
+
+                // Build arc points along a circular arc in the XZ plane
+                function buildArcPoints(startAngle, sweep) {
+                    var pts = [];
+                    for (var i = 0; i <= nSegs; i++) {
+                        var a = startAngle + sweep * (i / nSegs);
+                        pts.push(new THREE.Vector3(
+                            mid.x + radius * Math.cos(a),
+                            mid.y + 0.15,
+                            mid.z + radius * Math.sin(a)
+                        ));
+                    }
+                    return pts;
+                }
+
+                // CCW arc (positive rotation): sweeps +90° from edge direction
+                var ccwPts = buildArcPoints(baseAngle, Math.PI / 2);
+                var ccwGeo = new THREE.BufferGeometry().setFromPoints(ccwPts);
+                var ccwMat = new THREE.LineBasicMaterial({ color: 0x44DD44, linewidth: 2, depthTest: false });
+                var ccwLine = new THREE.Line(ccwGeo, ccwMat);
+                ccwLine.renderOrder = 999;
+                ccwLine.userData.arcSide = 'ccw';
+                group.add(ccwLine);
+
+                // CCW arrowhead at tip
+                var ccwTip = ccwPts[ccwPts.length - 1];
+                var ccwPrev = ccwPts[ccwPts.length - 2];
+                var ccwDir = new THREE.Vector3().subVectors(ccwTip, ccwPrev).normalize();
+                var ccwConeSize = radius * 0.25;
+                var ccwCone = new THREE.Mesh(
+                    new THREE.ConeGeometry(ccwConeSize * 0.4, ccwConeSize, 8),
+                    new THREE.MeshBasicMaterial({ color: 0x44DD44, depthTest: false })
+                );
+                ccwCone.position.copy(ccwTip);
+                ccwCone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), ccwDir);
+                ccwCone.renderOrder = 999;
+                ccwCone.userData.arcSide = 'ccw';
+                group.add(ccwCone);
+
+                // CW arc (negative rotation): sweeps -90° from edge direction
+                var cwPts = buildArcPoints(baseAngle, -Math.PI / 2);
+                var cwGeo = new THREE.BufferGeometry().setFromPoints(cwPts);
+                var cwMat = new THREE.LineBasicMaterial({ color: 0xDD4444, linewidth: 2, depthTest: false });
+                var cwLine = new THREE.Line(cwGeo, cwMat);
+                cwLine.renderOrder = 999;
+                cwLine.userData.arcSide = 'cw';
+                group.add(cwLine);
+
+                // CW arrowhead at tip
+                var cwTip = cwPts[cwPts.length - 1];
+                var cwPrev = cwPts[cwPts.length - 2];
+                var cwDir = new THREE.Vector3().subVectors(cwTip, cwPrev).normalize();
+                var cwConeSize = radius * 0.25;
+                var cwCone = new THREE.Mesh(
+                    new THREE.ConeGeometry(cwConeSize * 0.4, cwConeSize, 8),
+                    new THREE.MeshBasicMaterial({ color: 0xDD4444, depthTest: false })
+                );
+                cwCone.position.copy(cwTip);
+                cwCone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), cwDir);
+                cwCone.renderOrder = 999;
+                cwCone.userData.arcSide = 'cw';
+                group.add(cwCone);
+
+                // Invisible hit-target tubes along arcs for easier click detection
+                function buildArcTube(arcPts, side) {
+                    var tubePath = new THREE.CatmullRomCurve3(arcPts);
+                    var tubeGeo = new THREE.TubeGeometry(tubePath, nSegs, radius * 0.12, 6, false);
+                    var tubeMat = new THREE.MeshBasicMaterial({ visible: false });
+                    var tube = new THREE.Mesh(tubeGeo, tubeMat);
+                    tube.userData.arcSide = side;
+                    tube.renderOrder = 999;
+                    return tube;
+                }
+                group.add(buildArcTube(ccwPts, 'ccw'));
+                group.add(buildArcTube(cwPts, 'cw'));
             }
 
             scene.add(group);
@@ -1729,7 +1814,7 @@
             document.getElementById('orient-overlay').classList.add('visible');
             document.getElementById('orient-hint').textContent = 'Hover over the model to highlight an edge, then click to select';
             document.getElementById('viewport').classList.add('picking-mesh');
-            document.getElementById('orient-apply-row').style.display = 'none';
+            hideArcInput();
         }
 
         function stopEdgeOrient() {
@@ -1739,10 +1824,10 @@
             orientEdgeFlipped = false;
             clearOrientHoverHighlight();
             clearOrientSelection();
+            hideArcInput();
             controls.enabled = true;
             document.getElementById('orient-overlay').classList.remove('visible');
             document.getElementById('viewport').classList.remove('picking-mesh');
-            document.getElementById('orient-apply-row').style.display = 'none';
             document.getElementById('orient-two-point-btn').disabled = true;
             document.getElementById('orient-clear-btn').style.display = '';
         }
@@ -1751,51 +1836,102 @@
             orientEdgeCache.clear();
             clearOrientHoverHighlight();
             clearOrientSelection();
-            document.getElementById('orient-apply-row').style.display = 'none';
+            hideArcInput();
             document.getElementById('orient-two-point-btn').disabled = false;
             document.getElementById('orient-clear-btn').style.display = 'none';
         }
 
-        function applyEdgeOrient() {
-            if (!orientSelectedEdge) return;
-            const edge = orientSelectedEdge;
-            const p1 = orientEdgeFlipped ? edge.p2 : edge.p1;
-            const p2 = orientEdgeFlipped ? edge.p1 : edge.p2;
+        function showArcInput(arcSide, screenX, screenY) {
+            orientArcSign = (arcSide === 'ccw') ? 1 : -1;
+            var inputEl = document.getElementById('orient-arc-input');
+            var labelEl = document.getElementById('orient-arc-label');
+            labelEl.textContent = (orientArcSign > 0 ? '+ ' : '\u2212 ') + 'Rotation \u00b0';
+            labelEl.style.color = (orientArcSign > 0) ? '#44DD44' : '#DD4444';
+            // Position near the clicked arc, clamped within viewport
+            var vp = document.getElementById('viewport');
+            var vpRect = vp.getBoundingClientRect();
+            var left = Math.min(Math.max(screenX - vpRect.left - 60, 10), vpRect.width - 220);
+            var top = Math.min(Math.max(screenY - vpRect.top - 40, 10), vpRect.height - 50);
+            inputEl.style.left = left + 'px';
+            inputEl.style.top = top + 'px';
+            inputEl.style.display = '';
+            var degInput = document.getElementById('orient-arc-degrees');
+            degInput.value = '';
+            degInput.focus();
+        }
 
-            // Edge direction in world space
-            const dx = p2.x - p1.x;
-            const dz = p2.z - p1.z;
-            const worldAngleDeg = Math.atan2(dx, -dz) * 180 / Math.PI;
+        function hideArcInput() {
+            document.getElementById('orient-arc-input').style.display = 'none';
+            document.getElementById('orient-arc-degrees').value = '';
+        }
 
-            // User's target bearing for this edge direction
-            const targetAngleDeg = parseFloat(document.getElementById('orient-direction').value);
-
-            let newRotation = northRotationDeg + (targetAngleDeg - worldAngleDeg);
-            while (newRotation > 180) newRotation -= 360;
-            while (newRotation <= -180) newRotation += 360;
-
-            const targetDeg = Math.round(newRotation * 10) / 10;
+        function confirmArcRotation() {
+            var degrees = parseFloat(document.getElementById('orient-arc-degrees').value);
+            if (isNaN(degrees) || degrees === 0) return;
+            var rotation = orientArcSign * Math.abs(degrees);
+            var targetDeg = northRotationDeg + rotation;
+            while (targetDeg > 180) targetDeg -= 360;
+            while (targetDeg <= -180) targetDeg += 360;
+            targetDeg = Math.round(targetDeg * 10) / 10;
+            hideArcInput();
             stopEdgeOrient();
             animateRotation(targetDeg);
         }
 
+        // Enter key on arc input confirms, Escape cancels
+        document.getElementById('orient-arc-degrees').addEventListener('keydown', function(e) {
+            e.stopPropagation();
+            if (e.key === 'Enter') { e.preventDefault(); confirmArcRotation(); }
+            if (e.key === 'Escape') { e.preventDefault(); hideArcInput(); }
+        });
+
         function handleOrientClick(event) {
             // Drag guard
             if (orientMouseDown) {
-                const ddx = event.clientX - orientMouseDown.x;
-                const ddy = event.clientY - orientMouseDown.y;
+                var ddx = event.clientX - orientMouseDown.x;
+                var ddy = event.clientY - orientMouseDown.y;
                 if (ddx * ddx + ddy * ddy > 25) return;
             }
 
-            // If an edge is already selected, a second click flips the arrow direction
+            // If an edge is already selected, check if an arc was clicked
             if (orientSelectedEdge) {
+                // Raycast against arc hit-targets in the selection group
+                var container = document.getElementById('viewport');
+                var rect = container.getBoundingClientRect();
+                var mouse = new THREE.Vector2(
+                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                    -((event.clientY - rect.top) / rect.height) * 2 + 1
+                );
+                var raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(mouse, camera);
+
+                // Collect arc-tagged children (tubes + cones)
+                var arcTargets = [];
+                if (orientSelectionGroup) {
+                    orientSelectionGroup.traverse(function(child) {
+                        if (child.isMesh && child.userData.arcSide) {
+                            arcTargets.push(child);
+                        }
+                    });
+                }
+
+                var arcHits = raycaster.intersectObjects(arcTargets, false);
+                if (arcHits.length > 0) {
+                    var side = arcHits[0].object.userData.arcSide;
+                    showArcInput(side, event.clientX, event.clientY);
+                    document.getElementById('orient-hint').textContent = 'Enter rotation degrees and press OK or Enter.';
+                    return;
+                }
+
+                // No arc hit — flip the arrow direction
                 orientEdgeFlipped = !orientEdgeFlipped;
-                const edge = orientSelectedEdge;
-                const displayed = orientEdgeFlipped
+                hideArcInput();
+                var edge = orientSelectedEdge;
+                var displayed = orientEdgeFlipped
                     ? { p1: edge.p2, p2: edge.p1 }
                     : { p1: edge.p1, p2: edge.p2 };
                 showOrientSelection(displayed);
-                document.getElementById('orient-hint').textContent = 'Arrow flipped. Click again to flip, or set direction and apply.';
+                document.getElementById('orient-hint').textContent = 'Arrow flipped. Click an arc to set rotation.';
                 return;
             }
 
@@ -1806,8 +1942,7 @@
             orientEdgeFlipped = false;
             clearOrientHoverHighlight();
             showOrientSelection(orientSelectedEdge);
-            document.getElementById('orient-hint').textContent = 'Edge selected. Click to flip direction, or set direction and apply.';
-            document.getElementById('orient-apply-row').style.display = '';
+            document.getElementById('orient-hint').textContent = 'Click an arc to set rotation, or click the edge to flip direction.';
         }
 
         function animateRotation(targetDeg, duration) {
