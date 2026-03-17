@@ -332,8 +332,15 @@ class TestAccumulation:
         return [(float(i), 0.0, 0.0) for i in range(n)]
 
     def _make_sun_positions(self, n):
-        """Return n fake sun positions spread across the day."""
-        return [{'azimuth': 180.0, 'altitude': 45.0, 'hour': 8 + i} for i in range(n)]
+        """Return n sun positions with genuinely different directions."""
+        # Vary azimuth (120°–240°) and altitude (25°–65°) so each produces
+        # a different shadow direction — catches caching / repeat bugs.
+        azimuths = [120, 150, 180, 210, 240]
+        altitudes = [25, 35, 45, 55, 65]
+        return [
+            {'azimuth': azimuths[i % 5], 'altitude': altitudes[i % 5], 'hour': 8 + i}
+            for i in range(n)
+        ]
 
     def test_g_multi_position_accumulation(self):
         """1 cell, 3 sun positions, no obstacles → hours = 3 * timeStep."""
@@ -344,30 +351,38 @@ class TestAccumulation:
             f"Expected 3.0h from 3 sun positions, got {result[0]}h — accumulator may be overwriting"
 
     def test_h_partial_shadow_across_day(self):
-        """1 cell, 5 sun positions, obstacle blocks exactly 2 of 5 → hours = 3 * timeStep.
-
-        Place a wall that blocks the sun at 2 specific azimuth/altitude combos
-        but not the other 3."""
-        # Cell at origin
+        """1 cell, 5 sun positions. Pre-verify which rays hit the wall,
+        then assert the exact expected hour count."""
         cells = [(0.0, 0.0, 0.0)]
-        # Wall to the south that blocks low-altitude sun but not high
         wall = make_box_triangles(0, 5, 3, 5, 5, 0.5)  # wall at z=3
+        origin = (0.0, 0.01, 0.0)  # 10mm above ground (matches engine offset)
 
         sun_pos = [
-            {'azimuth': 180.0, 'altitude': 10.0, 'hour': 8},   # low → blocked by wall
-            {'azimuth': 180.0, 'altitude': 15.0, 'hour': 9},   # low → blocked by wall
-            {'azimuth': 180.0, 'altitude': 70.0, 'hour': 10},  # high → clears wall
-            {'azimuth': 180.0, 'altitude': 80.0, 'hour': 11},  # high → clears wall
-            {'azimuth': 180.0, 'altitude': 85.0, 'hour': 12},  # high → clears wall
+            {'azimuth': 180.0, 'altitude': 10.0, 'hour': 8},
+            {'azimuth': 180.0, 'altitude': 15.0, 'hour': 9},
+            {'azimuth': 180.0, 'altitude': 70.0, 'hour': 10},
+            {'azimuth': 180.0, 'altitude': 80.0, 'hour': 11},
+            {'azimuth': 180.0, 'altitude': 85.0, 'hour': 12},
         ]
 
-        result = compute_sun_hours_array_style(cells, wall, sun_pos, time_step=1.0)
+        # Pre-verify: independently check which rays are blocked
+        blocked_count = 0
+        for sp in sun_pos:
+            d = sun_direction(sp['azimuth'], sp['altitude'])
+            if ray_hits_any_triangle(origin, d, wall):
+                blocked_count += 1
+        lit_count = len(sun_pos) - blocked_count
 
-        # Should be 3h (3 unblocked positions), NOT 5h and NOT 1h
-        assert result[0] >= 2.0, \
-            f"Expected ≥2h from partially blocked cell, got {result[0]}h — early hours may be lost"
-        assert result[0] < 5.0, \
-            f"Expected <5h from partially blocked cell, got {result[0]}h — wall not blocking"
+        assert blocked_count > 0, \
+            "Test geometry must block at least one ray — fixture is broken"
+        assert lit_count > 0, \
+            "Test geometry must let at least one ray through — fixture is broken"
+
+        # Now run the accumulation and assert the EXACT expected result
+        result = compute_sun_hours_array_style(cells, wall, sun_pos, time_step=1.0)
+        assert result[0] == float(lit_count), \
+            f"Expected exactly {lit_count}h ({blocked_count} blocked, {lit_count} lit), " \
+            f"got {result[0]}h — accumulation error"
 
     def test_i_array_style_matches_dict_style(self):
         """Both accumulation strategies produce identical results for same input."""
@@ -435,6 +450,124 @@ class TestAccumulation:
         for j in range(5):
             assert result[j] == 0.0, \
                 f"Cell {j} got {result[j]}h with no sun positions — uninitialised value leak"
+
+
+    def test_m_morning_data_survives_afternoon_pass(self):
+        """THE CORE TEST: proves earlier sun positions are not obliterated.
+
+        Two walls on opposite sides of two cells. Sun position 1 casts shadow
+        on cell A but not cell B. Sun position 2 casts shadow on cell B but
+        not cell A. After both positions, both cells must have exactly timeStep
+        — proving the afternoon pass didn't overwrite the morning data."""
+        # Cell A at (-5, 0, 0), Cell B at (+5, 0, 0)
+        cells = [(-5.0, 0.0, 0.0), (5.0, 0.0, 0.0)]
+
+        # Wall east of cell A at x=−3, blocks rays coming from the east
+        wall_east = make_box_triangles(-3, 5, 0, 0.5, 5, 5)
+        # Wall west of cell B at x=+3, blocks rays coming from the west
+        wall_west = make_box_triangles(3, 5, 0, 0.5, 5, 5)
+        obstacles = wall_east + wall_west
+
+        # Sun position 1: from the east (azimuth ~90°)
+        # Sun position 2: from the west (azimuth ~270°)
+        sun_pos = [
+            {'azimuth': 90.0, 'altitude': 30.0, 'hour': 8},   # from east
+            {'azimuth': 270.0, 'altitude': 30.0, 'hour': 16},  # from west
+        ]
+
+        # Pre-verify: independently confirm the shadow pattern
+        origin_a = (-5.0, 0.01, 0.0)
+        origin_b = (5.0, 0.01, 0.0)
+        dir1 = sun_direction(90.0, 30.0)
+        dir2 = sun_direction(270.0, 30.0)
+
+        # Cell A should be blocked by east wall from east sun, lit from west sun
+        a_blocked_by_1 = ray_hits_any_triangle(origin_a, dir1, obstacles)
+        a_blocked_by_2 = ray_hits_any_triangle(origin_a, dir2, obstacles)
+        # Cell B should be lit from east sun, blocked by west wall from west sun
+        b_blocked_by_1 = ray_hits_any_triangle(origin_b, dir1, obstacles)
+        b_blocked_by_2 = ray_hits_any_triangle(origin_b, dir2, obstacles)
+
+        assert a_blocked_by_1 and not a_blocked_by_2, \
+            f"Cell A shadow pattern wrong: blocked_by_east={a_blocked_by_1}, blocked_by_west={a_blocked_by_2}"
+        assert not b_blocked_by_1 and b_blocked_by_2, \
+            f"Cell B shadow pattern wrong: blocked_by_east={b_blocked_by_1}, blocked_by_west={b_blocked_by_2}"
+
+        # Run accumulation
+        result = compute_sun_hours_array_style(cells, obstacles, sun_pos, time_step=1.0)
+
+        # Both cells should have exactly 1h — each lit by one position
+        assert result[0] == 1.0, \
+            f"Cell A got {result[0]}h, expected 1.0h — morning data was obliterated by afternoon"
+        assert result[1] == 1.0, \
+            f"Cell B got {result[1]}h, expected 1.0h — afternoon data overwrote morning result"
+
+    def test_n_three_different_directions_accumulate_with_obstacle(self):
+        """3 genuinely different sun directions. Obstacle blocks exactly 1.
+        Pre-verified, then asserted exactly."""
+        cells = [(0.0, 0.0, 0.0)]
+        # Tall thin wall to the south
+        wall = make_box_triangles(0, 10, 5, 3, 10, 0.3)
+        origin = (0.0, 0.01, 0.0)
+
+        sun_pos = [
+            {'azimuth': 180.0, 'altitude': 20.0, 'hour': 9},   # south, low
+            {'azimuth': 90.0, 'altitude': 45.0, 'hour': 12},    # east, mid
+            {'azimuth': 270.0, 'altitude': 45.0, 'hour': 15},   # west, mid
+        ]
+
+        # Pre-verify each direction independently
+        blocked = []
+        for sp in sun_pos:
+            d = sun_direction(sp['azimuth'], sp['altitude'])
+            blocked.append(ray_hits_any_triangle(origin, d, wall))
+
+        assert sum(blocked) >= 1, \
+            f"Wall must block at least one direction, got blocked={blocked}"
+        expected_hours = sum(1.0 for b in blocked if not b)
+
+        result = compute_sun_hours_array_style(cells, wall, sun_pos, time_step=1.0)
+        assert result[0] == expected_hours, \
+            f"Expected {expected_hours}h (blocked={blocked}), got {result[0]}h"
+
+
+# ── Geometry fixture validation ──────────────────────────────────────────
+
+class TestGeometryFixtures:
+    """Validate that test geometry helpers produce genuinely opaque objects."""
+
+    def test_o_box_is_opaque_to_rays(self):
+        """Rays through the centre of a box must hit. Rays that miss must miss."""
+        box = make_box_triangles(0, 5, 0, 2, 5, 2)  # 4x10x4 box at origin
+
+        # Ray from below pointing up through centre — must hit bottom face
+        assert ray_hits_any_triangle((0, -1, 0), (0, 1, 0), box), \
+            "Ray through box centre should hit — box may have gaps"
+
+        # Ray from left pointing right through centre — must hit left face
+        assert ray_hits_any_triangle((-5, 5, 0), (1, 0, 0), box), \
+            "Ray through box side should hit"
+
+        # Ray from front pointing back through centre — must hit front face
+        assert ray_hits_any_triangle((0, 5, 5), (0, 0, -1), box), \
+            "Ray through box front should hit"
+
+        # Ray that clearly misses — must NOT hit
+        assert not ray_hits_any_triangle((10, 10, 10), (0, 1, 0), box), \
+            "Ray missing box should not hit"
+        # Ray parallel to a face but offset — should miss
+        assert not ray_hits_any_triangle((0, -1, 0), (1, 0, 0), box), \
+            "Ray parallel to box below it should not hit"
+
+    def test_o2_box_blocks_diagonal_rays(self):
+        """Diagonal rays that pass through the box must hit."""
+        box = make_box_triangles(0, 5, 0, 3, 5, 3)
+        # Diagonal from far away toward box centre
+        dx, dy, dz = 0 - (-20), 5 - 20, 0 - (-20)
+        length = math.sqrt(dx*dx + dy*dy + dz*dz)
+        d = (dx/length, dy/length, dz/length)
+        assert ray_hits_any_triangle((-20, 20, -20), d, box), \
+            "Diagonal ray toward box centre should hit"
 
 
 if __name__ == '__main__':
