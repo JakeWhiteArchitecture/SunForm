@@ -201,8 +201,8 @@
             font-weight: 600;
         }
 
-        /* ─── COMPLIANCE PANEL ─── */
-        .compliance-panel {
+        /* ─── RESULTS PANEL ─── */
+        .results-panel {
             background: #1a1a2e;
             border-radius: 6px;
             padding: 12px;
@@ -210,27 +210,19 @@
             display: none;
         }
 
-        .compliance-panel.visible { display: block; }
+        .results-panel.visible { display: block; }
 
-        .compliance-result {
-            font-size: 18px;
+        .results-title {
+            font-size: 14px;
             font-weight: 700;
             margin-bottom: 6px;
+            color: #e0e0e0;
         }
 
-        .compliance-result.pass { color: #4caf50; }
-        .compliance-result.fail { color: #f44336; }
-
-        .compliance-detail {
+        .results-detail {
             font-size: 12px;
             color: #aaa;
             line-height: 1.6;
-        }
-
-        .compliance-pct {
-            font-size: 28px;
-            font-weight: 700;
-            color: #e94560;
         }
 
         /* ─── BUTTONS ─── */
@@ -394,25 +386,6 @@
             position: relative;
         }
 
-        .colour-legend .bre-marker {
-            position: absolute;
-            left: -6px;
-            right: -6px;
-            height: 2px;
-            background: #fff;
-            bottom: 33.3%;
-        }
-
-        .colour-legend .bre-label {
-            position: absolute;
-            right: calc(100% + 4px);
-            bottom: 33.3%;
-            transform: translateY(50%);
-            font-size: 9px;
-            color: #fff;
-            white-space: nowrap;
-            font-weight: 700;
-        }
 
         /* ─── PROGRESS BAR ─── */
         .progress-bar {
@@ -464,7 +437,7 @@
     <div class="panel">
       <div class="panel-scroll">
         <h1>SUNFORM</h1>
-        <p class="subtitle">Sun Hours Analysis for BRE BR209 Compliance</p>
+        <p class="subtitle">Indicative Sun Hours Analysis</p>
 
         <!-- STEP 1: IMPORT -->
         <div class="step active" id="step-1" onclick="openStep(1)">
@@ -596,7 +569,7 @@
                         <input type="date" id="analysis_date" value="2024-03-21">
                     </div>
                 </div>
-                <div style="font-size:11px; color:#666; margin-bottom:8px;">BRE test: 21 March (spring equinox)</div>
+                <div style="font-size:11px; color:#666; margin-bottom:8px;">Default: 21 March (spring equinox)</div>
                 <button class="btn btn-run" id="run-btn" onclick="event.stopPropagation(); runAnalysis();">Run Analysis</button>
             </div>
         </div>
@@ -610,15 +583,9 @@
                 <span class="step-summary" id="step5-summary"></span>
             </div>
             <div class="step-body">
-                <div class="compliance-panel visible" id="compliance-panel">
-                    <div style="display:flex; align-items:center; justify-content:space-between;">
-                        <div>
-                            <div class="compliance-result" id="compliance-status">--</div>
-                            <div class="compliance-detail" id="compliance-message"></div>
-                        </div>
-                        <div class="compliance-pct" id="compliance-pct">--</div>
-                    </div>
-                    <div class="compliance-detail" id="compliance-detail" style="margin-top:8px;"></div>
+                <div class="results-panel visible" id="results-panel">
+                    <div class="results-title" id="results-title">Sun Hours Summary</div>
+                    <div class="results-detail" id="results-detail"></div>
                 </div>
                 <div style="display:flex; gap:8px; margin-top:10px;">
                     <button class="btn btn-primary" id="glb-btn" onclick="event.stopPropagation(); downloadGLB();" style="flex:1;">Download GLB</button>
@@ -629,9 +596,10 @@
         </div>
 
         <div class="disclaimer">
-            SUNFORM — Indicative sun hours analysis only. User must verify all outputs
-            before use in any planning submission. This tool does not constitute a
-            professional daylight and sunlight assessment.
+            SUNFORM — Indicative sun hours analysis for early design decisions only.
+            Results are approximate and must not be relied upon for planning submissions
+            or compliance assessments. This tool does not constitute a professional
+            daylight or sunlight assessment.
         </div>
 
       </div>
@@ -658,8 +626,6 @@
         <div class="colour-legend" id="colour-legend">
             <div class="legend-label">6h+</div>
             <div class="legend-bar-v">
-                <div class="bre-marker"></div>
-                <div class="bre-label">2h BRE</div>
             </div>
             <div class="legend-label">0h</div>
         </div>
@@ -738,6 +704,7 @@
             scene.add(dir2);
 
             const grid = new THREE.GridHelper(200, 200, 0x222244, 0x111133);
+            grid.visible = false;
             scene.add(grid);
 
             const planeGeo = new THREE.PlaneGeometry(2000, 2000);
@@ -1579,10 +1546,12 @@
                 }
             }
 
-            // 1. Collect world-space triangles from all selected ground meshes
-            showStatus('Extracting ground mesh triangles...');
+            // 1. Merge all selected ground mesh fragments into one unified set
+            showStatus('Merging ground mesh fragments...');
             await new Promise(r => setTimeout(r, 0));
-            const worldTris = []; // each: [[x,y,z],[x,y,z],[x,y,z]]
+            const mergedVerts = []; // flat: x,y,z,x,y,z,...
+            const mergedIdx = [];
+            let vertOffset = 0;
 
             for (const gm of selectedGroundMeshes) {
                 gm.updateWorldMatrix(true, false);
@@ -1590,21 +1559,70 @@
                 const geo = gm.geometry;
                 const pos = geo.attributes.position.array;
                 const idx = geo.index ? geo.index.array : null;
-                const faceCount = idx ? idx.length / 3 : pos.length / 9;
+                const numVerts = pos.length / 3;
 
-                for (let f = 0; f < faceCount; f++) {
-                    let i0, i1, i2;
-                    if (idx) {
-                        i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
-                    } else {
-                        i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
+                for (let v = 0; v < numVerts; v++) {
+                    const p = new THREE.Vector3(pos[v*3], pos[v*3+1], pos[v*3+2]).applyMatrix4(wm);
+                    mergedVerts.push(p.x, p.y, p.z);
+                }
+
+                if (idx) {
+                    for (let i = 0; i < idx.length; i++) {
+                        mergedIdx.push(idx[i] + vertOffset);
                     }
-                    const a = new THREE.Vector3(pos[i0*3], pos[i0*3+1], pos[i0*3+2]).applyMatrix4(wm);
-                    const b = new THREE.Vector3(pos[i1*3], pos[i1*3+1], pos[i1*3+2]).applyMatrix4(wm);
-                    const c = new THREE.Vector3(pos[i2*3], pos[i2*3+1], pos[i2*3+2]).applyMatrix4(wm);
-                    worldTris.push([[a.x, a.y, a.z], [b.x, b.y, b.z], [c.x, c.y, c.z]]);
+                } else {
+                    for (let i = 0; i < numVerts; i++) {
+                        mergedIdx.push(i + vertOffset);
+                    }
+                }
+                vertOffset += numVerts;
+            }
+
+            // Build all merged triangles as arrays
+            const allMergedTris = []; // each: [[x,y,z],[x,y,z],[x,y,z]]
+            const faceCount = mergedIdx.length / 3;
+            for (let f = 0; f < faceCount; f++) {
+                const i0 = mergedIdx[f * 3], i1 = mergedIdx[f * 3 + 1], i2 = mergedIdx[f * 3 + 2];
+                allMergedTris.push([
+                    [mergedVerts[i0*3], mergedVerts[i0*3+1], mergedVerts[i0*3+2]],
+                    [mergedVerts[i1*3], mergedVerts[i1*3+1], mergedVerts[i1*3+2]],
+                    [mergedVerts[i2*3], mergedVerts[i2*3+1], mergedVerts[i2*3+2]],
+                ]);
+            }
+
+            // 2. Extract top surface — keep only faces with no other face above them
+            showStatus(`Extracting top surface from ${allMergedTris.length} faces...`);
+            await new Promise(r => setTimeout(r, 0));
+
+            // Build a BVH of the merged terrain for self-ray-casting
+            const terrainBVH = new BVH(new Float32Array(mergedVerts), new Uint32Array(mergedIdx));
+
+            const worldTris = []; // filtered top-surface triangles
+            for (let f = 0; f < allMergedTris.length; f++) {
+                const tri = allMergedTris[f];
+                const [a, b, c] = tri;
+                // Centroid of this face
+                const cx = (a[0] + b[0] + c[0]) / 3;
+                const cy = (a[1] + b[1] + c[1]) / 3;
+                const cz = (a[2] + b[2] + c[2]) / 3;
+
+                // Cast ray upward (+Y in Three.js) from just above the face centroid
+                // If the ray hits another face in the same mesh, this face is NOT on top
+                const rayOriginY = cy + 0.005; // 5mm above centroid
+                const hasAbove = terrainBVH.intersectsAny(cx, rayOriginY, cz, 0, 1, 0);
+
+                if (!hasAbove) {
+                    worldTris.push(tri);
+                }
+
+                if (f % 1000 === 0 && f > 0) {
+                    const pct = Math.round(f / allMergedTris.length * 100);
+                    showStatus(`Extracting top surface... ${pct}%`);
+                    await new Promise(r => setTimeout(r, 0));
                 }
             }
+
+            showStatus(`Top surface: ${worldTris.length} of ${allMergedTris.length} faces kept`);
 
             // 2. Slice every triangle along grid lines
             showStatus(`Slicing ${worldTris.length} triangles along ${gridSize}m grid...`);
@@ -1734,32 +1752,31 @@
                 }
             }
 
-            // BRE compliance using actual cell areas
-            const thresholdHours = 2.0;
-            let areaMeeting = 0;
+            // Compute summary statistics
             let totalArea = 0;
+            let minHours = Infinity, maxHours = -Infinity;
+            let sumHoursWeighted = 0;
             for (let i = 0; i < cellData.length; i++) {
-                totalArea += cellData[i].area;
-                if (cellSunHours[i] >= thresholdHours) areaMeeting += cellData[i].area;
+                const a = cellData[i].area;
+                const h = cellSunHours[i];
+                totalArea += a;
+                sumHoursWeighted += h * a;
+                if (h < minHours) minHours = h;
+                if (h > maxHours) maxHours = h;
             }
-            const percentage = totalArea > 0 ? (areaMeeting / totalArea) * 100 : 0;
-            const passes = percentage >= 50;
+            const avgHours = totalArea > 0 ? sumHoursWeighted / totalArea : 0;
 
             return {
                 cellData,
                 cellSunHours,
                 gridSize,
                 sunPositions,
-                totalArea,
-                areaMeeting,
-                compliance: {
-                    pass: passes,
-                    percentage: Math.round(percentage * 10) / 10,
+                summary: {
                     area_total: totalArea.toFixed(1),
-                    area_meeting: areaMeeting.toFixed(1),
                     cells_total: cellData.length,
-                    threshold_hours: thresholdHours,
-                    message: `${percentage.toFixed(1)}% of amenity area receives \u2265${thresholdHours}h sunlight on 21 March \u2014 ${passes ? 'PASS' : 'FAIL'}`,
+                    min_hours: Math.round(minHours * 10) / 10,
+                    max_hours: Math.round(maxHours * 10) / 10,
+                    avg_hours: Math.round(avgHours * 10) / 10,
                 },
             };
         }
@@ -1874,14 +1891,14 @@
 
                 lastAnalysisResults = results;
                 paintGroundMesh(results);
-                showCompliance(results.compliance);
+                showResults(results.summary);
                 showStatus(
                     `Analysis complete \u2014 ${results.sunPositions.length} sun positions, ` +
                     `${results.cellData.length} grid cells (${results.gridSize}m)`
                 );
                 setTimeout(hideStatus, 5000);
 
-                completeStep(4, results.compliance.pass ? 'PASS' : 'FAIL');
+                completeStep(4, `Avg ${results.summary.avg_hours}h`);
 
             } catch (err) {
                 alert('Analysis failed: ' + err.message);
@@ -1893,20 +1910,15 @@
             }
         }
 
-        // ─── COMPLIANCE DISPLAY ───
-        function showCompliance(compliance) {
-            const status = document.getElementById('compliance-status');
-            status.textContent = compliance.pass ? 'PASS' : 'FAIL';
-            status.className = 'compliance-result ' + (compliance.pass ? 'pass' : 'fail');
-
-            document.getElementById('compliance-pct').textContent = compliance.percentage.toFixed(1) + '%';
-            document.getElementById('compliance-message').textContent =
-                'of amenity area receives \u2265' + compliance.threshold_hours + 'h sunlight on 21 March';
-            document.getElementById('compliance-detail').innerHTML =
-                'Total area: ' + compliance.area_total + 'm\u00b2' +
-                ' &nbsp;|&nbsp; Area meeting threshold: ' + compliance.area_meeting + 'm\u00b2' +
-                '<br>Grid cells analysed: ' + compliance.cells_total +
-                '<br>BRE BR209 requires \u226550% of area receiving \u22652h sunlight';
+        // ─── RESULTS DISPLAY ───
+        function showResults(summary) {
+            document.getElementById('results-title').textContent = 'Sun Hours Summary';
+            document.getElementById('results-detail').innerHTML =
+                'Total area analysed: ' + summary.area_total + ' m\u00b2' +
+                ' &nbsp;|&nbsp; Grid cells: ' + summary.cells_total +
+                '<br>Min: ' + summary.min_hours + 'h' +
+                ' &nbsp;|&nbsp; Max: ' + summary.max_hours + 'h' +
+                ' &nbsp;|&nbsp; Avg: ' + summary.avg_hours + 'h (area-weighted)';
         }
 
         // ─── EXPORT GLB (coloured ground + grey buildings) ───
@@ -1961,16 +1973,17 @@
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-                const c = lastAnalysisResults.compliance;
+                const s = lastAnalysisResults.summary;
                 const lat = document.getElementById('latitude').value;
                 const lng = document.getElementById('longitude').value;
+                const dateStr = document.getElementById('analysis_date').value;
 
                 doc.setFontSize(22);
                 doc.setTextColor(233, 69, 96);
                 doc.text('SUNFORM', 20, 25);
                 doc.setFontSize(14);
                 doc.setTextColor(100);
-                doc.text('Sun Hours Analysis Report', 20, 33);
+                doc.text('Indicative Sun Hours Analysis', 20, 33);
 
                 doc.setFontSize(10);
                 doc.setTextColor(80);
@@ -1983,36 +1996,28 @@
                 doc.setTextColor(60);
                 doc.text('Latitude: ' + lat, 20, 63);
                 doc.text('Longitude: ' + lng, 20, 69);
-                doc.text('Analysis date: 21 March (Spring Equinox)', 20, 75);
-                doc.text('Total area analysed: ' + c.area_total + ' m2', 20, 81);
-                doc.text('Grid cells analysed: ' + c.cells_total, 20, 87);
+                doc.text('Analysis date: ' + dateStr, 20, 75);
+                doc.text('Total area analysed: ' + s.area_total + ' m2', 20, 81);
+                doc.text('Grid cells analysed: ' + s.cells_total, 20, 87);
 
                 doc.setFontSize(13);
                 doc.setTextColor(0);
-                doc.text('BRE BR209 Compliance', 20, 100);
-
-                doc.setFontSize(24);
-                if (c.pass) {
-                    doc.setTextColor(76, 175, 80);
-                    doc.text('PASS', 20, 112);
-                } else {
-                    doc.setTextColor(244, 67, 54);
-                    doc.text('FAIL', 20, 112);
-                }
+                doc.text('Sun Hours Summary', 20, 100);
 
                 doc.setFontSize(10);
                 doc.setTextColor(60);
-                doc.text(c.message, 20, 122);
-                doc.text('Area meeting threshold: ' + c.area_meeting + ' m2 of ' + c.area_total + ' m2', 20, 129);
+                doc.text('Minimum: ' + s.min_hours + ' hours', 20, 110);
+                doc.text('Maximum: ' + s.max_hours + ' hours', 20, 116);
+                doc.text('Average (area-weighted): ' + s.avg_hours + ' hours', 20, 122);
 
                 renderer.render(scene, camera);
                 const imgData = renderer.domElement.toDataURL('image/png');
-                doc.addImage(imgData, 'PNG', 20, 140, 170, 100);
+                doc.addImage(imgData, 'PNG', 20, 135, 170, 100);
 
                 doc.setFontSize(8);
                 doc.setTextColor(120);
-                doc.text('SUNFORM \u2014 Indicative sun hours analysis only. User must verify all outputs before use in any planning submission.', 20, 250);
-                doc.text('This tool does not constitute a professional daylight and sunlight assessment.', 20, 255);
+                doc.text('SUNFORM \u2014 Indicative sun hours analysis for early design decisions only. Results are approximate.', 20, 250);
+                doc.text('This tool does not constitute a professional daylight or sunlight assessment.', 20, 255);
 
                 doc.save('SunForm_Report.pdf');
 
