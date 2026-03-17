@@ -1078,6 +1078,7 @@
         let orientMode = false;
         let orientPoint1 = null;
         let orientTempMarkers = [];
+        let orientMouseDown = null;
 
         // Season analysis state
         const SEASON_DATES = {
@@ -1622,6 +1623,11 @@
         }
 
         function handleOrientClick(event) {
+            if (orientMouseDown) {
+                const ddx = event.clientX - orientMouseDown.x;
+                const ddy = event.clientY - orientMouseDown.y;
+                if (ddx * ddx + ddy * ddy > 25) return;
+            }
             const container = document.getElementById('viewport');
             const rect = container.getBoundingClientRect();
             const mouse = new THREE.Vector2(
@@ -1772,6 +1778,10 @@
                 document.getElementById('confirm-ground-btn').disabled = false;
             }
         }
+
+        document.getElementById('viewport').addEventListener('mousedown', (event) => {
+            orientMouseDown = { x: event.clientX, y: event.clientY };
+        });
 
         document.getElementById('viewport').addEventListener('click', (event) => {
             if (orientMode) {
