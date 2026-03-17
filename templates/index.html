@@ -1608,18 +1608,28 @@
             return [c[1], c[2], c[3]];
         }
 
-        // ─── PAINT VERTEX COLOURS ON GROUND MESH ───
+        // ─── PAINT FLAT-COLOURED TILES ONTO GROUND MESH ───
         function paintGroundMesh(results) {
             if (!selectedGroundMesh) return;
+
+            // Remove previous heatmap overlay
+            if (heatmapGroup) {
+                scene.remove(heatmapGroup);
+                heatmapGroup.traverse(c => {
+                    if (c.geometry) c.geometry.dispose();
+                    if (c.material) c.material.dispose();
+                });
+            }
+
+            heatmapGroup = new THREE.Group();
+            heatmapGroup.name = 'heatmap';
 
             const geo = selectedGroundMesh.geometry;
             const pos = geo.attributes.position.array;
             const idx = geo.index ? geo.index.array : null;
-            const vertCount = pos.length / 3;
 
-            // Build vertex -> face adjacency and accumulate sun hours per vertex
-            const vertSunHoursSum = new Float32Array(vertCount);
-            const vertFaceCount = new Uint16Array(vertCount);
+            selectedGroundMesh.updateWorldMatrix(true, false);
+            const wm = selectedGroundMesh.matrixWorld;
 
             // Map from original face index to analysis index
             const faceToAnalysis = {};
@@ -1627,12 +1637,19 @@
                 faceToAnalysis[results.faceIndices[i]] = i;
             }
 
+            // Build non-indexed geometry: each face becomes 3 vertices with flat colour
+            const tilePositions = [];
+            const tileColors = [];
+
             const totalFaces = idx ? idx.length / 3 : pos.length / 9;
             for (let f = 0; f < totalFaces; f++) {
                 const analysisIdx = faceToAnalysis[f];
                 if (analysisIdx === undefined) continue;
 
                 const hours = results.faceSunHours[analysisIdx];
+                const [r, g, b] = lerpColour(hours);
+                const fn = results.faceNormals[analysisIdx];
+
                 let i0, i1, i2;
                 if (idx) {
                     i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
@@ -1640,38 +1657,32 @@
                     i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
                 }
 
-                vertSunHoursSum[i0] += hours; vertFaceCount[i0]++;
-                vertSunHoursSum[i1] += hours; vertFaceCount[i1]++;
-                vertSunHoursSum[i2] += hours; vertFaceCount[i2]++;
-            }
-
-            // Create colour attribute
-            const colors = new Float32Array(vertCount * 3);
-            let hasAnyAnalysis = false;
-            for (let v = 0; v < vertCount; v++) {
-                if (vertFaceCount[v] > 0) {
-                    const avgHours = vertSunHoursSum[v] / vertFaceCount[v];
-                    const [r, g, b] = lerpColour(avgHours);
-                    colors[v * 3] = r;
-                    colors[v * 3 + 1] = g;
-                    colors[v * 3 + 2] = b;
-                    hasAnyAnalysis = true;
-                } else {
-                    // Non-analysed vertices: keep neutral grey
-                    colors[v * 3] = 0.5;
-                    colors[v * 3 + 1] = 0.5;
-                    colors[v * 3 + 2] = 0.5;
+                // Get world-space vertices and offset slightly along face normal
+                const off = 0.02; // 20mm offset to sit above surface
+                for (const vi of [i0, i1, i2]) {
+                    const p = new THREE.Vector3(pos[vi*3], pos[vi*3+1], pos[vi*3+2]);
+                    p.applyMatrix4(wm);
+                    tilePositions.push(p.x + fn.x * off, p.y + fn.y * off, p.z + fn.z * off);
+                    tileColors.push(r, g, b);
                 }
             }
 
-            geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            if (tilePositions.length > 0) {
+                const tileGeo = new THREE.BufferGeometry();
+                tileGeo.setAttribute('position', new THREE.Float32BufferAttribute(tilePositions, 3));
+                tileGeo.setAttribute('color', new THREE.Float32BufferAttribute(tileColors, 3));
 
-            // Switch material to vertex colours
-            selectedGroundMesh.material.dispose();
-            selectedGroundMesh.material = new THREE.MeshBasicMaterial({
-                vertexColors: true,
-                side: THREE.DoubleSide,
-            });
+                const tileMat = new THREE.MeshBasicMaterial({
+                    vertexColors: true,
+                    side: THREE.DoubleSide,
+                });
+
+                const tileMesh = new THREE.Mesh(tileGeo, tileMat);
+                tileMesh.name = 'heatmap_mesh';
+                heatmapGroup.add(tileMesh);
+            }
+
+            scene.add(heatmapGroup);
 
             // Show colour legend
             document.getElementById('colour-legend').classList.add('visible');
@@ -1741,17 +1752,13 @@
 
             const exportScene = new THREE.Scene();
 
-            // Add coloured ground mesh
-            if (selectedGroundMesh) {
-                selectedGroundMesh.updateWorldMatrix(true, false);
-                const clone = selectedGroundMesh.clone();
-                clone.applyMatrix4(selectedGroundMesh.matrixWorld);
-                exportScene.add(clone);
+            // Add heatmap tile overlay (coloured faces)
+            if (heatmapGroup) {
+                exportScene.add(heatmapGroup.clone());
             }
 
-            // Add all other meshes as grey
+            // Add all meshes as grey context geometry
             for (const mesh of allMeshes) {
-                if (mesh === selectedGroundMesh) continue;
                 mesh.updateWorldMatrix(true, false);
                 const clone = mesh.clone();
                 clone.applyMatrix4(mesh.matrixWorld);
