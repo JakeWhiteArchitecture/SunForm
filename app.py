@@ -1,5 +1,5 @@
 """
-SUNFORM — Sun Hours Analysis Tool
+SunForm — Sun Hours Analysis Tool
 
 Minimal Flask server — just serves the frontend.
 All analysis runs client-side in the browser.
