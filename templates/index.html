@@ -1784,6 +1784,7 @@
         });
 
         document.getElementById('viewport').addEventListener('click', (event) => {
+            if (event.target !== renderer.domElement) return;
             if (orientMode) {
                 handleOrientClick(event);
                 return;
