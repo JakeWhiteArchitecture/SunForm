@@ -726,14 +726,14 @@
 
         /* ─── LOGO ─── */
         .logo-img {
-            height: 40px;
-            margin-bottom: 4px;
+            height: 80px;
+            margin-bottom: 8px;
         }
         .modal-logo {
             display: block;
-            max-width: 220px;
+            max-width: 400px;
             height: auto;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
     </style>
 </head>
@@ -742,75 +742,39 @@
     <div class="modal-overlay" id="disclaimer-modal">
         <div class="modal-box">
             <img src="/sunform-logo.png" alt="SunForm" class="modal-logo">
-            <h2>SunForm <span class="beta-badge">Beta</span></h2>
-            <div class="modal-subtitle">Indicative Sun Hours Analysis Tool</div>
-
-            <!-- ─── PROFESSIONAL ROLE GATE ─── -->
-            <div class="role-gate">
-                <label for="role-select">I am a:</label>
-                <select id="role-select" onchange="updateRoleGate()">
-                    <option value="">— Please select —</option>
-                    <option value="architect">Architect</option>
-                    <option value="arch_tech">Architectural Technologist</option>
-                    <option value="arch_designer">Architectural Designer</option>
-                    <option value="daylight">Daylighting Consultant</option>
-                    <option value="struct_civil">Structural or Civil Engineer</option>
-                    <option value="planning">Planning Consultant</option>
-                    <option value="urban">Urban Designer</option>
-                    <option value="other_pro">Other design or construction professional</option>
-                    <option value="not_professional">I am not a design professional</option>
-                </select>
-                <div class="role-message" id="role-message" style="display:none;"></div>
-            </div>
+            <h2>SunForm &mdash; Terms of Use</h2>
 
             <div id="disclaimer-terms">
-                <h3>1. Beta Software</h3>
-                <p>SunForm is currently in <strong>beta</strong>. All outputs are <strong>indicative only</strong> and intended for early-stage design exploration. They must not be treated as definitive or relied upon for final design decisions without independent verification.</p>
+                <p>SunForm is beta software. All outputs are indicative only and intended to support early-stage design exploration. They are not verified analysis and must not be treated as such.</p>
 
-                <h3>2. Not a Replacement for Professional Advice</h3>
-                <p>The provision of this free software is <strong>not intended to be a replacement for expert daylighting consulting professionals</strong> and the specialist software that they use. Critical design decisions regarding daylight, sunlight, and overshadowing must be made in the context of a qualified daylighting consultant.</p>
+                <p>SunForm is not a substitute for professional daylighting consultancy. It does not verify compliance with any building regulation, standard, or code of practice &mdash; including BRE 209, BS EN 17037, or the Building Regulations 2010. No warranty is made that any output meets any regulatory requirement.</p>
 
-                <h3>3. No Compliance Warranty</h3>
-                <p>Outputs have not been verified against any building regulations, standards, or codes of practice &mdash; including BRE 209, BS EN 17037, the Building Regulations 2010, associated Approved Documents, or any international equivalent. No representation or warranty is made that any output complies with any regulatory requirement.</p>
+                <p>Outputs must not be exported, shared, or presented in any context where others may place reliance on them without expert professional verification.</p>
 
-                <h3>4. User Responsibility</h3>
-                <ul>
-                    <li>You are solely responsible for verifying the accuracy, suitability, and regulatory compliance of all outputs.</li>
-                    <li>You will not rely on any output as a final design assessment or instruction without independent professional verification.</li>
-                    <li>Any use of exported files (PDF, GLB) is entirely at your own risk.</li>
-                    <li>SunForm is intended for use by persons with sufficient technical knowledge and professional competence to understand the nature, limitations, and appropriate application of solar analysis outputs. It is not intended for use by members of the public without relevant design or construction experience. You confirm that you have the necessary competence to interpret the outputs in context, and that you will not use SunForm for third-party impact assessment, planning evidence, or any purpose where its outputs may be relied upon by others without independent professional verification.</li>
-                </ul>
+                <p>SunForm is provided &ldquo;as is&rdquo; and entirely at your own risk. To the fullest extent permitted by law, Jake White Architecture accepts no liability for any loss, damage, or expense arising from use of or reliance upon its outputs.</p>
 
-                <h3>5. Limitation of Liability</h3>
-                <p>SunForm is provided <strong>&ldquo;as is&rdquo;</strong> without warranty of any kind, whether express or implied. To the fullest extent permitted by law, Jake White Architecture shall not be liable for any loss, damage, injury, cost, or expense (whether direct, indirect, or consequential) arising from the use of or reliance upon any output, any errors or omissions in the outputs, any decisions or actions taken based on the outputs, or any failure of the tool to produce accurate results.</p>
+                <p>The tool and its source code remain the intellectual property of Jake White Architecture. Outputs may be used freely at your own risk. SunForm is provided free of charge and no contribution or donation alters these terms in any way.</p>
 
-                <h3>6. Intellectual Property</h3>
-                <p>SunForm is provided free of charge. Outputs may be used freely at your own discretion and risk. The tool itself, including source code and design, remains the intellectual property of Jake White Architecture.</p>
-
-                <h3>7. Changes to These Terms</h3>
-                <p>These terms may be updated from time to time. Continued use of SunForm following any changes constitutes acceptance of the revised terms.</p>
+                <p>These terms may be updated from time to time. Continued use constitutes acceptance.</p>
 
                 <p style="margin-top:14px; font-size:11px; color:#888;">SunForm is provided by Jake White Architecture. For professional Architectural Technology services, visit <a href="https://www.jakewhitearchitecture.com" target="_blank" style="color:#00CFC8;">jakewhitearchitecture.com</a></p>
             </div>
 
             <hr style="border-color:#0f3460; margin:16px 0 12px;">
 
+            <div style="font-size:12px; color:#aaa; margin-bottom:8px;">Confirmations:</div>
             <div id="disclaimer-checkboxes">
                 <label class="checkbox-row">
-                    <input type="checkbox" id="disclaimer-check1" onchange="updateDisclaimerAccept()" disabled>
-                    <span>I have read, understood, and accept the Terms of Use &amp; Disclaimer. I acknowledge that SunForm is beta software and all outputs are indicative only.</span>
+                    <input type="checkbox" id="disclaimer-check1" onchange="updateDisclaimerAccept()">
+                    <span>I have read and accept these terms. I understand that SunForm is beta software and all outputs are indicative only.</span>
                 </label>
                 <label class="checkbox-row">
-                    <input type="checkbox" id="disclaimer-check2" onchange="updateDisclaimerAccept()" disabled>
-                    <span>I understand that SunForm is not a replacement for professional daylighting consultants and their software. I will not use its outputs as a substitute for expert advice.</span>
+                    <input type="checkbox" id="disclaimer-check2" onchange="updateDisclaimerAccept()">
+                    <span>I understand that SunForm is not a substitute for professional daylighting consultancy and I will not present its outputs to others as verified analysis.</span>
                 </label>
                 <label class="checkbox-row">
-                    <input type="checkbox" id="disclaimer-check3" onchange="updateDisclaimerAccept()" disabled>
-                    <span>I confirm that I have sufficient professional or technical knowledge to understand the nature and limitations of solar analysis outputs, and that I am competent to apply them appropriately within a design process.</span>
-                </label>
-                <label class="checkbox-row">
-                    <input type="checkbox" id="disclaimer-check4" onchange="updateDisclaimerAccept()" disabled>
-                    <span>I confirm that I will not use SunForm outputs as planning evidence, in third-party impact assessments, or in any context where others may rely on them without independent professional verification.</span>
+                    <input type="checkbox" id="disclaimer-check3" onchange="updateDisclaimerAccept()">
+                    <span>I confirm that I am competent to interpret solar analysis outputs and would be able to identify inconsistencies or errors in the results.</span>
                 </label>
             </div>
 
@@ -989,11 +953,9 @@
         </div>
 
         <div class="disclaimer">
-            SunForm (Beta) &mdash; Indicative sun hours analysis for early-stage design exploration only.
-            All outputs are approximate and must not be relied upon for planning submissions,
-            compliance assessments, or final design decisions. This tool is not a replacement for
-            professional daylighting consultants and their software. Jake White Architecture accepts
-            no liability for loss or damage arising from reliance on its outputs.
+            SunForm (Beta) &mdash; Indicative only. Not a substitute for professional daylighting consultancy.
+            Jake White Architecture accepts no liability for any loss, damage, or expense arising from
+            use of or reliance upon its outputs.
         </div>
 
       </div>
@@ -2454,14 +2416,13 @@
             const label = seasonKey ? SEASON_LABELS[seasonKey] : 'Sun Hours Summary';
             document.getElementById('results-title').textContent = label;
 
-            // Build per-season summary lines
+            // Build per-season summary lines (hours omitted — heatmap only)
             let html = '';
             const keys = getActiveSeasonKeys();
             for (const k of keys) {
                 if (!seasonResults[k]) continue;
-                const s = seasonResults[k].summary;
                 const bold = k === seasonKey ? 'color:#e0e0e0; font-weight:600;' : '';
-                html += `<div style="${bold}">${SEASON_LABELS[k]}: avg ${s.avg_hours}h (min ${s.min_hours}h, max ${s.max_hours}h)</div>`;
+                html += `<div style="${bold}">${SEASON_LABELS[k]}: analysis complete</div>`;
             }
             html += `<div style="margin-top:4px;">Total area: ${summary.area_total} m\u00b2 &nbsp;|&nbsp; Grid cells: ${summary.cells_total}</div>`;
             document.getElementById('results-detail').innerHTML = html;
@@ -2645,12 +2606,12 @@
                     doc.text(SEASON_LABELS[season], 60, 14);
                     doc.setFontSize(9);
                     doc.setTextColor(150, 150, 150);
-                    doc.text(`Avg: ${s.avg_hours}h  |  Min: ${s.min_hours}h  |  Max: ${s.max_hours}h  |  Lat: ${lat}  Lng: ${lng}`, pageW - 10, 14, { align: 'right' });
+                    doc.text(`Lat: ${lat}  Lng: ${lng}`, pageW - 10, 14, { align: 'right' });
 
                     // ── Disclaimer footer ──
                     doc.setFontSize(7);
                     doc.setTextColor(120);
-                    doc.text('SunForm (Beta) \u2014 Indicative only. Not a substitute for professional daylighting assessment. Jake White Architecture accepts no liability.', 20, pageH - 5);
+                    doc.text('SunForm (Beta) \u2014 Indicative only. Not a substitute for professional daylighting consultancy. Jake White Architecture accepts no liability.', 20, pageH - 5);
                     doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), pageW - 20, pageH - 5, { align: 'right' });
                 }
 
@@ -3030,49 +2991,12 @@
         }
 
         // ─── DISCLAIMER MODAL ───
-        let roleGateAllowed = false;
-
-        function updateRoleGate() {
-            const sel = document.getElementById('role-select');
-            const val = sel.value;
-            const msgEl = document.getElementById('role-message');
-            const checkboxes = document.querySelectorAll('#disclaimer-checkboxes input[type="checkbox"]');
-
-            if (!val) {
-                // No selection
-                msgEl.style.display = 'none';
-                roleGateAllowed = false;
-                checkboxes.forEach(cb => { cb.disabled = true; cb.checked = false; });
-                updateDisclaimerAccept();
-                return;
-            }
-
-            if (val === 'not_professional') {
-                msgEl.style.display = 'block';
-                msgEl.className = 'role-message blocked';
-                msgEl.innerHTML = 'SunForm is not suitable for use without relevant design or construction experience. If you need daylight or sunlight analysis for a property matter, please consult a qualified daylighting consultant or architect.';
-                roleGateAllowed = false;
-                checkboxes.forEach(cb => { cb.disabled = true; cb.checked = false; });
-                updateDisclaimerAccept();
-                return;
-            }
-
-            // Valid professional role
-            msgEl.style.display = 'block';
-            msgEl.className = 'role-message allowed';
-            msgEl.innerHTML = 'By selecting your role above and accepting the terms below, you confirm that you have sufficient professional knowledge to understand and appropriately apply solar analysis outputs.';
-            roleGateAllowed = true;
-            checkboxes.forEach(cb => { cb.disabled = false; });
-            updateDisclaimerAccept();
-        }
-
         function updateDisclaimerAccept() {
             const c1 = document.getElementById('disclaimer-check1').checked;
             const c2 = document.getElementById('disclaimer-check2').checked;
             const c3 = document.getElementById('disclaimer-check3').checked;
-            const c4 = document.getElementById('disclaimer-check4').checked;
-            const allChecked = c1 && c2 && c3 && c4;
-            document.getElementById('disclaimer-accept-btn').disabled = !(roleGateAllowed && allChecked);
+            const allChecked = c1 && c2 && c3;
+            document.getElementById('disclaimer-accept-btn').disabled = !allChecked;
         }
 
         function acceptDisclaimer() {
