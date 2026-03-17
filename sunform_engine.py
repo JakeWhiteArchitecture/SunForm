@@ -158,3 +158,41 @@ def compute_sun_hours_flat_grid(
             results[(col, row)] = hours
 
     return results
+
+
+def compute_sun_hours_array_style(
+    cells: List[Vec3],
+    shadow_triangles: List[Triangle],
+    sun_positions: List[dict],
+    time_step: float,
+    batch_size: int = 2000,
+) -> List[float]:
+    """
+    Mirrors the exact JS loop structure in runTerrainAnalysis():
+    - Shared array initialized once to zeros
+    - Outer loop: sun positions
+    - Inner loop: cells in batches
+    - Accumulation via array[j] += time_step
+
+    This catches bugs the dict-style function cannot: accidental resets
+    inside the sun loop, batch-boundary resets, overwrite vs accumulate.
+    """
+    n = len(cells)
+    cell_sun_hours = [0.0] * n  # mirrors Float32Array init
+
+    sun_dirs = [sun_direction(sp['azimuth'], sp['altitude']) for sp in sun_positions]
+
+    for sun_idx in range(len(sun_dirs)):
+        dx, dy, dz = sun_dirs[sun_idx]
+
+        for i in range(0, n, batch_size):
+            end = min(i + batch_size, n)
+
+            for j in range(i, end):
+                ox, oy, oz = cells[j]
+                if not ray_hits_any_triangle(
+                    (ox, oy + 0.01, oz), (dx, dy, dz), shadow_triangles
+                ):
+                    cell_sun_hours[j] += time_step
+
+    return cell_sun_hours

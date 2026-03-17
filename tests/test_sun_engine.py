@@ -23,6 +23,7 @@ from sunform_engine import (
     ray_triangle_intersect,
     ray_hits_any_triangle,
     compute_sun_hours_flat_grid,
+    compute_sun_hours_array_style,
 )
 
 
@@ -318,6 +319,122 @@ class TestSunPositions:
         dx, dy, dz = sun_direction(180.0, 45.0)
         # Should point upward (dy > 0) and somewhat toward -Z (north in Three.js = -Z)
         assert dy > 0, f"Sun at 45° altitude should have positive Y, got {dy}"
+
+
+# ── Accumulation tests (mirrors JS loop structure) ───────────────────────
+
+class TestAccumulation:
+    """Tests targeting the shared-array, sun-outer, cell-inner accumulation
+    pattern used in the JavaScript implementation."""
+
+    def _make_open_cells(self, n):
+        """Return n cell positions on a flat plane with no obstacles."""
+        return [(float(i), 0.0, 0.0) for i in range(n)]
+
+    def _make_sun_positions(self, n):
+        """Return n fake sun positions spread across the day."""
+        return [{'azimuth': 180.0, 'altitude': 45.0, 'hour': 8 + i} for i in range(n)]
+
+    def test_g_multi_position_accumulation(self):
+        """1 cell, 3 sun positions, no obstacles → hours = 3 * timeStep."""
+        cells = [(0.0, 0.0, 0.0)]
+        sun_pos = self._make_sun_positions(3)
+        result = compute_sun_hours_array_style(cells, [], sun_pos, time_step=1.0)
+        assert result[0] == 3.0, \
+            f"Expected 3.0h from 3 sun positions, got {result[0]}h — accumulator may be overwriting"
+
+    def test_h_partial_shadow_across_day(self):
+        """1 cell, 5 sun positions, obstacle blocks exactly 2 of 5 → hours = 3 * timeStep.
+
+        Place a wall that blocks the sun at 2 specific azimuth/altitude combos
+        but not the other 3."""
+        # Cell at origin
+        cells = [(0.0, 0.0, 0.0)]
+        # Wall to the south that blocks low-altitude sun but not high
+        wall = make_box_triangles(0, 5, 3, 5, 5, 0.5)  # wall at z=3
+
+        sun_pos = [
+            {'azimuth': 180.0, 'altitude': 10.0, 'hour': 8},   # low → blocked by wall
+            {'azimuth': 180.0, 'altitude': 15.0, 'hour': 9},   # low → blocked by wall
+            {'azimuth': 180.0, 'altitude': 70.0, 'hour': 10},  # high → clears wall
+            {'azimuth': 180.0, 'altitude': 80.0, 'hour': 11},  # high → clears wall
+            {'azimuth': 180.0, 'altitude': 85.0, 'hour': 12},  # high → clears wall
+        ]
+
+        result = compute_sun_hours_array_style(cells, wall, sun_pos, time_step=1.0)
+
+        # Should be 3h (3 unblocked positions), NOT 5h and NOT 1h
+        assert result[0] >= 2.0, \
+            f"Expected ≥2h from partially blocked cell, got {result[0]}h — early hours may be lost"
+        assert result[0] < 5.0, \
+            f"Expected <5h from partially blocked cell, got {result[0]}h — wall not blocking"
+
+    def test_i_array_style_matches_dict_style(self):
+        """Both accumulation strategies produce identical results for same input."""
+        box = make_box_triangles(5, 2.5, 5, 1, 2.5, 1)
+        sun_pos = get_sun_positions(51.5, -0.1, 2024, 3, 21, time_step=1.0)
+
+        # Dict-style (cell-outer)
+        grid_results = compute_sun_hours_flat_grid(
+            ground_y=0.0,
+            grid_min_x=0, grid_min_z=0,
+            grid_max_x=10, grid_max_z=10,
+            grid_size=2.0,
+            shadow_triangles=box,
+            sun_positions=sun_pos,
+            time_step=1.0,
+        )
+
+        # Array-style (sun-outer, cell-inner) — same cells
+        cells = []
+        cell_keys = []
+        for col in range(0, 5):  # 10/2 = 5 columns
+            for row in range(0, 5):
+                cx = (col + 0.5) * 2.0
+                cz = (row + 0.5) * 2.0
+                cells.append((cx, 0.0, cz))
+                cell_keys.append((col, row))
+
+        array_results = compute_sun_hours_array_style(cells, box, sun_pos, time_step=1.0)
+
+        for idx, key in enumerate(cell_keys):
+            dict_val = grid_results.get(key, 0.0)
+            arr_val = array_results[idx]
+            assert abs(dict_val - arr_val) < 0.01, \
+                f"Cell {key}: dict={dict_val}, array={arr_val} — accumulation strategies diverge"
+
+    def test_j_batching_doesnt_reset(self):
+        """10 cells, batch_size=3 (4 batches), 2 sun positions → every cell = 2h."""
+        cells = self._make_open_cells(10)
+        sun_pos = self._make_sun_positions(2)
+
+        result = compute_sun_hours_array_style(
+            cells, [], sun_pos, time_step=1.0, batch_size=3
+        )
+
+        for j in range(10):
+            assert result[j] == 2.0, \
+                f"Cell {j} got {result[j]}h instead of 2.0h — batch boundary may reset accumulator"
+
+    def test_k_single_sun_position_gives_exactly_timestep(self):
+        """1 sun position, no obstacles → every cell = exactly timeStep."""
+        cells = self._make_open_cells(5)
+        sun_pos = self._make_sun_positions(1)
+
+        result = compute_sun_hours_array_style(cells, [], sun_pos, time_step=0.5)
+
+        for j in range(5):
+            assert result[j] == 0.5, \
+                f"Cell {j} got {result[j]}h instead of 0.5h — single position not counted correctly"
+
+    def test_l_zero_sun_positions_gives_zero(self):
+        """Empty sun_positions → every cell = 0.0."""
+        cells = self._make_open_cells(5)
+        result = compute_sun_hours_array_style(cells, [], [], time_step=1.0)
+
+        for j in range(5):
+            assert result[j] == 0.0, \
+                f"Cell {j} got {result[j]}h with no sun positions — uninitialised value leak"
 
 
 if __name__ == '__main__':
