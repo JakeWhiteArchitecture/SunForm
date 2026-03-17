@@ -157,8 +157,8 @@ class TestSingleBoxShadow:
         # 10m cube centred at (0, 5, 0) — half-extent 5m each axis
         box = make_box_triangles(0, 5, 0, 5, 5, 5)
 
-        # Single sun position: azimuth 90° (due south in AutoCAD convention), altitude 45°
-        sun_pos = [{'azimuth': 90.0, 'altitude': 45.0, 'hour': 12}]
+        # Single sun position: azimuth 180° (due south), altitude 45°
+        sun_pos = [{'azimuth': 180.0, 'altitude': 45.0, 'hour': 12}]
 
         # Sun direction is (0, 0.707, 0.707) — comes from +Z side.
         # Shadow extends in -Z. At 45°, shadow length = building height = 10m.
@@ -267,7 +267,7 @@ class TestDirectlyOverhead:
         # Footprint: x in [4, 6], z in [4, 6]
         box = make_box_triangles(5, 2.5, 5, 1, 2.5, 1)
 
-        sun_pos = [{'azimuth': 90.0, 'altitude': 89.9, 'hour': 12}]
+        sun_pos = [{'azimuth': 180.0, 'altitude': 89.9, 'hour': 12}]
 
         results = compute_sun_hours_flat_grid(
             ground_y=0.0,
@@ -308,7 +308,7 @@ class TestKnownShadowLength:
         # 2m x 2m box, 5m tall at origin (x: -1..1, y: 0..5, z: -1..1)
         box = make_box_triangles(0, 2.5, 0, 1, 2.5, 1)
 
-        sun_pos = [{'azimuth': 90.0, 'altitude': 30.0, 'hour': 12}]
+        sun_pos = [{'azimuth': 180.0, 'altitude': 30.0, 'hour': 12}]
         expected_shadow_len = 5.0 / math.tan(math.radians(30.0))  # ≈ 8.66m
 
         # Shadow extends in -Z from z=-1 (north face), so tip at z = -1 - 8.66 = -9.66
@@ -386,7 +386,7 @@ class TestRayTriangle:
         """Ray at 1° altitude — nearly parallel to ground. Must still detect hits."""
         # Large vertical wall at z=5, spanning x=-10..10, y=0..20
         wall = make_box_triangles(0, 10, 5, 10, 10, 0.3)
-        d = sun_direction(90.0, 1.0)  # 1° altitude, from south (90° in AutoCAD convention)
+        d = sun_direction(180.0, 1.0)  # 1° altitude, from south (geographic convention)
 
         # Origin at z=0 — ray should hit the wall at z≈4.7
         assert ray_hits_any_triangle((0, 0.01, 0), d, wall), \
@@ -397,7 +397,7 @@ class TestRayTriangle:
         Wall height at 15m: 15 * tan(2°) ≈ 0.52m — just clears 0.5m wall."""
         # Short wall (0.5m tall) at z=15
         short_wall = make_box_triangles(0, 0.25, 15, 3, 0.25, 0.3)
-        d = sun_direction(90.0, 2.0)
+        d = sun_direction(180.0, 2.0)
         # Origin at ground level, the ray at 2° reaches height 15*tan(2°)=0.52m at z=15
         # Wall top is at y=0.5, ray at y≈0.52 — should just clear it
         # This is a numerical edge case; we check the ray system handles it
@@ -424,30 +424,30 @@ class TestSunPositions:
         assert len(noon_pos) >= 1, "Should have a position near solar noon"
 
         p = noon_pos[0]
-        # Azimuth should be near 90° (due south in AutoCAD convention), within ±5°
-        assert 82 <= p['azimuth'] <= 98, \
-            f"Noon azimuth should be ~90° (south), got {p['azimuth']:.1f}°"
+        # Azimuth should be near 180° (due south in geographic convention), within ±5°
+        assert 172 <= p['azimuth'] <= 188, \
+            f"Noon azimuth should be ~180° (south), got {p['azimuth']:.1f}°"
         # Altitude should be ~38.7° (90° - 51.5° + small correction)
         assert 35 <= p['altitude'] <= 42, \
             f"Noon altitude should be ~38.7°, got {p['altitude']:.1f}°"
 
     def test_london_equinox_morning_rises_in_east(self):
-        """Morning sun should have azimuth < 90° (eastern half in AutoCAD convention)."""
+        """Morning sun should have azimuth < 180° (eastern half in geographic convention)."""
         positions = get_sun_positions(51.5, -0.1, 2024, 3, 21, time_step=1.0)
         morning = [p for p in positions if p['hour'] < 12]
         assert len(morning) >= 3, "Should have multiple morning hours"
         for p in morning:
-            assert p['azimuth'] < 90, \
-                f"Morning sun at hour {p['hour']} should have azimuth < 90° (east), got {p['azimuth']:.1f}°"
+            assert p['azimuth'] < 180, \
+                f"Morning sun at hour {p['hour']} should have azimuth < 180° (east), got {p['azimuth']:.1f}°"
 
     def test_london_equinox_afternoon_sets_in_west(self):
-        """Afternoon sun should have azimuth > 90° (western half in AutoCAD convention)."""
+        """Afternoon sun should have azimuth > 180° (western half in geographic convention)."""
         positions = get_sun_positions(51.5, -0.1, 2024, 3, 21, time_step=1.0)
         afternoon = [p for p in positions if p['hour'] > 13]
         assert len(afternoon) >= 3, "Should have multiple afternoon hours"
         for p in afternoon:
-            assert p['azimuth'] > 90, \
-                f"Afternoon sun at hour {p['hour']} should have azimuth > 90° (west), got {p['azimuth']:.1f}°"
+            assert p['azimuth'] > 180, \
+                f"Afternoon sun at hour {p['hour']} should have azimuth > 180° (west), got {p['azimuth']:.1f}°"
 
     def test_all_altitudes_positive(self):
         positions = get_sun_positions(51.5, -0.1, 2024, 6, 21, time_step=0.5)
@@ -466,8 +466,8 @@ class TestSunPositions:
             f"Equator on equinox should have ~12h daylight, got {len(positions)}"
 
     def test_sun_direction_south_at_noon(self):
-        """Sun due south (azimuth 90° in AutoCAD convention) at 45° altitude."""
-        dx, dy, dz = sun_direction(90.0, 45.0)
+        """Sun due south (azimuth 180° in geographic convention) at 45° altitude."""
+        dx, dy, dz = sun_direction(180.0, 45.0)
         # Y = sin(alt) = 0.707
         assert abs(dy - 0.7071) < 0.01, f"Y component should be ~0.707, got {dy}"
         # X should be ~0 (due south, no east/west component)
@@ -476,9 +476,9 @@ class TestSunPositions:
         assert dz > 0.5, f"Z component should be positive for south sun, got {dz}"
 
     def test_sun_direction_east_west_symmetry(self):
-        """Azimuth 0° (east) and 180° (west) should mirror in X (AutoCAD convention)."""
-        dx_e, dy_e, dz_e = sun_direction(0.0, 45.0)
-        dx_w, dy_w, dz_w = sun_direction(180.0, 45.0)
+        """Azimuth 90° (east) and 270° (west) should mirror in X (geographic convention)."""
+        dx_e, dy_e, dz_e = sun_direction(90.0, 45.0)
+        dx_w, dy_w, dz_w = sun_direction(270.0, 45.0)
         assert abs(dx_e + dx_w) < 0.01, "East/west X components should be opposite"
         assert abs(dy_e - dy_w) < 0.01, "East/west Y components should be equal"
         assert abs(dz_e - dz_w) < 0.01, "East/west Z components should be equal"
@@ -498,7 +498,7 @@ class TestAccumulation:
         """Return n sun positions with genuinely different directions."""
         # Vary azimuth (120°–240°) and altitude (25°–65°) so each produces
         # a different shadow direction — catches caching / repeat bugs.
-        azimuths = [30, 60, 90, 120, 150]  # AutoCAD convention (0°=East CW)
+        azimuths = [120, 150, 180, 210, 240]  # Geographic convention (0°=North CW)
         altitudes = [25, 35, 45, 55, 65]
         return [
             {'azimuth': azimuths[i % 5], 'altitude': altitudes[i % 5], 'hour': 8 + i}
@@ -521,11 +521,11 @@ class TestAccumulation:
         origin = (0.0, 0.01, 0.0)  # 10mm above ground (matches engine offset)
 
         sun_pos = [
-            {'azimuth': 90.0, 'altitude': 10.0, 'hour': 8},
-            {'azimuth': 90.0, 'altitude': 15.0, 'hour': 9},
-            {'azimuth': 90.0, 'altitude': 70.0, 'hour': 10},
-            {'azimuth': 90.0, 'altitude': 80.0, 'hour': 11},
-            {'azimuth': 90.0, 'altitude': 85.0, 'hour': 12},
+            {'azimuth': 180.0, 'altitude': 10.0, 'hour': 8},
+            {'azimuth': 180.0, 'altitude': 15.0, 'hour': 9},
+            {'azimuth': 180.0, 'altitude': 70.0, 'hour': 10},
+            {'azimuth': 180.0, 'altitude': 80.0, 'hour': 11},
+            {'azimuth': 180.0, 'altitude': 85.0, 'hour': 12},
         ]
 
         # Pre-verify: independently check which rays are blocked
@@ -649,18 +649,18 @@ class TestAccumulation:
         wall_west = make_box_triangles(3, 5, 0, 0.5, 5, 5)
         obstacles = wall_east + wall_west
 
-        # Sun position 1: from the east (azimuth 0° in AutoCAD convention)
-        # Sun position 2: from the west (azimuth 180° in AutoCAD convention)
+        # Sun position 1: from the east (azimuth 90° in geographic convention)
+        # Sun position 2: from the west (azimuth 270° in geographic convention)
         sun_pos = [
-            {'azimuth': 0.0, 'altitude': 30.0, 'hour': 8},    # from east
-            {'azimuth': 180.0, 'altitude': 30.0, 'hour': 16},  # from west
+            {'azimuth': 90.0, 'altitude': 30.0, 'hour': 8},    # from east
+            {'azimuth': 270.0, 'altitude': 30.0, 'hour': 16},  # from west
         ]
 
         # Pre-verify: independently confirm the shadow pattern
         origin_a = (-5.0, 0.01, 0.0)
         origin_b = (5.0, 0.01, 0.0)
-        dir1 = sun_direction(0.0, 30.0)
-        dir2 = sun_direction(180.0, 30.0)
+        dir1 = sun_direction(90.0, 30.0)
+        dir2 = sun_direction(270.0, 30.0)
 
         # Cell A should be blocked by east wall from east sun, lit from west sun
         a_blocked_by_1 = ray_hits_any_triangle(origin_a, dir1, obstacles)
@@ -692,9 +692,9 @@ class TestAccumulation:
         origin = (0.0, 0.01, 0.0)
 
         sun_pos = [
-            {'azimuth': 90.0, 'altitude': 20.0, 'hour': 9},    # south, low
-            {'azimuth': 0.0, 'altitude': 45.0, 'hour': 12},     # east, mid
-            {'azimuth': 180.0, 'altitude': 45.0, 'hour': 15},   # west, mid
+            {'azimuth': 180.0, 'altitude': 20.0, 'hour': 9},    # south, low
+            {'azimuth': 90.0, 'altitude': 45.0, 'hour': 12},     # east, mid
+            {'azimuth': 270.0, 'altitude': 45.0, 'hour': 15},   # west, mid
         ]
 
         # Pre-verify each direction independently

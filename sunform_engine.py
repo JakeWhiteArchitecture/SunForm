@@ -56,11 +56,8 @@ def get_sun_positions(
             if hour_angle > 0:
                 azimuth = 2 * math.pi - azimuth
 
-            # Convert from geographic (0°=North CW) to AutoCAD (0°=East CW)
-            azimuth_autocad = (math.degrees(azimuth) - 90) % 360
-
             positions.append({
-                'azimuth': azimuth_autocad,
+                'azimuth': math.degrees(azimuth),
                 'altitude': math.degrees(altitude),
                 'hour': hour,
             })
@@ -73,13 +70,13 @@ def get_sun_positions(
 def sun_direction(azimuth_deg: float, altitude_deg: float) -> Vec3:
     """Convert azimuth/altitude to a Three.js direction vector (X, Y, Z).
 
-    Azimuth convention: 0°=East, 90°=South, 180°=West, 270°=North (CW from East).
+    Azimuth convention: 0°=North, 90°=East, 180°=South, 270°=West (CW from North).
     """
     az = math.radians(azimuth_deg)
     alt = math.radians(altitude_deg)
-    ifc_x = math.cos(az) * math.cos(alt)   # East component
-    ifc_y = -math.sin(az) * math.cos(alt)   # North component (negative for CW)
-    ifc_z = math.sin(alt)                    # Up component
+    ifc_x = math.sin(az) * math.cos(alt)
+    ifc_y = math.cos(az) * math.cos(alt)
+    ifc_z = math.sin(alt)
     # Three.js: X=east, Y=up, Z=-north
     length = math.sqrt(ifc_x**2 + ifc_z**2 + ifc_y**2)
     return (ifc_x / length, ifc_z / length, -ifc_y / length)

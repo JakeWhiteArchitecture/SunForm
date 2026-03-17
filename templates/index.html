@@ -845,10 +845,10 @@
                 </div>
                 <div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
                     <select id="orient-direction" style="flex:0 0 auto; background:#0a0e1a; color:#e0e0e0; border:1px solid #333; border-radius:4px; padding:4px 6px; font-size:12px;">
-                        <option value="270">North</option>
-                        <option value="0">East</option>
-                        <option value="90">South</option>
-                        <option value="180">West</option>
+                        <option value="0">North</option>
+                        <option value="90">East</option>
+                        <option value="180">South</option>
+                        <option value="270">West</option>
                     </select>
                     <button class="btn btn-secondary" id="orient-two-point-btn" onclick="event.stopPropagation(); startTwoPointOrient();" style="flex:1; margin-top:0;">Set by Two Points</button>
                 </div>
@@ -1633,41 +1633,59 @@
                 addOrientMarker(hitPoint);
                 const p2 = hitPoint.clone();
 
-                // Compute the angle of the vector P1→P2 in the XZ plane
-                // Hit points are in world space (already rotated by current northRotationDeg)
+                // P1→P2 vector in world space (already includes current rotation)
                 const dx = p2.x - orientPoint1.x;
                 const dz = p2.z - orientPoint1.z;
 
-                // World-space angle of vector, measured CW from screen-up (-Z)
+                // World-space angle CW from screen-up (-Z)
                 const worldAngleDeg = Math.atan2(dx, -dz) * 180 / Math.PI;
 
-                // Convert to model-local angle by adding current rotation
-                // (positive rotation = CCW, so model-local = world + rotation)
+                // Model-local angle = world angle + current rotation
                 const localAngleDeg = worldAngleDeg + northRotationDeg;
 
-                // The selected direction in AutoCAD convention (0=E, 90=S, 180=W, 270=N)
-                const targetDirDeg = parseFloat(document.getElementById('orient-direction').value);
+                // Target direction (0=N, 90=E, 180=S, 270=W) — same as screen angles
+                const targetAngleDeg = parseFloat(document.getElementById('orient-direction').value);
 
-                // Convert target direction to screen angle (CW from -Z):
-                // North (270) → 0°, East (0) → 90°, South (90) → 180°, West (180) → 270°
-                const targetScreenAngle = (targetDirDeg + 90) % 360;
-
-                // The rotation needed so that model-local angle appears at target on screen:
-                // targetScreenAngle = localAngleDeg - newRotation
-                let newRotation = localAngleDeg - targetScreenAngle;
+                // Rotation needed so model-local vector appears at target on screen
+                let newRotation = localAngleDeg - targetAngleDeg;
                 while (newRotation > 180) newRotation -= 360;
                 while (newRotation <= -180) newRotation += 360;
 
-                northRotationDeg = Math.round(newRotation * 10) / 10;
-                document.getElementById('north-rotation').value = northRotationDeg;
+                const targetDeg = Math.round(newRotation * 10) / 10;
+                stopTwoPointOrient();
+                animateRotation(targetDeg);
+            }
+        }
+
+        function animateRotation(targetDeg, duration) {
+            duration = duration || 400;
+            const startDeg = northRotationDeg;
+            let delta = targetDeg - startDeg;
+            while (delta > 180) delta -= 360;
+            while (delta <= -180) delta += 360;
+            const endDeg = startDeg + delta;
+            const startTime = performance.now();
+
+            function tick(now) {
+                const t = Math.min((now - startTime) / duration, 1);
+                const eased = t * (2 - t); // ease-out
+                northRotationDeg = startDeg + delta * eased;
                 if (modelRotationGroup) {
                     modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
                 }
                 const arrow = document.getElementById('north-arrow');
                 arrow.querySelector('svg').style.transform = 'rotate(' + (-northRotationDeg) + 'deg)';
-
-                stopTwoPointOrient();
+                if (t < 1) {
+                    requestAnimationFrame(tick);
+                } else {
+                    northRotationDeg = Math.round(endDeg * 10) / 10;
+                    document.getElementById('north-rotation').value = northRotationDeg;
+                    if (modelRotationGroup) {
+                        modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
+                    }
+                }
             }
+            requestAnimationFrame(tick);
         }
 
         // ─── STEP 3: GROUND MESH PICKING ───
@@ -2015,11 +2033,8 @@
                 let azimuth = Math.acos(Math.max(-1, Math.min(1, cosAz)));
                 if (hourAngle > 0) azimuth = 2 * Math.PI - azimuth;
 
-                // Convert from geographic (0°=North CW) to AutoCAD (0°=East CW)
-                const azimuthAutocad = ((azimuth * 180 / Math.PI) - 90 + 360) % 360;
-
                 positions.push({
-                    azimuth: azimuthAutocad,
+                    azimuth: azimuth * 180 / Math.PI,
                     altitude: altitude * 180 / Math.PI,
                     hour: hour,
                 });
@@ -2035,13 +2050,12 @@
         }
 
         function sunDirection(azimuthDeg, altitudeDeg) {
-            // Azimuth: 0°=East, 90°=South, 180°=West, 270°=North (CW from East)
+            // Azimuth: 0°=North, 90°=East, 180°=South, 270°=West (CW from North)
             const az = azimuthDeg * Math.PI / 180;
             const alt = altitudeDeg * Math.PI / 180;
-            const ifcX = Math.cos(az) * Math.cos(alt);   // East component
-            const ifcY = -Math.sin(az) * Math.cos(alt);  // North component (negative for CW)
-            const ifcZ = Math.sin(alt);                   // Up component
-            // Three.js: X=east, Y=up, Z=-north
+            const ifcX = Math.sin(az) * Math.cos(alt);
+            const ifcY = Math.cos(az) * Math.cos(alt);
+            const ifcZ = Math.sin(alt);
             return new THREE.Vector3(ifcX, ifcZ, -ifcY).normalize();
         }
 
