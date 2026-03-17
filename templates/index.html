@@ -519,8 +519,8 @@
                 <span class="step-summary" id="step3-summary"></span>
             </div>
             <div class="step-body">
-                <p class="hint">Click on the ground or terrain surface in the 3D view.</p>
-                <div class="selected-mesh-name" id="selected-mesh-name">No mesh selected</div>
+                <p class="hint">Click on ground/terrain surfaces in the 3D view. Click again to deselect.</p>
+                <div class="selected-mesh-name" id="selected-mesh-name">No meshes selected</div>
                 <div id="ground-suggestions" style="margin-bottom:8px;"></div>
                 <button class="btn btn-primary" id="confirm-ground-btn" onclick="event.stopPropagation(); confirmGroundMesh();" disabled>Confirm Selection</button>
             </div>
@@ -670,8 +670,8 @@
         let buildingGroup = null;
         let allMeshes = [];         // individual THREE.Mesh objects from IFC
         let allMeshMeta = [];       // { mesh, expressID, ifcType, name } per mesh
-        let selectedGroundMesh = null;
-        let groundHighlight = null; // cyan wireframe overlay
+        let selectedGroundMeshes = [];  // array of selected ground THREE.Mesh objects
+        let groundHighlights = [];      // cyan wireframe overlays
         let shadowBVH = null;       // BVH of all meshes EXCEPT ground
         let heatmapGroup = null;
         let bboxHelper = null;
@@ -859,14 +859,11 @@
                 scene.remove(heatmapGroup);
                 heatmapGroup = null;
             }
-            if (groundHighlight) {
-                scene.remove(groundHighlight);
-                groundHighlight = null;
-            }
+            clearAllHighlights();
             removeBboxHelper();
             allMeshes = [];
             allMeshMeta = [];
-            selectedGroundMesh = null;
+            selectedGroundMeshes = [];
             shadowBVH = null;
             ifcLoaded = false;
             lastAnalysisResults = null;
@@ -877,7 +874,7 @@
             document.getElementById('upload-filename').style.display = 'none';
             document.getElementById('upload-zone').classList.remove('loaded');
             document.getElementById('north-rotation').value = '0';
-            document.getElementById('selected-mesh-name').textContent = 'No mesh selected';
+            document.getElementById('selected-mesh-name').textContent = 'No meshes selected';
             document.getElementById('ground-suggestions').innerHTML = '';
             document.getElementById('bbox-fields').style.display = 'none';
             document.getElementById('bbox-fields2').style.display = 'none';
@@ -1123,26 +1120,55 @@
             overlay.classList.toggle('visible', on);
         }
 
-        function highlightMesh(mesh) {
-            if (groundHighlight) {
-                scene.remove(groundHighlight);
-                groundHighlight.geometry.dispose();
-                groundHighlight.material.dispose();
-                groundHighlight = null;
+        function clearAllHighlights() {
+            for (const hl of groundHighlights) {
+                if (hl.parent) hl.parent.remove(hl);
+                else scene.remove(hl);
+                hl.geometry.dispose();
+                hl.material.dispose();
             }
-            if (!mesh) return;
+            groundHighlights = [];
+        }
+
+        function addHighlight(mesh) {
             const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
-            groundHighlight = new THREE.LineSegments(edges,
+            const hl = new THREE.LineSegments(edges,
                 new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 }));
-            // Apply same world transform
-            groundHighlight.position.copy(mesh.position);
-            groundHighlight.rotation.copy(mesh.rotation);
-            groundHighlight.scale.copy(mesh.scale);
+            hl.position.copy(mesh.position);
+            hl.rotation.copy(mesh.rotation);
+            hl.scale.copy(mesh.scale);
+            hl.userData._groundRef = mesh; // back-reference for removal
             if (mesh.parent) {
-                // Place in same parent so rotation group applies
-                mesh.parent.add(groundHighlight);
+                mesh.parent.add(hl);
             } else {
-                scene.add(groundHighlight);
+                scene.add(hl);
+            }
+            groundHighlights.push(hl);
+        }
+
+        function removeHighlight(mesh) {
+            const idx = groundHighlights.findIndex(hl => hl.userData._groundRef === mesh);
+            if (idx === -1) return;
+            const hl = groundHighlights[idx];
+            if (hl.parent) hl.parent.remove(hl);
+            else scene.remove(hl);
+            hl.geometry.dispose();
+            hl.material.dispose();
+            groundHighlights.splice(idx, 1);
+        }
+
+        function updateSelectedMeshLabel() {
+            if (selectedGroundMeshes.length === 0) {
+                document.getElementById('selected-mesh-name').textContent = 'No meshes selected';
+                document.getElementById('confirm-ground-btn').disabled = true;
+            } else {
+                const names = selectedGroundMeshes.map(m => {
+                    const meta = allMeshMeta.find(mm => mm.mesh === m);
+                    return meta ? meta.name : m.name;
+                });
+                document.getElementById('selected-mesh-name').textContent =
+                    names.length + ' mesh' + (names.length > 1 ? 'es' : '') + ': ' + names.join(', ');
+                document.getElementById('confirm-ground-btn').disabled = false;
             }
         }
 
@@ -1170,25 +1196,30 @@
             if (hits.length === 0) return;
 
             const hitMesh = hits[0].object;
-            selectedGroundMesh = hitMesh;
-            highlightMesh(hitMesh);
+            const existingIdx = selectedGroundMeshes.indexOf(hitMesh);
 
-            const meta = allMeshMeta.find(m => m.mesh === hitMesh);
-            const label = meta ? meta.name : hitMesh.name;
-            document.getElementById('selected-mesh-name').textContent = label;
-            document.getElementById('confirm-ground-btn').disabled = false;
+            if (existingIdx !== -1) {
+                // Deselect — toggle off
+                selectedGroundMeshes.splice(existingIdx, 1);
+                removeHighlight(hitMesh);
+            } else {
+                // Select — toggle on
+                selectedGroundMeshes.push(hitMesh);
+                addHighlight(hitMesh);
+            }
+
+            updateSelectedMeshLabel();
         }
 
         function confirmGroundMesh() {
-            if (!selectedGroundMesh) return;
-            const meta = allMeshMeta.find(m => m.mesh === selectedGroundMesh);
-            const label = meta ? meta.name : selectedGroundMesh.name;
+            if (selectedGroundMeshes.length === 0) return;
             setPickMode(false);
 
-            // Build ground suggestions display
             buildShadowBVH();
 
-            completeStep(3, 'Ground: ' + label);
+            const count = selectedGroundMeshes.length;
+            const summary = 'Ground: ' + count + ' mesh' + (count > 1 ? 'es' : '');
+            completeStep(3, summary);
         }
 
         // ─── BUILD SHADOW BVH (all meshes except ground) ───
@@ -1199,8 +1230,9 @@
             const allIdx = [];
             let offset = 0;
 
+            const groundSet = new Set(selectedGroundMeshes);
             for (const mesh of allMeshes) {
-                if (mesh === selectedGroundMesh) continue;
+                if (groundSet.has(mesh)) continue;
                 const geo = mesh.geometry;
                 const pos = geo.attributes.position.array;
                 const idx = geo.index ? geo.index.array : null;
@@ -1430,30 +1462,14 @@
 
         // ─── TERRAIN-AWARE RAY CASTING ───
         async function runTerrainAnalysis(latitude, longitude, timeStep, dateStr) {
-            if (!selectedGroundMesh || !shadowBVH) {
-                throw new Error('Ground mesh and shadow casters must be set');
+            if (selectedGroundMeshes.length === 0 || !shadowBVH) {
+                throw new Error('Ground meshes and shadow casters must be set');
             }
 
             const sunPositions = getSunPositions(latitude, longitude, dateStr, timeStep);
             if (sunPositions.length === 0) {
                 throw new Error('No sun positions above horizon for given date/location');
             }
-
-            // Get ground mesh face data in world coords
-            selectedGroundMesh.updateWorldMatrix(true, false);
-            const wm = selectedGroundMesh.matrixWorld;
-            const normalMatrix = new THREE.Matrix3().getNormalMatrix(wm);
-
-            const geo = selectedGroundMesh.geometry;
-            const pos = geo.attributes.position.array;
-            const idx = geo.index ? geo.index.array : null;
-
-            const faceCount = idx ? idx.length / 3 : pos.length / 9;
-
-            // Extract face centroids, normals, and areas in world space
-            const faceCentroids = [];  // {x, y, z}
-            const faceNormals = [];    // {x, y, z}
-            const faceAreas = [];      // scalar
 
             // Get bounding box filter if using bbox mode
             let bboxFilter = null;
@@ -1468,40 +1484,56 @@
                 }
             }
 
-            const faceIndices = []; // which original face index maps to which analysis face
+            // Extract face data from ALL selected ground meshes
+            const faceCentroids = [];  // {x, y, z}
+            const faceNormals = [];    // {x, y, z}
+            const faceAreas = [];      // scalar
+            const faceIndices = [];    // original face index within its mesh
+            const faceMeshIdx = [];    // which ground mesh this face belongs to
 
-            for (let f = 0; f < faceCount; f++) {
-                let i0, i1, i2;
-                if (idx) {
-                    i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
-                } else {
-                    i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
+            for (let mi = 0; mi < selectedGroundMeshes.length; mi++) {
+                const groundMesh = selectedGroundMeshes[mi];
+                groundMesh.updateWorldMatrix(true, false);
+                const wm = groundMesh.matrixWorld;
+
+                const geo = groundMesh.geometry;
+                const pos = geo.attributes.position.array;
+                const idx = geo.index ? geo.index.array : null;
+                const faceCount = idx ? idx.length / 3 : pos.length / 9;
+
+                for (let f = 0; f < faceCount; f++) {
+                    let i0, i1, i2;
+                    if (idx) {
+                        i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
+                    } else {
+                        i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
+                    }
+
+                    const a = new THREE.Vector3(pos[i0*3], pos[i0*3+1], pos[i0*3+2]).applyMatrix4(wm);
+                    const b = new THREE.Vector3(pos[i1*3], pos[i1*3+1], pos[i1*3+2]).applyMatrix4(wm);
+                    const c = new THREE.Vector3(pos[i2*3], pos[i2*3+1], pos[i2*3+2]).applyMatrix4(wm);
+
+                    const centroid = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1/3);
+
+                    if (bboxFilter) {
+                        const ifcX = centroid.x;
+                        const ifcY = -centroid.z;
+                        if (ifcX < bboxFilter.minX || ifcX > bboxFilter.maxX ||
+                            ifcY < bboxFilter.minY || ifcY > bboxFilter.maxY) continue;
+                    }
+
+                    const edge1 = new THREE.Vector3().subVectors(b, a);
+                    const edge2 = new THREE.Vector3().subVectors(c, a);
+                    const normal = new THREE.Vector3().crossVectors(edge1, edge2);
+                    const area = normal.length() * 0.5;
+                    normal.normalize();
+
+                    faceCentroids.push({ x: centroid.x, y: centroid.y, z: centroid.z });
+                    faceNormals.push({ x: normal.x, y: normal.y, z: normal.z });
+                    faceAreas.push(area);
+                    faceIndices.push(f);
+                    faceMeshIdx.push(mi);
                 }
-
-                const a = new THREE.Vector3(pos[i0*3], pos[i0*3+1], pos[i0*3+2]).applyMatrix4(wm);
-                const b = new THREE.Vector3(pos[i1*3], pos[i1*3+1], pos[i1*3+2]).applyMatrix4(wm);
-                const c = new THREE.Vector3(pos[i2*3], pos[i2*3+1], pos[i2*3+2]).applyMatrix4(wm);
-
-                const centroid = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1/3);
-
-                // Bbox filter: centroid in IFC coords (Three X = IFC X, Three -Z = IFC Y)
-                if (bboxFilter) {
-                    const ifcX = centroid.x;
-                    const ifcY = -centroid.z;
-                    if (ifcX < bboxFilter.minX || ifcX > bboxFilter.maxX ||
-                        ifcY < bboxFilter.minY || ifcY > bboxFilter.maxY) continue;
-                }
-
-                const edge1 = new THREE.Vector3().subVectors(b, a);
-                const edge2 = new THREE.Vector3().subVectors(c, a);
-                const normal = new THREE.Vector3().crossVectors(edge1, edge2);
-                const area = normal.length() * 0.5;
-                normal.normalize();
-
-                faceCentroids.push({ x: centroid.x, y: centroid.y, z: centroid.z });
-                faceNormals.push({ x: normal.x, y: normal.y, z: normal.z });
-                faceAreas.push(area);
-                faceIndices.push(f);
             }
 
             if (faceCentroids.length === 0) {
@@ -1564,6 +1596,7 @@
                 faceNormals,
                 faceAreas,
                 faceIndices,
+                faceMeshIdx,
                 faceSunHours,
                 sunPositions,
                 totalArea,
@@ -1608,9 +1641,9 @@
             return [c[1], c[2], c[3]];
         }
 
-        // ─── PAINT FLAT-COLOURED TILES ONTO GROUND MESH ───
+        // ─── PAINT FLAT-COLOURED TILES ONTO GROUND MESHES ───
         function paintGroundMesh(results) {
-            if (!selectedGroundMesh) return;
+            if (selectedGroundMeshes.length === 0) return;
 
             // Remove previous heatmap overlay
             if (heatmapGroup) {
@@ -1624,46 +1657,52 @@
             heatmapGroup = new THREE.Group();
             heatmapGroup.name = 'heatmap';
 
-            const geo = selectedGroundMesh.geometry;
-            const pos = geo.attributes.position.array;
-            const idx = geo.index ? geo.index.array : null;
-
-            selectedGroundMesh.updateWorldMatrix(true, false);
-            const wm = selectedGroundMesh.matrixWorld;
-
-            // Map from original face index to analysis index
-            const faceToAnalysis = {};
+            // Build per-mesh lookup: meshIdx -> { faceIdx -> analysisIdx }
+            const perMesh = [];
+            for (let mi = 0; mi < selectedGroundMeshes.length; mi++) {
+                perMesh.push({});
+            }
             for (let i = 0; i < results.faceIndices.length; i++) {
-                faceToAnalysis[results.faceIndices[i]] = i;
+                perMesh[results.faceMeshIdx[i]][results.faceIndices[i]] = i;
             }
 
-            // Build non-indexed geometry: each face becomes 3 vertices with flat colour
             const tilePositions = [];
             const tileColors = [];
 
-            const totalFaces = idx ? idx.length / 3 : pos.length / 9;
-            for (let f = 0; f < totalFaces; f++) {
-                const analysisIdx = faceToAnalysis[f];
-                if (analysisIdx === undefined) continue;
+            for (let mi = 0; mi < selectedGroundMeshes.length; mi++) {
+                const groundMesh = selectedGroundMeshes[mi];
+                const geo = groundMesh.geometry;
+                const pos = geo.attributes.position.array;
+                const idx = geo.index ? geo.index.array : null;
 
-                const hours = results.faceSunHours[analysisIdx];
-                const [r, g, b] = lerpColour(hours);
-                const fn = results.faceNormals[analysisIdx];
+                groundMesh.updateWorldMatrix(true, false);
+                const wm = groundMesh.matrixWorld;
 
-                let i0, i1, i2;
-                if (idx) {
-                    i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
-                } else {
-                    i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
-                }
+                const faceToAnalysis = perMesh[mi];
+                const totalFaces = idx ? idx.length / 3 : pos.length / 9;
 
-                // Get world-space vertices and offset slightly along face normal
-                const off = 0.02; // 20mm offset to sit above surface
-                for (const vi of [i0, i1, i2]) {
-                    const p = new THREE.Vector3(pos[vi*3], pos[vi*3+1], pos[vi*3+2]);
-                    p.applyMatrix4(wm);
-                    tilePositions.push(p.x + fn.x * off, p.y + fn.y * off, p.z + fn.z * off);
-                    tileColors.push(r, g, b);
+                for (let f = 0; f < totalFaces; f++) {
+                    const analysisIdx = faceToAnalysis[f];
+                    if (analysisIdx === undefined) continue;
+
+                    const hours = results.faceSunHours[analysisIdx];
+                    const [r, g, b] = lerpColour(hours);
+                    const fn = results.faceNormals[analysisIdx];
+
+                    let i0, i1, i2;
+                    if (idx) {
+                        i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
+                    } else {
+                        i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
+                    }
+
+                    const off = 0.02; // 20mm offset to sit above surface
+                    for (const vi of [i0, i1, i2]) {
+                        const p = new THREE.Vector3(pos[vi*3], pos[vi*3+1], pos[vi*3+2]);
+                        p.applyMatrix4(wm);
+                        tilePositions.push(p.x + fn.x * off, p.y + fn.y * off, p.z + fn.z * off);
+                        tileColors.push(r, g, b);
+                    }
                 }
             }
 
@@ -1691,7 +1730,7 @@
         // ─── RUN ANALYSIS ───
         async function runAnalysis() {
             const btn = document.getElementById('run-btn');
-            if (!ifcLoaded || !selectedGroundMesh) {
+            if (!ifcLoaded || selectedGroundMeshes.length === 0) {
                 alert('Please complete previous steps first.');
                 return;
             }
@@ -1758,6 +1797,7 @@
             }
 
             // Add all meshes as grey context geometry
+            const groundSet = new Set(selectedGroundMeshes);
             for (const mesh of allMeshes) {
                 mesh.updateWorldMatrix(true, false);
                 const clone = mesh.clone();
