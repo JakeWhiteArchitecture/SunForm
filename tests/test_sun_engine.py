@@ -1,5 +1,5 @@
 """
-Deterministic unit tests for the SUNFORM analysis engine.
+Deterministic unit tests for the SunForm analysis engine.
 
 All tests use known geometry, known sun positions, and known expected answers.
 No external API calls, no randomness.

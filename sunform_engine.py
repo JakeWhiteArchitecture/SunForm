@@ -1,5 +1,5 @@
 """
-SUNFORM — Pure-Python analysis engine.
+SunForm — Pure-Python analysis engine.
 
 Mirrors the client-side JavaScript sun position calculator and ray-triangle
 intersection logic so they can be tested deterministically with pytest.

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUNFORM — Sun Hours Analysis</title>
+    <title>SunForm — Sun Hours Analysis</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -34,7 +34,7 @@
 
         .panel h1 {
             font-size: 20px;
-            color: #e94560;
+            color: #D4880F;
             margin-bottom: 4px;
         }
 
@@ -87,7 +87,7 @@
         }
 
         .step.active .step-number {
-            background: #e94560;
+            background: #D4880F;
             color: #fff;
         }
 
@@ -156,7 +156,7 @@
 
         .field input:focus, .field select:focus {
             outline: none;
-            border-color: #e94560;
+            border-color: #D4880F;
         }
 
         .field .unit {
@@ -183,8 +183,8 @@
         }
 
         .upload-zone:hover, .upload-zone.dragover {
-            border-color: #e94560;
-            background: rgba(233, 69, 96, 0.05);
+            border-color: #D4880F;
+            background: rgba(212, 136, 15, 0.05);
         }
 
         .upload-zone.loaded {
@@ -241,8 +241,8 @@
 
         .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        .btn-primary { background: #e94560; color: white; }
-        .btn-primary:hover:not(:disabled) { background: #d63851; }
+        .btn-primary { background: #D4880F; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #B8720A; }
 
         .btn-secondary { background: #0f3460; color: #e0e0e0; }
         .btn-secondary:hover:not(:disabled) { background: #1a4a80; }
@@ -268,7 +268,7 @@
             top: 10px;
             right: 10px;
             font-size: 11px;
-            color: #00ccff;
+            color: #00CFC8;
             z-index: 5;
         }
 
@@ -280,7 +280,7 @@
             right: 20px;
             z-index: 10;
             text-align: center;
-            color: #e94560;
+            color: #D4880F;
             font-size: 12px;
             font-weight: 700;
         }
@@ -304,14 +304,14 @@
             border-radius: 6px;
             font-size: 12px;
             line-height: 1.6;
-            border: 1px solid #e94560;
+            border: 1px solid #D4880F;
             min-width: 200px;
         }
 
         .bbox-overlay.visible { display: block; }
-        .bbox-overlay .bbox-title { color: #e94560; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .bbox-overlay .bbox-title { color: #D4880F; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
         .bbox-overlay .bbox-hint { color: #aaa; font-size: 12px; }
-        .bbox-overlay .bbox-coords { color: #00ccff; font-size: 12px; margin-top: 4px; font-family: monospace; }
+        .bbox-overlay .bbox-coords { color: #00CFC8; font-size: 12px; margin-top: 4px; font-family: monospace; }
 
         .viewport.drawing-bbox { cursor: crosshair; }
         .viewport.picking-mesh { cursor: crosshair; }
@@ -328,7 +328,7 @@
             border-radius: 6px;
             font-size: 12px;
             line-height: 1.6;
-            border: 1px solid #00ccff;
+            border: 1px solid #00CFC8;
             min-width: 200px;
         }
 
@@ -401,7 +401,7 @@
 
         .progress-bar .progress-fill {
             height: 100%;
-            background: #e94560;
+            background: #D4880F;
             border-radius: 2px;
             transition: width 0.3s;
             animation: progress-pulse 1.5s ease-in-out infinite;
@@ -442,7 +442,7 @@
             font-size: 12px;
             margin-bottom: 6px;
         }
-        .location-search:focus { outline: none; border-color: #e94560; }
+        .location-search:focus { outline: none; border-color: #D4880F; }
 
         /* ─── SEASON TOGGLES ─── */
         .season-toggles {
@@ -464,9 +464,9 @@
             transition: all 0.15s;
         }
         .season-toggle.active {
-            border-color: #e94560;
+            border-color: #D4880F;
             color: #e0e0e0;
-            background: rgba(233, 69, 96, 0.15);
+            background: rgba(212, 136, 15, 0.15);
         }
 
         /* ─── SEASON SWITCHER (viewport overlay) ─── */
@@ -496,7 +496,7 @@
             transition: all 0.15s;
         }
         .season-sw-btn.active {
-            background: #e94560;
+            background: #D4880F;
             color: #fff;
         }
 
@@ -511,21 +511,162 @@
             color: #888;
             text-decoration: none;
         }
-        .bug-report a:hover { color: #e94560; text-decoration: underline; }
+        .bug-report a:hover { color: #D4880F; text-decoration: underline; }
 
         /* ─── SELECTED MESH INDICATOR ─── */
         .selected-mesh-name {
             font-size: 12px;
-            color: #00ccff;
+            color: #00CFC8;
             margin: 6px 0;
             font-family: monospace;
+        }
+
+        /* ─── DISCLAIMER MODAL ─── */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal-box {
+            background: #16213e;
+            border: 1px solid #D4880F;
+            border-radius: 10px;
+            max-width: 620px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 28px 32px;
+            color: #e0e0e0;
+        }
+        .modal-box h2 {
+            font-size: 18px;
+            color: #E5A50A;
+            margin-bottom: 4px;
+        }
+        .modal-box .modal-subtitle {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 16px;
+        }
+        .modal-box h3 {
+            font-size: 13px;
+            color: #D4880F;
+            margin: 14px 0 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .modal-box p, .modal-box li {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #ccc;
+        }
+        .modal-box ul { padding-left: 18px; margin: 4px 0; }
+        .modal-box .beta-badge {
+            display: inline-block;
+            background: #D4880F;
+            color: #000;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .modal-box .checkbox-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 10px 0;
+            font-size: 12px;
+            color: #ccc;
+            cursor: pointer;
+        }
+        .modal-box .checkbox-row input[type="checkbox"] {
+            margin-top: 2px;
+            accent-color: #D4880F;
+        }
+        .modal-box .btn-accept {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            background: #D4880F;
+            color: #fff;
+            transition: background 0.2s;
+        }
+        .modal-box .btn-accept:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .modal-box .btn-accept:hover:not(:disabled) {
+            background: #E5A50A;
         }
     </style>
 </head>
 <body>
+    <!-- ─── DISCLAIMER MODAL ─── -->
+    <div class="modal-overlay" id="disclaimer-modal">
+        <div class="modal-box">
+            <h2>SunForm <span class="beta-badge">Beta</span></h2>
+            <div class="modal-subtitle">Indicative Sun Hours Analysis Tool</div>
+
+            <h3>1. Beta Software</h3>
+            <p>SunForm is currently in <strong>beta</strong>. All outputs are <strong>indicative only</strong> and intended for early-stage design exploration. They must not be treated as definitive or relied upon for final design decisions without independent verification.</p>
+
+            <h3>2. Not a Replacement for Professional Advice</h3>
+            <p>The provision of this free software is <strong>not intended to be a replacement for expert daylighting consulting professionals</strong> and the specialist software that they use. Critical design decisions regarding daylight, sunlight, and overshadowing must be made in the context of a qualified daylighting consultant.</p>
+
+            <h3>3. No Compliance Warranty</h3>
+            <p>Outputs have not been verified against any building regulations, standards, or codes of practice &mdash; including BRE 209, BS EN 17037, the Building Regulations 2010, associated Approved Documents, or any international equivalent. No representation or warranty is made that any output complies with any regulatory requirement.</p>
+
+            <h3>4. User Responsibility</h3>
+            <ul>
+                <li>You are solely responsible for verifying the accuracy, suitability, and regulatory compliance of all outputs.</li>
+                <li>You will not rely on any output as a final design assessment or instruction without independent professional verification.</li>
+                <li>Any use of exported files (PDF, GLB) is entirely at your own risk.</li>
+            </ul>
+
+            <h3>5. Limitation of Liability</h3>
+            <p>SunForm is provided <strong>&ldquo;as is&rdquo;</strong> without warranty of any kind, whether express or implied. To the fullest extent permitted by law, Jake White Architecture shall not be liable for any loss, damage, injury, cost, or expense (whether direct, indirect, or consequential) arising from the use of or reliance upon any output, any errors or omissions in the outputs, any decisions or actions taken based on the outputs, or any failure of the tool to produce accurate results.</p>
+
+            <h3>6. Intellectual Property</h3>
+            <p>SunForm is provided free of charge. Outputs may be used freely at your own discretion and risk. The tool itself, including source code and design, remains the intellectual property of Jake White Architecture.</p>
+
+            <h3>7. Changes to These Terms</h3>
+            <p>These terms may be updated from time to time. Continued use of SunForm following any changes constitutes acceptance of the revised terms.</p>
+
+            <p style="margin-top:14px; font-size:11px; color:#888;">SunForm is provided by Jake White Architecture. For professional Architectural Technology services, visit <a href="https://www.jakewhitearchitecture.com" target="_blank" style="color:#00CFC8;">jakewhitearchitecture.com</a></p>
+
+            <hr style="border-color:#0f3460; margin:16px 0 12px;">
+
+            <label class="checkbox-row" id="disclaimer-check1-label">
+                <input type="checkbox" id="disclaimer-check1" onchange="updateDisclaimerAccept()">
+                <span>I have read, understood, and accept the Terms of Use &amp; Disclaimer. I acknowledge that SunForm is beta software and all outputs are indicative only.</span>
+            </label>
+            <label class="checkbox-row" id="disclaimer-check2-label">
+                <input type="checkbox" id="disclaimer-check2" onchange="updateDisclaimerAccept()">
+                <span>I understand that SunForm is not a replacement for professional daylighting consultants and their software. I will not use its outputs as a substitute for expert advice.</span>
+            </label>
+
+            <button class="btn-accept" id="disclaimer-accept-btn" disabled onclick="acceptDisclaimer()">Accept &amp; Continue</button>
+        </div>
+    </div>
+
     <div class="panel">
       <div class="panel-scroll">
-        <h1>SUNFORM</h1>
+        <h1 style="display:flex; align-items:center; gap:6px;">SunForm <span style="font-size:9px; background:#D4880F; color:#000; padding:1px 5px; border-radius:3px; font-weight:700; letter-spacing:0.5px;">BETA</span></h1>
         <p class="subtitle">Indicative Sun Hours Analysis</p>
 
         <!-- STEP 1: IMPORT -->
@@ -693,10 +834,11 @@
         </div>
 
         <div class="disclaimer">
-            SUNFORM — Indicative sun hours analysis for early design decisions only.
-            Results are approximate and must not be relied upon for planning submissions
-            or compliance assessments. This tool does not constitute a professional
-            daylight or sunlight assessment.
+            SunForm (Beta) &mdash; Indicative sun hours analysis for early-stage design exploration only.
+            All outputs are approximate and must not be relied upon for planning submissions,
+            compliance assessments, or final design decisions. This tool is not a replacement for
+            professional daylighting consultants and their software. Jake White Architecture accepts
+            no liability for loss or damage arising from reliance on its outputs.
         </div>
 
       </div>
@@ -706,13 +848,13 @@
         <div class="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag</div>
         <div class="north-arrow" id="north-arrow">
             <svg viewBox="0 0 50 50">
-                <polygon points="25,5 30,20 25,15 20,20" fill="#e94560"/>
+                <polygon points="25,5 30,20 25,15 20,20" fill="#E5A50A"/>
                 <polygon points="25,45 20,30 25,35 30,30" fill="#666"/>
             </svg>
             <div>N</div>
         </div>
         <div class="pick-overlay" id="pick-overlay">
-            <div style="color:#00ccff; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Ground Mesh</div>
+            <div style="color:#00CFC8; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Ground Mesh</div>
             <div style="color:#aaa; font-size:12px;">Click on a mesh in the 3D view</div>
         </div>
         <div class="bbox-overlay" id="bbox-overlay">
@@ -934,6 +1076,22 @@
             else switchToPersp();
             setPickMode(n === 3);
 
+            // Mesh visibility: when going back to step 3 (select mesh), show meshes
+            // and gray out previous results. On step 5 (results), hide meshes.
+            if (n === 3 && Object.keys(seasonHeatmaps).length > 0) {
+                showCalculationMeshes();
+                grayOutResults();
+            } else if (n === 5) {
+                hideCalculationMeshes();
+                restoreResults();
+            } else if (n !== 3) {
+                // For other steps, ensure meshes are visible and results normal
+                showCalculationMeshes();
+                if (Object.keys(seasonHeatmaps).length > 0) {
+                    restoreResults();
+                }
+            }
+
             // Lazy-init Leaflet map when step 4 first opens
             if (n === 4 && !mapInitialized) {
                 mapInitialized = true;
@@ -960,6 +1118,8 @@
         }
 
         function resetWorkflow() {
+            // Restore mesh visibility before cleanup
+            showCalculationMeshes();
             // Reset all state
             if (buildingGroup) {
                 scene.remove(buildingGroup);
@@ -1262,13 +1422,13 @@
                 mesh.userData._origColor = mesh.material.color.getHex();
             }
             mesh.material = mesh.material.clone();
-            mesh.material.color.setHex(0x00aacc);
+            mesh.material.color.setHex(0x00CFC8);
             mesh.material.opacity = 0.7;
             mesh.material.transparent = true;
 
             const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
             const hl = new THREE.LineSegments(edges,
-                new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 }));
+                new THREE.LineBasicMaterial({ color: 0x0AF5E3, linewidth: 2 }));
             hl.position.copy(mesh.position);
             hl.rotation.copy(mesh.rotation);
             hl.scale.copy(mesh.scale);
@@ -1415,7 +1575,7 @@
         // ─── STEP 4: ANALYSIS AREA ───
         function useEntireMesh() {
             useEntireGroundMesh = true;
-            document.getElementById('use-entire-btn').style.background = '#e94560';
+            document.getElementById('use-entire-btn').style.background = '#D4880F';
             document.getElementById('use-entire-btn').style.color = '#fff';
             document.getElementById('bbox-btn').style.background = '';
             document.getElementById('bbox-btn').style.color = '';
@@ -2121,6 +2281,9 @@
                 });
                 completeStep(4, avgList.join(' | '));
 
+                // Hide the IFC meshes so only heatmap is visible
+                hideCalculationMeshes();
+
                 updateBugReportLink();
 
             } catch (err) {
@@ -2194,7 +2357,7 @@
             }, { binary: true });
         }
 
-        // ─── EXPORT PDF (client-side via jsPDF, multi-season) ───
+        // ─── EXPORT PDF (plan view: raster heatmap + vector mesh edges) ───
         function downloadPDF() {
             const analysedSeasons = Object.keys(seasonResults);
             if (analysedSeasons.length === 0) return;
@@ -2204,79 +2367,135 @@
 
             try {
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+                const doc = new jsPDF({ orientation: 'landscape' });
                 const lat = document.getElementById('latitude').value;
                 const lng = document.getElementById('longitude').value;
                 const firstSummary = seasonResults[analysedSeasons[0]].summary;
+                const pageW = doc.internal.pageSize.width;
+                const pageH = doc.internal.pageSize.height;
 
-                doc.setFontSize(22);
-                doc.setTextColor(233, 69, 96);
-                doc.text('SUNFORM', 20, 25);
-                doc.setFontSize(14);
-                doc.setTextColor(100);
-                doc.text('Indicative Sun Hours Analysis', 20, 33);
+                // Save current camera state
+                const savedCamera = camera;
+                const savedRotateEnabled = controls.enableRotate;
 
-                doc.setFontSize(10);
-                doc.setTextColor(80);
-                doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), 20, 42);
+                // Set up ortho camera for true plan view
+                updateOrthoCamera();
+                // Compute tight bounds around heatmap/building
+                const targetGroup = buildingGroup || scene;
+                const bb = new THREE.Box3().setFromObject(targetGroup);
+                const cx = (bb.min.x + bb.max.x) / 2;
+                const cz = (bb.min.z + bb.max.z) / 2;
+                const extX = (bb.max.x - bb.min.x) / 2 + 2;
+                const extZ = (bb.max.z - bb.min.z) / 2 + 2;
 
-                doc.setFontSize(13);
-                doc.setTextColor(0);
-                doc.text('Site Information', 20, 55);
-                doc.setFontSize(10);
-                doc.setTextColor(60);
-                doc.text('Latitude: ' + lat, 20, 63);
-                doc.text('Longitude: ' + lng, 20, 69);
-                doc.text('Total area analysed: ' + firstSummary.area_total + ' m2', 20, 75);
-                doc.text('Grid cells analysed: ' + firstSummary.cells_total, 20, 81);
+                // Fit ortho camera to bounds
+                const planAspect = (pageW - 40) / (pageH - 60);
+                const orthoExtent = Math.max(extX, extZ / planAspect, extZ, extX / planAspect);
+                orthoCamera.left = cx - orthoExtent * planAspect;
+                orthoCamera.right = cx + orthoExtent * planAspect;
+                orthoCamera.top = cz + orthoExtent;
+                orthoCamera.bottom = cz - orthoExtent;
+                orthoCamera.position.set(cx, 500, cz);
+                orthoCamera.lookAt(cx, 0, cz);
+                orthoCamera.updateProjectionMatrix();
 
-                let y = 95;
+                // Helper: project 3D point to PDF page coords
+                function projectToPDF(x, y, z) {
+                    const v = new THREE.Vector3(x, y, z);
+                    v.project(orthoCamera);
+                    // v.x, v.y are now in [-1, 1] NDC
+                    const px = 20 + ((v.x + 1) / 2) * (pageW - 40);
+                    const py = 25 + ((1 - v.y) / 2) * (pageH - 55);
+                    return { x: px, y: py };
+                }
+
+                // Collect non-ground mesh edges for vector overlay
+                const groundSet = new Set(selectedGroundMeshes);
+                const edgeLines = []; // [{x1,y1,x2,y2}, ...]
+                for (const mesh of allMeshes) {
+                    if (groundSet.has(mesh)) continue;
+                    mesh.updateWorldMatrix(true, false);
+                    const wm = mesh.matrixWorld;
+                    const edges = new THREE.EdgesGeometry(mesh.geometry, 15);
+                    const pos = edges.attributes.position.array;
+                    for (let i = 0; i < pos.length; i += 6) {
+                        const p1 = new THREE.Vector3(pos[i], pos[i+1], pos[i+2]).applyMatrix4(wm);
+                        const p2 = new THREE.Vector3(pos[i+3], pos[i+4], pos[i+5]).applyMatrix4(wm);
+                        const a = projectToPDF(p1.x, p1.y, p1.z);
+                        const b = projectToPDF(p2.x, p2.y, p2.z);
+                        edgeLines.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+                    }
+                    edges.dispose();
+                }
+
                 for (let si = 0; si < analysedSeasons.length; si++) {
                     const season = analysedSeasons[si];
                     const s = seasonResults[season].summary;
 
-                    if (si > 0) {
-                        doc.addPage();
-                        y = 25;
-                    }
+                    if (si > 0) doc.addPage();
 
-                    doc.setFontSize(13);
-                    doc.setTextColor(0);
-                    doc.text(SEASON_LABELS[season], 20, y);
-                    y += 10;
-
-                    doc.setFontSize(10);
-                    doc.setTextColor(60);
-                    doc.text('Minimum: ' + s.min_hours + ' hours', 20, y); y += 6;
-                    doc.text('Maximum: ' + s.max_hours + ' hours', 20, y); y += 6;
-                    doc.text('Average (area-weighted): ' + s.avg_hours + ' hours', 20, y); y += 10;
-
-                    // Show this season's heatmap, render, capture
+                    // ── Render heatmap-only plan view as PNG ──
+                    // Hide ALL meshes, show only this season's heatmap
+                    for (const mesh of allMeshes) mesh.visible = false;
+                    for (const hl of groundHighlights) hl.visible = false;
                     for (const [k, group] of Object.entries(seasonHeatmaps)) {
                         group.visible = (k === season);
                     }
-                    renderer.render(scene, camera);
+                    // Set scene background to white for print
+                    const savedBg = scene.background;
+                    scene.background = new THREE.Color(0xffffff);
+
+                    renderer.render(scene, orthoCamera);
                     const imgData = renderer.domElement.toDataURL('image/png');
-                    doc.addImage(imgData, 'PNG', 20, y, 170, 100);
-                    y += 108;
+
+                    // Restore background
+                    scene.background = savedBg;
+
+                    // Place raster image (heatmap plan view)
+                    doc.addImage(imgData, 'PNG', 20, 25, pageW - 40, pageH - 55);
+
+                    // ── Draw vector edge overlay ──
+                    doc.setDrawColor(80, 80, 80);
+                    doc.setLineWidth(0.15);
+                    for (const line of edgeLines) {
+                        doc.line(line.x1, line.y1, line.x2, line.y2);
+                    }
+
+                    // ── Title bar at top ──
+                    doc.setFillColor(22, 33, 62);
+                    doc.rect(0, 0, pageW, 22, 'F');
+                    doc.setFontSize(14);
+                    doc.setTextColor(212, 136, 15);
+                    doc.text('SunForm', 10, 14);
+                    doc.setFontSize(10);
+                    doc.setTextColor(200, 200, 200);
+                    doc.text(SEASON_LABELS[season], 60, 14);
+                    doc.setFontSize(9);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(`Avg: ${s.avg_hours}h  |  Min: ${s.min_hours}h  |  Max: ${s.max_hours}h  |  Lat: ${lat}  Lng: ${lng}`, pageW - 10, 14, { align: 'right' });
+
+                    // ── Disclaimer footer ──
+                    doc.setFontSize(7);
+                    doc.setTextColor(120);
+                    doc.text('SunForm (Beta) \u2014 Indicative only. Not a substitute for professional daylighting assessment. Jake White Architecture accepts no liability.', 20, pageH - 5);
+                    doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), pageW - 20, pageH - 5, { align: 'right' });
                 }
 
-                // Restore visible season
+                // Restore scene state
+                for (const mesh of allMeshes) mesh.visible = false; // keep hidden (step 5)
                 for (const [k, group] of Object.entries(seasonHeatmaps)) {
                     group.visible = (k === visibleSeason);
                 }
-
-                // Disclaimer on last page
-                doc.setFontSize(8);
-                doc.setTextColor(120);
-                const dy = doc.internal.pageSize.height - 15;
-                doc.text('SUNFORM \u2014 Indicative sun hours analysis for early design decisions only. Results are approximate.', 20, dy);
-                doc.text('This tool does not constitute a professional daylight or sunlight assessment.', 20, dy + 5);
+                camera = savedCamera;
+                controls.object = camera;
+                controls.enableRotate = savedRotateEnabled;
+                controls.update();
 
                 doc.save('SunForm_Report.pdf');
 
             } catch (err) {
                 alert('PDF export error: ' + err.message);
+                console.error(err);
             } finally {
                 btn.textContent = 'Download PDF';
                 btn.disabled = false;
@@ -2300,7 +2519,7 @@
 
             document.getElementById('use-entire-btn').style.background = '';
             document.getElementById('use-entire-btn').style.color = '';
-            document.getElementById('bbox-btn').style.background = bboxMode ? '#e94560' : '';
+            document.getElementById('bbox-btn').style.background = bboxMode ? '#D4880F' : '';
             document.getElementById('bbox-btn').style.color = bboxMode ? '#fff' : '';
             document.getElementById('bbox-fields').style.display = 'flex';
             document.getElementById('bbox-fields2').style.display = 'flex';
@@ -2388,7 +2607,7 @@
                 document.getElementById('bbox-coords').textContent =
                     `Corner 1: (${ifcX.toFixed(1)}, ${ifcY.toFixed(1)})`;
                 const markerGeo = new THREE.SphereGeometry(0.3, 8, 8);
-                bboxTempHelper = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: 0xe94560 }));
+                bboxTempHelper = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: 0xD4880F }));
                 bboxTempHelper.position.set(pt.x, 0.2, pt.z);
                 scene.add(bboxTempHelper);
             } else {
@@ -2400,7 +2619,7 @@
                 document.getElementById('bbox_min_y').value = y1.toFixed(1);
                 document.getElementById('bbox_max_x').value = x2.toFixed(1);
                 document.getElementById('bbox_max_y').value = y2.toFixed(1);
-                bboxHelper = drawBboxRect(x1, y1, x2, y2, 0x00ccff);
+                bboxHelper = drawBboxRect(x1, y1, x2, y2, 0x00CFC8);
                 // Exit bbox mode
                 bboxMode = false;
                 document.getElementById('bbox-overlay').classList.remove('visible');
@@ -2420,7 +2639,7 @@
                 `Corner 1: (${bboxCorner1.x.toFixed(1)}, ${bboxCorner1.y.toFixed(1)})` +
                 `  \u2192  (${ifcX.toFixed(1)}, ${ifcY.toFixed(1)})`;
             removeTempBbox();
-            bboxTempHelper = drawBboxRect(bboxCorner1.x, bboxCorner1.y, ifcX, ifcY, 0xe94560);
+            bboxTempHelper = drawBboxRect(bboxCorner1.x, bboxCorner1.y, ifcX, ifcY, 0xD4880F);
         });
 
         // ─── STATUS HELPERS ───
@@ -2540,7 +2759,7 @@
             const ua = navigator.userAgent;
             const ts = new Date().toISOString();
             const body = [
-                'SUNFORM Bug Report',
+                'SunForm Bug Report',
                 '---',
                 'Latitude: ' + lat,
                 'Longitude: ' + lng,
@@ -2554,8 +2773,69 @@
             ].join('\n');
             const link = document.getElementById('bug-report-link');
             link.href = 'mailto:jake@jakewhitearchitecture.com?subject=' +
-                encodeURIComponent('SUNFORM Bug Report') +
+                encodeURIComponent('SunForm Bug Report') +
                 '&body=' + encodeURIComponent(body);
+        }
+
+        // ─── DISCLAIMER MODAL ───
+        function updateDisclaimerAccept() {
+            const c1 = document.getElementById('disclaimer-check1').checked;
+            const c2 = document.getElementById('disclaimer-check2').checked;
+            document.getElementById('disclaimer-accept-btn').disabled = !(c1 && c2);
+        }
+
+        function acceptDisclaimer() {
+            document.getElementById('disclaimer-modal').classList.add('hidden');
+        }
+
+        // ─── MESH VISIBILITY MANAGEMENT ───
+        function hideCalculationMeshes() {
+            // Hide all IFC meshes and ground highlights after analysis
+            for (const mesh of allMeshes) {
+                mesh.visible = false;
+            }
+            for (const hl of groundHighlights) {
+                hl.visible = false;
+            }
+        }
+
+        function showCalculationMeshes() {
+            // Reinstate IFC mesh visibility
+            for (const mesh of allMeshes) {
+                mesh.visible = true;
+            }
+            for (const hl of groundHighlights) {
+                hl.visible = true;
+            }
+        }
+
+        function grayOutResults() {
+            // Reduce opacity of all season heatmaps when going back to select mesh
+            for (const [key, group] of Object.entries(seasonHeatmaps)) {
+                group.traverse(c => {
+                    if (c.material && !c.material._grayedOut) {
+                        c.material = c.material.clone();
+                        c.material.opacity = 0.25;
+                        c.material.transparent = true;
+                        c.material._grayedOut = true;
+                    }
+                });
+                group.visible = true;
+            }
+        }
+
+        function restoreResults() {
+            // Restore full opacity when leaving select mesh
+            for (const [key, group] of Object.entries(seasonHeatmaps)) {
+                group.traverse(c => {
+                    if (c.material && c.material._grayedOut) {
+                        c.material.opacity = 1.0;
+                        c.material.transparent = false;
+                        c.material._grayedOut = false;
+                    }
+                });
+                group.visible = (key === visibleSeason);
+            }
         }
 
         // ─── INIT ───
