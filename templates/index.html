@@ -32,13 +32,6 @@
             padding: 20px;
         }
 
-        .panel-actions {
-            padding: 12px 20px 16px;
-            border-top: 1px solid #0f3460;
-            background: #16213e;
-            flex-shrink: 0;
-        }
-
         .panel h1 {
             font-size: 20px;
             color: #e94560;
@@ -51,20 +44,95 @@
             margin-bottom: 20px;
         }
 
-        .section {
-            margin-bottom: 16px;
+        /* ─── ACCORDION STEPS ─── */
+        .step {
+            margin-bottom: 4px;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            overflow: hidden;
+            transition: opacity 0.2s;
         }
 
-        .section h2 {
+        .step.upcoming {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            background: #1a1a2e;
+            cursor: pointer;
+            user-select: none;
+            gap: 10px;
+        }
+
+        .step-header:hover {
+            background: #1e2444;
+        }
+
+        .step-number {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #0f3460;
+            color: #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step.active .step-number {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .step.completed .step-number {
+            background: #4caf50;
+            color: #fff;
+        }
+
+        .step-title {
             font-size: 13px;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #e94560;
-            margin-bottom: 10px;
-            padding-bottom: 4px;
-            border-bottom: 1px solid #0f3460;
+            letter-spacing: 0.5px;
+            color: #aaa;
+            flex: 1;
         }
 
+        .step.active .step-title { color: #e0e0e0; }
+        .step.completed .step-title { color: #aaa; }
+
+        .step-summary {
+            font-size: 11px;
+            color: #4caf50;
+            display: none;
+        }
+
+        .step.completed .step-summary { display: inline; }
+
+        .step-body {
+            display: none;
+            padding: 12px 14px 16px;
+            border-top: 1px solid #0f3460;
+        }
+
+        .step.active .step-body { display: block; }
+
+        .step-check {
+            color: #4caf50;
+            font-size: 16px;
+            display: none;
+        }
+
+        .step.completed .step-check { display: inline; }
+
+        /* ─── FORM FIELDS ─── */
         .field {
             margin-bottom: 10px;
         }
@@ -101,9 +169,7 @@
             gap: 10px;
         }
 
-        .field-row .field {
-            flex: 1;
-        }
+        .field-row .field { flex: 1; }
 
         /* ─── FILE UPLOAD ─── */
         .upload-zone {
@@ -126,16 +192,8 @@
             background: rgba(76, 175, 80, 0.05);
         }
 
-        .upload-zone .upload-icon {
-            font-size: 28px;
-            margin-bottom: 6px;
-        }
-
-        .upload-zone .upload-text {
-            font-size: 13px;
-            color: #aaa;
-        }
-
+        .upload-zone .upload-icon { font-size: 28px; margin-bottom: 6px; }
+        .upload-zone .upload-text { font-size: 13px; color: #aaa; }
         .upload-zone .upload-filename {
             font-size: 12px;
             color: #4caf50;
@@ -152,9 +210,7 @@
             display: none;
         }
 
-        .compliance-panel.visible {
-            display: block;
-        }
+        .compliance-panel.visible { display: block; }
 
         .compliance-result {
             font-size: 18px;
@@ -191,39 +247,16 @@
             transition: background 0.2s;
         }
 
-        .btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        .btn-primary {
-            background: #e94560;
-            color: white;
-        }
+        .btn-primary { background: #e94560; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #d63851; }
 
-        .btn-primary:hover:not(:disabled) {
-            background: #d63851;
-        }
+        .btn-secondary { background: #0f3460; color: #e0e0e0; }
+        .btn-secondary:hover:not(:disabled) { background: #1a4a80; }
 
-        .btn-secondary {
-            background: #0f3460;
-            color: #e0e0e0;
-        }
-
-        .btn-secondary:hover:not(:disabled) {
-            background: #1a4a80;
-        }
-
-        .btn-run {
-            background: #4caf50;
-            color: white;
-            font-size: 15px;
-            padding: 12px;
-        }
-
-        .btn-run:hover:not(:disabled) {
-            background: #43a047;
-        }
+        .btn-run { background: #4caf50; color: white; font-size: 15px; padding: 12px; }
+        .btn-run:hover:not(:disabled) { background: #43a047; }
 
         /* ─── 3D VIEWPORT ─── */
         .viewport {
@@ -247,6 +280,26 @@
             z-index: 5;
         }
 
+        /* ─── NORTH ARROW OVERLAY ─── */
+        .north-arrow {
+            display: none;
+            position: absolute;
+            top: 50px;
+            right: 20px;
+            z-index: 10;
+            text-align: center;
+            color: #e94560;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .north-arrow.visible { display: block; }
+
+        .north-arrow svg {
+            width: 50px;
+            height: 50px;
+        }
+
         /* ─── BOUNDING BOX MODE INDICATOR ─── */
         .bbox-overlay {
             display: none;
@@ -263,34 +316,31 @@
             min-width: 200px;
         }
 
-        .bbox-overlay.visible {
-            display: block;
-        }
+        .bbox-overlay.visible { display: block; }
+        .bbox-overlay .bbox-title { color: #e94560; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .bbox-overlay .bbox-hint { color: #aaa; font-size: 12px; }
+        .bbox-overlay .bbox-coords { color: #00ccff; font-size: 12px; margin-top: 4px; font-family: monospace; }
 
-        .bbox-overlay .bbox-title {
-            color: #e94560;
-            font-weight: 600;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-        }
+        .viewport.drawing-bbox { cursor: crosshair; }
+        .viewport.picking-mesh { cursor: crosshair; }
 
-        .bbox-overlay .bbox-hint {
-            color: #aaa;
+        /* ─── PICKING OVERLAY ─── */
+        .pick-overlay {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 5;
+            background: rgba(22, 33, 62, 0.95);
+            padding: 10px 14px;
+            border-radius: 6px;
             font-size: 12px;
+            line-height: 1.6;
+            border: 1px solid #00ccff;
+            min-width: 200px;
         }
 
-        .bbox-overlay .bbox-coords {
-            color: #00ccff;
-            font-size: 12px;
-            margin-top: 4px;
-            font-family: monospace;
-        }
-
-        .viewport.drawing-bbox {
-            cursor: crosshair;
-        }
+        .pick-overlay.visible { display: block; }
 
         /* ─── STATUS OVERLAY ─── */
         .status-overlay {
@@ -309,6 +359,61 @@
             max-width: 260px;
         }
 
+        /* ─── COLOUR LEGEND (viewport overlay) ─── */
+        .colour-legend {
+            display: none;
+            position: absolute;
+            right: 20px;
+            bottom: 60px;
+            z-index: 10;
+            width: 36px;
+            text-align: center;
+        }
+
+        .colour-legend.visible { display: flex; flex-direction: column; align-items: center; }
+
+        .colour-legend .legend-label {
+            font-size: 10px;
+            color: #ccc;
+            margin: 2px 0;
+        }
+
+        .colour-legend .legend-bar-v {
+            width: 18px;
+            height: 180px;
+            border-radius: 3px;
+            border: 1px solid #333;
+            background: linear-gradient(to top,
+                rgb(38, 0, 64),
+                rgb(204, 26, 26),
+                rgb(255, 128, 0),
+                rgb(255, 217, 0),
+                rgb(255, 255, 51),
+                rgb(255, 255, 204)
+            );
+            position: relative;
+        }
+
+        .colour-legend .bre-marker {
+            position: absolute;
+            left: -6px;
+            right: -6px;
+            height: 2px;
+            background: #fff;
+            bottom: 33.3%;
+        }
+
+        .colour-legend .bre-label {
+            position: absolute;
+            right: calc(100% + 4px);
+            bottom: 33.3%;
+            transform: translateY(50%);
+            font-size: 9px;
+            color: #fff;
+            white-space: nowrap;
+            font-weight: 700;
+        }
+
         /* ─── PROGRESS BAR ─── */
         .progress-bar {
             display: none;
@@ -319,9 +424,7 @@
             overflow: hidden;
         }
 
-        .progress-bar.visible {
-            display: block;
-        }
+        .progress-bar.visible { display: block; }
 
         .progress-bar .progress-fill {
             height: 100%;
@@ -346,28 +449,14 @@
             border-top: 1px solid #0f3460;
         }
 
-        /* ─── LEGEND ─── */
-        .legend {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            margin-top: 8px;
-            font-size: 10px;
-            color: #888;
-        }
+        .hint { font-size: 12px; color: #aaa; margin-bottom: 8px; line-height: 1.5; }
 
-        .legend-bar {
-            flex: 1;
-            height: 12px;
-            border-radius: 3px;
-            background: linear-gradient(to right,
-                rgb(38, 0, 64),
-                rgb(204, 26, 26),
-                rgb(255, 128, 0),
-                rgb(255, 217, 0),
-                rgb(255, 255, 51),
-                rgb(255, 255, 204)
-            );
+        /* ─── SELECTED MESH INDICATOR ─── */
+        .selected-mesh-name {
+            font-size: 12px;
+            color: #00ccff;
+            margin: 6px 0;
+            font-family: monospace;
         }
     </style>
 </head>
@@ -377,113 +466,153 @@
         <h1>SUNFORM</h1>
         <p class="subtitle">Sun Hours Analysis for BRE BR209 Compliance</p>
 
-        <!-- Step 1: IFC Upload -->
-        <div class="section">
-            <h2>1. Upload IFC</h2>
-            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('ifc-file').click();">
-                <div class="upload-icon">&#9729;</div>
-                <div class="upload-text" id="upload-text">
-                    Drop IFC file here or click to browse
-                </div>
-                <div class="upload-filename" id="upload-filename" style="display:none;"></div>
+        <!-- STEP 1: IMPORT -->
+        <div class="step active" id="step-1" onclick="openStep(1)">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">Import</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step1-summary"></span>
             </div>
-            <input type="file" id="ifc-file" accept=".ifc" style="display:none;" onchange="handleFileUpload(this);">
-            <div class="progress-bar" id="upload-progress">
-                <div class="progress-fill" style="width: 100%;"></div>
-            </div>
-        </div>
-
-        <!-- Step 2: Site Location -->
-        <div class="section">
-            <h2>2. Site Location</h2>
-            <div class="field-row">
-                <div class="field">
-                    <label>Latitude</label>
-                    <input type="number" id="latitude" value="51.5074" min="-90" max="90" step="0.0001">
-                </div>
-                <div class="field">
-                    <label>Longitude</label>
-                    <input type="number" id="longitude" value="-0.1278" min="-180" max="180" step="0.0001">
-                </div>
-            </div>
-            <div class="field" style="font-size:11px; color:#666; margin-top:2px;">
-                Default: London, UK. Adjust for your site location.
-            </div>
-        </div>
-
-        <!-- Step 3: Bounding Box -->
-        <div class="section">
-            <h2>3. Amenity Area</h2>
-            <p style="font-size:12px; color:#aaa; margin-bottom:8px;">
-                Define the rectangular area to test for sun hours.
-            </p>
-            <button class="btn btn-secondary" id="bbox-btn" onclick="toggleBboxMode();">
-                Draw Bounding Box
-            </button>
-            <div class="field-row" style="margin-top:10px;">
-                <div class="field">
-                    <label>Min X <span class="unit">m</span></label>
-                    <input type="number" id="bbox_min_x" value="" step="0.5" placeholder="auto">
-                </div>
-                <div class="field">
-                    <label>Min Y <span class="unit">m</span></label>
-                    <input type="number" id="bbox_min_y" value="" step="0.5" placeholder="auto">
-                </div>
-            </div>
-            <div class="field-row">
-                <div class="field">
-                    <label>Max X <span class="unit">m</span></label>
-                    <input type="number" id="bbox_max_x" value="" step="0.5" placeholder="auto">
-                </div>
-                <div class="field">
-                    <label>Max Y <span class="unit">m</span></label>
-                    <input type="number" id="bbox_max_y" value="" step="0.5" placeholder="auto">
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 4: Analysis Settings -->
-        <div class="section">
-            <h2>4. Analysis Settings</h2>
-            <div class="field-row">
-                <div class="field">
-                    <label>Grid Cell Size <span class="unit">m</span></label>
-                    <input type="number" id="cell_size" value="0.5" min="0.1" max="2.0" step="0.1">
-                </div>
-                <div class="field">
-                    <label>Time Step <span class="unit">hours</span></label>
-                    <select id="time_step">
-                        <option value="0.5">30 min</option>
-                        <option value="1" selected>1 hour</option>
-                    </select>
-                </div>
-            </div>
-            <div class="field">
-                <label>Analysis Date</label>
-                <input type="date" id="analysis_date" value="2024-03-21">
-            </div>
-            <div class="field" style="font-size:11px; color:#666; margin-top:2px;">
-                BRE test: 21 March (spring equinox)
-            </div>
-        </div>
-
-        <!-- BRE Results -->
-        <div class="section">
-            <h2>Results</h2>
-            <div class="compliance-panel" id="compliance-panel">
-                <div style="display:flex; align-items:center; justify-content:space-between;">
-                    <div>
-                        <div class="compliance-result" id="compliance-status">--</div>
-                        <div class="compliance-detail" id="compliance-message"></div>
+            <div class="step-body">
+                <div class="upload-zone" id="upload-zone" onclick="event.stopPropagation(); document.getElementById('ifc-file').click();">
+                    <div class="upload-icon">&#9729;</div>
+                    <div class="upload-text" id="upload-text">
+                        Drop IFC file here or click to browse
                     </div>
-                    <div class="compliance-pct" id="compliance-pct">--</div>
+                    <div class="upload-filename" id="upload-filename" style="display:none;"></div>
                 </div>
-                <div class="compliance-detail" id="compliance-detail" style="margin-top:8px;"></div>
-                <div class="legend">
-                    <span>0h</span>
-                    <div class="legend-bar"></div>
-                    <span>6h+</span>
+                <input type="file" id="ifc-file" accept=".ifc" style="display:none;" onchange="handleFileUpload(this);">
+                <div class="progress-bar" id="upload-progress">
+                    <div class="progress-fill" style="width: 100%;"></div>
                 </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: CONFIRM ORIENTATION -->
+        <div class="step upcoming" id="step-2" onclick="openStep(2)">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">Confirm Orientation</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step2-summary"></span>
+            </div>
+            <div class="step-body">
+                <p class="hint">North should be pointing up the screen. If your model is rotated, adjust below.</p>
+                <div class="field">
+                    <label>Rotation <span class="unit">degrees</span></label>
+                    <input type="number" id="north-rotation" value="0" step="5">
+                </div>
+                <div style="font-size:11px; color:#666; margin-bottom:8px;">
+                    Positive = counter-clockwise. The north arrow updates as you type.
+                </div>
+                <button class="btn btn-primary" onclick="event.stopPropagation(); confirmOrientation();">Confirm Orientation</button>
+            </div>
+        </div>
+
+        <!-- STEP 3: SELECT GROUND MESH -->
+        <div class="step upcoming" id="step-3" onclick="openStep(3)">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">Select Ground Mesh</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step3-summary"></span>
+            </div>
+            <div class="step-body">
+                <p class="hint">Click on the ground or terrain surface in the 3D view.</p>
+                <div class="selected-mesh-name" id="selected-mesh-name">No mesh selected</div>
+                <div id="ground-suggestions" style="margin-bottom:8px;"></div>
+                <button class="btn btn-primary" id="confirm-ground-btn" onclick="event.stopPropagation(); confirmGroundMesh();" disabled>Confirm Selection</button>
+            </div>
+        </div>
+
+        <!-- STEP 4: DEFINE ANALYSIS AREA -->
+        <div class="step upcoming" id="step-4" onclick="openStep(4)">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-title">Define Analysis Area</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step4-summary"></span>
+            </div>
+            <div class="step-body">
+                <div style="display:flex; gap:8px; margin-bottom:10px;">
+                    <button class="btn btn-secondary" id="use-entire-btn" onclick="event.stopPropagation(); useEntireMesh();" style="flex:1; margin-top:0;">Use Entire Mesh</button>
+                    <button class="btn btn-secondary" id="bbox-btn" onclick="event.stopPropagation(); toggleBboxMode();" style="flex:1; margin-top:0;">Draw Bounding Box</button>
+                </div>
+                <div class="field-row" id="bbox-fields" style="display:none;">
+                    <div class="field">
+                        <label>Min X <span class="unit">m</span></label>
+                        <input type="number" id="bbox_min_x" value="" step="0.5" placeholder="auto">
+                    </div>
+                    <div class="field">
+                        <label>Min Y <span class="unit">m</span></label>
+                        <input type="number" id="bbox_min_y" value="" step="0.5" placeholder="auto">
+                    </div>
+                </div>
+                <div class="field-row" id="bbox-fields2" style="display:none;">
+                    <div class="field">
+                        <label>Max X <span class="unit">m</span></label>
+                        <input type="number" id="bbox_max_x" value="" step="0.5" placeholder="auto">
+                    </div>
+                    <div class="field">
+                        <label>Max Y <span class="unit">m</span></label>
+                        <input type="number" id="bbox_max_y" value="" step="0.5" placeholder="auto">
+                    </div>
+                </div>
+                <hr style="border-color:#0f3460; margin:12px 0;">
+                <div class="field-row">
+                    <div class="field">
+                        <label>Latitude</label>
+                        <input type="number" id="latitude" value="51.5074" min="-90" max="90" step="0.0001">
+                    </div>
+                    <div class="field">
+                        <label>Longitude</label>
+                        <input type="number" id="longitude" value="-0.1278" min="-180" max="180" step="0.0001">
+                    </div>
+                </div>
+                <div style="font-size:11px; color:#666; margin-bottom:8px;">Default: London, UK.</div>
+                <div class="field-row">
+                    <div class="field">
+                        <label>Time Step <span class="unit">hours</span></label>
+                        <select id="time_step">
+                            <option value="0.5">30 min</option>
+                            <option value="1" selected>1 hour</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Analysis Date</label>
+                        <input type="date" id="analysis_date" value="2024-03-21">
+                    </div>
+                </div>
+                <div style="font-size:11px; color:#666; margin-bottom:8px;">BRE test: 21 March (spring equinox)</div>
+                <button class="btn btn-run" id="run-btn" onclick="event.stopPropagation(); runAnalysis();">Run Analysis</button>
+            </div>
+        </div>
+
+        <!-- STEP 5: RESULTS -->
+        <div class="step upcoming" id="step-5" onclick="openStep(5)">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <div class="step-title">Results</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step5-summary"></span>
+            </div>
+            <div class="step-body">
+                <div class="compliance-panel visible" id="compliance-panel">
+                    <div style="display:flex; align-items:center; justify-content:space-between;">
+                        <div>
+                            <div class="compliance-result" id="compliance-status">--</div>
+                            <div class="compliance-detail" id="compliance-message"></div>
+                        </div>
+                        <div class="compliance-pct" id="compliance-pct">--</div>
+                    </div>
+                    <div class="compliance-detail" id="compliance-detail" style="margin-top:8px;"></div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:10px;">
+                    <button class="btn btn-primary" id="glb-btn" onclick="event.stopPropagation(); downloadGLB();" style="flex:1;">Download GLB</button>
+                    <button class="btn btn-secondary" id="pdf-btn" onclick="event.stopPropagation(); downloadPDF();" style="flex:1;">Download PDF</button>
+                </div>
+                <button class="btn btn-secondary" onclick="event.stopPropagation(); resetWorkflow();" style="margin-top:8px;">New Analysis</button>
             </div>
         </div>
 
@@ -494,29 +623,33 @@
         </div>
 
       </div>
-
-      <!-- Actions (pinned to bottom) -->
-      <div class="panel-actions">
-          <button class="btn btn-run" id="run-btn" onclick="runAnalysis();" disabled>
-              Run Analysis
-          </button>
-          <div style="display:flex; gap:8px; margin-top:8px;">
-              <button class="btn btn-primary" id="glb-btn" onclick="downloadGLB();" disabled style="flex:1;">
-                  Download GLB
-              </button>
-              <button class="btn btn-secondary" id="pdf-btn" onclick="downloadPDF();" disabled style="flex:1;">
-                  Download PDF
-              </button>
-          </div>
-      </div>
     </div>
 
     <div class="viewport" id="viewport">
         <div class="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag</div>
+        <div class="north-arrow" id="north-arrow">
+            <svg viewBox="0 0 50 50">
+                <polygon points="25,5 30,20 25,15 20,20" fill="#e94560"/>
+                <polygon points="25,45 20,30 25,35 30,30" fill="#666"/>
+            </svg>
+            <div>N</div>
+        </div>
+        <div class="pick-overlay" id="pick-overlay">
+            <div style="color:#00ccff; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Ground Mesh</div>
+            <div style="color:#aaa; font-size:12px;">Click on a mesh in the 3D view</div>
+        </div>
         <div class="bbox-overlay" id="bbox-overlay">
             <div class="bbox-title">Bounding Box Tool</div>
             <div class="bbox-hint" id="bbox-hint">Click first corner on the ground plane</div>
             <div class="bbox-coords" id="bbox-coords"></div>
+        </div>
+        <div class="colour-legend" id="colour-legend">
+            <div class="legend-label">6h+</div>
+            <div class="legend-bar-v">
+                <div class="bre-marker"></div>
+                <div class="bre-label">2h BRE</div>
+            </div>
+            <div class="legend-label">0h</div>
         </div>
         <div class="status-overlay" id="status-overlay" style="display:none;"></div>
     </div>
@@ -531,17 +664,28 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 
     <script>
-        // ─── THREE.JS SETUP ───
+        // ─── GLOBAL STATE ───
         let scene, camera, renderer, controls;
+        let perspCamera, orthoCamera;
         let buildingGroup = null;
-        let buildingMesh = null;  // the actual THREE.Mesh for raycasting
+        let allMeshes = [];         // individual THREE.Mesh objects from IFC
+        let allMeshMeta = [];       // { mesh, expressID, ifcType, name } per mesh
+        let selectedGroundMesh = null;
+        let groundHighlight = null; // cyan wireframe overlay
+        let shadowBVH = null;       // BVH of all meshes EXCEPT ground
         let heatmapGroup = null;
         let bboxHelper = null;
         let groundPlane = null;
         let ifcApi = null;
         let ifcLoaded = false;
         let lastAnalysisResults = null;
+        let currentStep = 1;
+        let pickMode = false;
+        let useEntireGroundMesh = true;
+        let northRotationDeg = 0;
+        let modelRotationGroup = null;
 
+        // ─── THREE.JS SETUP ───
         function initThree() {
             const container = document.getElementById('viewport');
             const w = container.clientWidth;
@@ -550,8 +694,14 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a1a);
 
-            camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000);
-            camera.position.set(50, 40, 50);
+            perspCamera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000);
+            perspCamera.position.set(50, 40, 50);
+
+            orthoCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 0.1, 10000);
+            orthoCamera.position.set(0, 500, 0);
+            orthoCamera.lookAt(0, 0, 0);
+
+            camera = perspCamera;
 
             renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
             renderer.setSize(w, h);
@@ -578,9 +728,6 @@
             const grid = new THREE.GridHelper(200, 200, 0x222244, 0x111133);
             scene.add(grid);
 
-            const axes = new THREE.AxesHelper(10);
-            scene.add(axes);
-
             const planeGeo = new THREE.PlaneGeometry(2000, 2000);
             const planeMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
             groundPlane = new THREE.Mesh(planeGeo, planeMat);
@@ -591,8 +738,9 @@
             window.addEventListener('resize', () => {
                 const w = container.clientWidth;
                 const h = container.clientHeight;
-                camera.aspect = w / h;
-                camera.updateProjectionMatrix();
+                perspCamera.aspect = w / h;
+                perspCamera.updateProjectionMatrix();
+                updateOrthoCamera();
                 renderer.setSize(w, h);
             });
 
@@ -603,6 +751,42 @@
             requestAnimationFrame(animate);
             controls.update();
             renderer.render(scene, camera);
+        }
+
+        function updateOrthoCamera() {
+            if (!buildingGroup) return;
+            const bb = new THREE.Box3().setFromObject(buildingGroup);
+            const cx = (bb.min.x + bb.max.x) / 2;
+            const cz = (bb.min.z + bb.max.z) / 2;
+            const sx = (bb.max.x - bb.min.x) / 2 + 10;
+            const sz = (bb.max.z - bb.min.z) / 2 + 10;
+            const s = Math.max(sx, sz);
+            const container = document.getElementById('viewport');
+            const aspect = container.clientWidth / container.clientHeight;
+            orthoCamera.left = -s * aspect;
+            orthoCamera.right = s * aspect;
+            orthoCamera.top = s;
+            orthoCamera.bottom = -s;
+            orthoCamera.position.set(cx, 500, cz);
+            orthoCamera.lookAt(cx, 0, cz);
+            orthoCamera.updateProjectionMatrix();
+        }
+
+        function switchToOrtho() {
+            updateOrthoCamera();
+            camera = orthoCamera;
+            controls.object = camera;
+            controls.enableRotate = false;
+            controls.update();
+            document.getElementById('north-arrow').classList.add('visible');
+        }
+
+        function switchToPersp() {
+            camera = perspCamera;
+            controls.object = camera;
+            controls.enableRotate = true;
+            controls.update();
+            document.getElementById('north-arrow').classList.remove('visible');
         }
 
         // ─── INIT WEB-IFC ───
@@ -617,11 +801,105 @@
             }
         }
 
-        // ─── IFC UPLOAD (client-side parsing) ───
+        // ─── ACCORDION WORKFLOW ───
+        function openStep(n) {
+            const step = document.getElementById('step-' + n);
+            if (step.classList.contains('upcoming')) return;
+            // Only allow opening completed steps or current step
+            for (let i = 1; i <= 5; i++) {
+                const s = document.getElementById('step-' + i);
+                if (i === n) {
+                    s.classList.add('active');
+                    s.classList.remove('upcoming');
+                } else if (s.classList.contains('completed')) {
+                    s.classList.remove('active');
+                } else if (i > n) {
+                    if (!s.classList.contains('completed')) {
+                        s.classList.add('upcoming');
+                    }
+                    s.classList.remove('active');
+                } else {
+                    s.classList.remove('active');
+                }
+            }
+            currentStep = n;
+
+            // Step-specific modes
+            if (n === 2) switchToOrtho();
+            else switchToPersp();
+            setPickMode(n === 3);
+        }
+
+        function completeStep(n, summary) {
+            const step = document.getElementById('step-' + n);
+            step.classList.add('completed');
+            step.classList.remove('active');
+            const sumEl = document.getElementById('step' + n + '-summary');
+            if (sumEl) sumEl.textContent = summary;
+            // Advance to next
+            const next = n + 1;
+            if (next <= 5) {
+                const ns = document.getElementById('step-' + next);
+                ns.classList.remove('upcoming');
+                openStep(next);
+            }
+        }
+
+        function resetWorkflow() {
+            // Reset all state
+            if (buildingGroup) {
+                scene.remove(buildingGroup);
+                buildingGroup = null;
+            }
+            if (modelRotationGroup) {
+                scene.remove(modelRotationGroup);
+                modelRotationGroup = null;
+            }
+            if (heatmapGroup) {
+                scene.remove(heatmapGroup);
+                heatmapGroup = null;
+            }
+            if (groundHighlight) {
+                scene.remove(groundHighlight);
+                groundHighlight = null;
+            }
+            removeBboxHelper();
+            allMeshes = [];
+            allMeshMeta = [];
+            selectedGroundMesh = null;
+            shadowBVH = null;
+            ifcLoaded = false;
+            lastAnalysisResults = null;
+            useEntireGroundMesh = true;
+            northRotationDeg = 0;
+            document.getElementById('colour-legend').classList.remove('visible');
+            document.getElementById('upload-text').textContent = 'Drop IFC file here or click to browse';
+            document.getElementById('upload-filename').style.display = 'none';
+            document.getElementById('upload-zone').classList.remove('loaded');
+            document.getElementById('north-rotation').value = '0';
+            document.getElementById('selected-mesh-name').textContent = 'No mesh selected';
+            document.getElementById('ground-suggestions').innerHTML = '';
+            document.getElementById('bbox-fields').style.display = 'none';
+            document.getElementById('bbox-fields2').style.display = 'none';
+
+            for (let i = 1; i <= 5; i++) {
+                const s = document.getElementById('step-' + i);
+                s.classList.remove('completed', 'active', 'upcoming');
+                if (i === 1) s.classList.add('active');
+                else s.classList.add('upcoming');
+                const sum = document.getElementById('step' + i + '-summary');
+                if (sum) sum.textContent = '';
+            }
+            currentStep = 1;
+            switchToPersp();
+        }
+
+        // ─── IFC UPLOAD (client-side parsing — per-mesh) ───
         const uploadZone = document.getElementById('upload-zone');
 
         uploadZone.addEventListener('dragover', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             uploadZone.classList.add('dragover');
         });
 
@@ -631,6 +909,7 @@
 
         uploadZone.addEventListener('drop', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             uploadZone.classList.remove('dragover');
             const files = e.dataTransfer.files;
             if (files.length > 0 && files[0].name.toLowerCase().endsWith('.ifc')) {
@@ -659,15 +938,56 @@
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 const data = new Uint8Array(arrayBuffer);
-
                 const modelID = ifcApi.OpenModel(data);
 
-                const allVertices = [];
-                const allIndices = [];
-                let vertexOffset = 0;
+                // Collect per-mesh geometry
+                if (buildingGroup) {
+                    scene.remove(buildingGroup);
+                    buildingGroup.traverse(c => {
+                        if (c.geometry) c.geometry.dispose();
+                        if (c.material) c.material.dispose();
+                    });
+                }
+                if (modelRotationGroup) {
+                    scene.remove(modelRotationGroup);
+                }
 
+                buildingGroup = new THREE.Group();
+                buildingGroup.name = 'buildings';
+                modelRotationGroup = new THREE.Group();
+                modelRotationGroup.name = 'rotation_group';
+                modelRotationGroup.add(buildingGroup);
+                scene.add(modelRotationGroup);
+
+                allMeshes = [];
+                allMeshMeta = [];
+
+                // Gather IFC type info for express IDs
+                const ifcTypes = {};
+                try {
+                    // Try to get IfcSite and IfcSlab entities for ground suggestions
+                    const IFCSITE = 4097777520;
+                    const IFCSLAB = 1529196076;
+                    const IFCBUILDINGSTOREY = 3124254112;
+                    [IFCSITE, IFCSLAB].forEach(typeId => {
+                        try {
+                            const ids = ifcApi.GetLineIDsWithType(modelID, typeId);
+                            for (let i = 0; i < ids.size(); i++) {
+                                ifcTypes[ids.get(i)] = typeId === IFCSITE ? 'IfcSite' : 'IfcSlab';
+                            }
+                        } catch(e) {}
+                    });
+                } catch(e) {}
+
+                let meshIndex = 0;
                 ifcApi.StreamAllMeshes(modelID, (mesh) => {
+                    const expressID = mesh.expressID;
                     const placedGeometries = mesh.geometries;
+
+                    const meshVertices = [];
+                    const meshIndices = [];
+                    let vertexOffset = 0;
+
                     for (let i = 0; i < placedGeometries.size(); i++) {
                         const placedGeom = placedGeometries.get(i);
                         const geomData = ifcApi.GetGeometry(modelID, placedGeom.geometryExpressID);
@@ -677,7 +997,6 @@
                         const idxPtr = geomData.GetIndexData();
                         const idxSize = geomData.GetIndexDataSize();
 
-                        // Copy from WASM heap BEFORE delete
                         const verts = new Float32Array(ifcApi.GetVertexArray(vertPtr, vertSize));
                         const indices = new Uint32Array(ifcApi.GetIndexArray(idxPtr, idxSize));
                         geomData.delete();
@@ -693,39 +1012,78 @@
                             flatMatrix[3], flatMatrix[7], flatMatrix[11], flatMatrix[15]
                         );
 
-                        // 6 floats per vertex: x, y, z, nx, ny, nz
                         const numVerts = verts.length / 6;
                         for (let v = 0; v < numVerts; v++) {
                             const pos = new THREE.Vector3(
                                 verts[v * 6], verts[v * 6 + 1], verts[v * 6 + 2]
                             );
                             pos.applyMatrix4(m);
-                            allVertices.push(pos.x, pos.y, pos.z);
+                            meshVertices.push(pos.x, pos.y, pos.z);
                         }
 
                         for (let idx = 0; idx < indices.length; idx++) {
-                            allIndices.push(indices[idx] + vertexOffset);
+                            meshIndices.push(indices[idx] + vertexOffset);
                         }
                         vertexOffset += numVerts;
                     }
+
+                    if (meshVertices.length === 0) return;
+
+                    const geo = new THREE.BufferGeometry();
+                    const positions = new Float32Array(meshVertices);
+                    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    geo.setIndex(new THREE.BufferAttribute(new Uint32Array(meshIndices), 1));
+                    geo.computeVertexNormals();
+
+                    const mat = new THREE.MeshPhongMaterial({
+                        color: 0xdddddd,
+                        flatShading: true,
+                        side: THREE.DoubleSide,
+                    });
+
+                    const thMesh = new THREE.Mesh(geo, mat);
+                    thMesh.name = 'mesh_' + meshIndex;
+                    thMesh.userData.expressID = expressID;
+                    thMesh.userData.ifcType = ifcTypes[expressID] || '';
+                    buildingGroup.add(thMesh);
+
+                    allMeshes.push(thMesh);
+                    allMeshMeta.push({
+                        mesh: thMesh,
+                        expressID: expressID,
+                        ifcType: ifcTypes[expressID] || '',
+                        name: 'mesh_' + meshIndex + (ifcTypes[expressID] ? ' (' + ifcTypes[expressID] + ')' : ''),
+                    });
+                    meshIndex++;
                 });
 
                 ifcApi.CloseModel(modelID);
 
-                if (allVertices.length === 0) {
+                if (allMeshes.length === 0) {
                     throw new Error('No geometry found in IFC file');
                 }
 
-                renderBuildingFromArrays(allVertices, allIndices);
                 ifcLoaded = true;
+
+                // Fit camera
+                const bb = new THREE.Box3().setFromObject(buildingGroup);
+                const cx = (bb.min.x + bb.max.x) / 2;
+                const cy = (bb.min.y + bb.max.y) / 2;
+                const cz = (bb.min.z + bb.max.z) / 2;
+                const size = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z);
+                const dist = size * 1.5;
+                perspCamera.position.set(cx + dist, cy + dist * 0.7, cz + dist);
+                controls.target.set(cx, cy, cz);
+                controls.update();
 
                 uploadZone.classList.add('loaded');
                 document.getElementById('upload-text').textContent = 'IFC loaded';
-                document.getElementById('upload-filename').textContent = file.name;
+                document.getElementById('upload-filename').textContent = file.name + ' (' + allMeshes.length + ' meshes)';
                 document.getElementById('upload-filename').style.display = 'block';
-                document.getElementById('run-btn').disabled = false;
                 progressBar.classList.remove('visible');
                 hideStatus();
+
+                completeStep(1, file.name);
 
             } catch (err) {
                 console.error('IFC parse error:', err);
@@ -736,76 +1094,164 @@
             }
         }
 
-        function renderBuildingFromArrays(vertices, indices) {
-            if (buildingGroup) {
-                scene.remove(buildingGroup);
-                buildingGroup.traverse(child => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) child.material.dispose();
-                });
+        // ─── STEP 2: ORIENTATION ───
+        document.getElementById('north-rotation').addEventListener('input', () => {
+            northRotationDeg = parseFloat(document.getElementById('north-rotation').value) || 0;
+            if (modelRotationGroup) {
+                modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
+            }
+            // Rotate north arrow
+            const arrow = document.getElementById('north-arrow');
+            arrow.querySelector('svg').style.transform = 'rotate(' + (-northRotationDeg) + 'deg)';
+        });
+
+        function confirmOrientation() {
+            northRotationDeg = parseFloat(document.getElementById('north-rotation').value) || 0;
+            if (modelRotationGroup) {
+                modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
+            }
+            const summary = northRotationDeg === 0 ? 'North: confirmed' : 'North: rotated ' + (northRotationDeg > 0 ? '+' : '') + northRotationDeg + '\u00b0';
+            completeStep(2, summary);
+        }
+
+        // ─── STEP 3: GROUND MESH PICKING ───
+        function setPickMode(on) {
+            pickMode = on;
+            const viewport = document.getElementById('viewport');
+            const overlay = document.getElementById('pick-overlay');
+            viewport.classList.toggle('picking-mesh', on);
+            overlay.classList.toggle('visible', on);
+        }
+
+        function highlightMesh(mesh) {
+            if (groundHighlight) {
+                scene.remove(groundHighlight);
+                groundHighlight.geometry.dispose();
+                groundHighlight.material.dispose();
+                groundHighlight = null;
+            }
+            if (!mesh) return;
+            const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
+            groundHighlight = new THREE.LineSegments(edges,
+                new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 }));
+            // Apply same world transform
+            groundHighlight.position.copy(mesh.position);
+            groundHighlight.rotation.copy(mesh.rotation);
+            groundHighlight.scale.copy(mesh.scale);
+            if (mesh.parent) {
+                // Place in same parent so rotation group applies
+                mesh.parent.add(groundHighlight);
+            } else {
+                scene.add(groundHighlight);
+            }
+        }
+
+        document.getElementById('viewport').addEventListener('click', (event) => {
+            if (pickMode) {
+                handleMeshPick(event);
+                return;
+            }
+            if (bboxMode) {
+                handleBboxClick(event);
+                return;
+            }
+        });
+
+        function handleMeshPick(event) {
+            const container = document.getElementById('viewport');
+            const rect = container.getBoundingClientRect();
+            const mouse = new THREE.Vector2(
+                ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                -((event.clientY - rect.top) / rect.height) * 2 + 1
+            );
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(allMeshes, false);
+            if (hits.length === 0) return;
+
+            const hitMesh = hits[0].object;
+            selectedGroundMesh = hitMesh;
+            highlightMesh(hitMesh);
+
+            const meta = allMeshMeta.find(m => m.mesh === hitMesh);
+            const label = meta ? meta.name : hitMesh.name;
+            document.getElementById('selected-mesh-name').textContent = label;
+            document.getElementById('confirm-ground-btn').disabled = false;
+        }
+
+        function confirmGroundMesh() {
+            if (!selectedGroundMesh) return;
+            const meta = allMeshMeta.find(m => m.mesh === selectedGroundMesh);
+            const label = meta ? meta.name : selectedGroundMesh.name;
+            setPickMode(false);
+
+            // Build ground suggestions display
+            buildShadowBVH();
+
+            completeStep(3, 'Ground: ' + label);
+        }
+
+        // ─── BUILD SHADOW BVH (all meshes except ground) ───
+        function buildShadowBVH() {
+            showStatus('Building BVH for shadow casters...');
+            // Concatenate all non-ground mesh triangles into one set of arrays
+            const allVerts = [];
+            const allIdx = [];
+            let offset = 0;
+
+            for (const mesh of allMeshes) {
+                if (mesh === selectedGroundMesh) continue;
+                const geo = mesh.geometry;
+                const pos = geo.attributes.position.array;
+                const idx = geo.index ? geo.index.array : null;
+
+                // Apply world matrix to get transformed positions
+                mesh.updateWorldMatrix(true, false);
+                const wm = mesh.matrixWorld;
+
+                const numVerts = pos.length / 3;
+                for (let v = 0; v < numVerts; v++) {
+                    const p = new THREE.Vector3(pos[v*3], pos[v*3+1], pos[v*3+2]);
+                    p.applyMatrix4(wm);
+                    allVerts.push(p.x, p.y, p.z);
+                }
+
+                if (idx) {
+                    for (let i = 0; i < idx.length; i++) {
+                        allIdx.push(idx[i] + offset);
+                    }
+                } else {
+                    for (let i = 0; i < numVerts; i++) {
+                        allIdx.push(i + offset);
+                    }
+                }
+                offset += numVerts;
             }
 
-            buildingGroup = new THREE.Group();
-            buildingGroup.name = 'buildings';
-
-            const geo = new THREE.BufferGeometry();
-            const positions = new Float32Array(vertices);
-            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geo.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
-            geo.computeVertexNormals();
-
-            const mat = new THREE.MeshPhongMaterial({
-                color: 0xdddddd,
-                flatShading: true,
-                side: THREE.DoubleSide,
-            });
-
-            buildingMesh = new THREE.Mesh(geo, mat);
-            buildingMesh.name = 'building_mesh';
-            buildingGroup.add(buildingMesh);
-
-            const edges = new THREE.EdgesGeometry(geo, 15);
-            const line = new THREE.LineSegments(edges,
-                new THREE.LineBasicMaterial({ color: 0x333355 }));
-            buildingGroup.add(line);
-
-            scene.add(buildingGroup);
-
-            // Fit camera
-            geo.computeBoundingBox();
-            const bb = geo.boundingBox;
-            if (bb) {
-                const cx = (bb.min.x + bb.max.x) / 2;
-                const cy = (bb.min.y + bb.max.y) / 2;
-                const cz = (bb.min.z + bb.max.z) / 2;
-                const size = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z);
-                const dist = size * 1.5;
-                camera.position.set(cx + dist, cy + dist * 0.7, cz + dist);
-                controls.target.set(cx, cy, cz);
-                controls.update();
-
-                // Auto-fill bounding box (Three.js X = IFC X, Three.js -Z = IFC Y)
-                document.getElementById('bbox_min_x').value = bb.min.x.toFixed(1);
-                document.getElementById('bbox_min_y').value = (-bb.max.z).toFixed(1);
-                document.getElementById('bbox_max_x').value = bb.max.x.toFixed(1);
-                document.getElementById('bbox_max_y').value = (-bb.min.z).toFixed(1);
+            if (allVerts.length > 0) {
+                shadowBVH = new BVH(new Float32Array(allVerts), new Uint32Array(allIdx));
+                console.log('Shadow BVH built:', (allIdx.length / 3) + ' triangles');
+            } else {
+                shadowBVH = null;
             }
-
-            // Build BVH for fast ray casting
-            showStatus('Building BVH acceleration structure...');
-            const posArr = geo.attributes.position.array;
-            const idxArr = geo.index.array;
-            sceneBVH = new BVH(posArr, idxArr);
-            console.log('BVH built:', (idxArr.length / 3) + ' triangles');
             hideStatus();
         }
 
-        // ─── BVH (Bounding Volume Hierarchy) for fast ray casting ───
-        let sceneBVH = null;  // built after IFC load
+        // ─── STEP 4: ANALYSIS AREA ───
+        function useEntireMesh() {
+            useEntireGroundMesh = true;
+            document.getElementById('use-entire-btn').style.background = '#e94560';
+            document.getElementById('use-entire-btn').style.color = '#fff';
+            document.getElementById('bbox-btn').style.background = '';
+            document.getElementById('bbox-btn').style.color = '';
+            document.getElementById('bbox-fields').style.display = 'none';
+            document.getElementById('bbox-fields2').style.display = 'none';
+            removeBboxHelper();
+        }
 
+        // ─── BVH (Bounding Volume Hierarchy) for fast ray casting ───
         class BVH {
             constructor(positions, index) {
-                // Extract triangle data
                 const triCount = index.length / 3;
                 const tris = new Array(triCount);
                 for (let i = 0; i < triCount; i++) {
@@ -824,7 +1270,6 @@
             }
 
             _build(tris, start, end) {
-                // Compute AABB
                 let mnx = Infinity, mny = Infinity, mnz = Infinity;
                 let mxx = -Infinity, mxy = -Infinity, mxz = -Infinity;
                 for (let i = start; i < end; i++) {
@@ -840,7 +1285,6 @@
                 const count = end - start;
 
                 if (count <= 8) {
-                    // Leaf node — store triangles directly as flat Float64Array for cache performance
                     const buf = new Float64Array(count * 9);
                     for (let i = start; i < end; i++) {
                         const t = tris[i], o = (i - start) * 9;
@@ -853,13 +1297,9 @@
                     return node;
                 }
 
-                // Split along longest axis at median centroid
                 const dx = mxx - mnx, dy = mxy - mny, dz = mxz - mnz;
                 const axis = dx >= dy && dx >= dz ? 'centX' : dy >= dz ? 'centY' : 'centZ';
-
-                // Partition using nth_element style (partial sort at median)
                 const mid = (start + end) >> 1;
-                // Simple in-place partition: sort slice by axis
                 const slice = tris.slice(start, end);
                 slice.sort((a, b) => a[axis] - b[axis]);
                 for (let i = 0; i < slice.length; i++) tris[start + i] = slice[i];
@@ -869,14 +1309,12 @@
                 return node;
             }
 
-            // Returns true if ray hits ANY triangle (early exit)
             intersectsAny(ox, oy, oz, dx, dy, dz) {
                 const invDx = 1 / dx, invDy = 1 / dy, invDz = 1 / dz;
                 return this._query(this.root, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz);
             }
 
             _query(node, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz) {
-                // Ray-AABB slab test
                 let tmin, tmax, tymin, tymax, tzmin, tzmax;
                 if (invDx >= 0) {
                     tmin = (node.minX - ox) * invDx;
@@ -907,7 +1345,6 @@
                 if (tzmax < tmax) tmax = tzmax;
                 if (tmax < 0) return false;
 
-                // Leaf node — Möller-Trumbore ray-triangle test
                 if (node.tris) {
                     const buf = node.tris;
                     for (let i = 0; i < node.triCount; i++) {
@@ -925,48 +1362,42 @@
                         const v = (dx * qx + dy * qy + dz * qz) * invDet;
                         if (v < 0 || u + v > 1) continue;
                         const t = (e2x * qx + e2y * qy + e2z * qz) * invDet;
-                        if (t > 1e-4) return true;  // hit!
+                        if (t > 1e-4) return true;
                     }
                     return false;
                 }
 
-                // Internal node — recurse both children
                 return this._query(node.left, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz)
                     || this._query(node.right, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz);
             }
         }
 
-        // ─── SUN POSITION CALCULATOR (pure JS — replaces ladybug Sunpath) ───
+        // ─── SUN POSITION CALCULATOR (pure JS — Spencer 1971) ───
         function getSunPositions(latitude, longitude, dateStr, timeStep) {
             const date = new Date(dateStr + 'T12:00:00');
             const dayOfYear = getDayOfYear(date);
             const latRad = latitude * Math.PI / 180;
 
-            // Solar declination (Spencer, 1971)
             const B = (dayOfYear - 1) * 2 * Math.PI / 365;
             const declination = 0.006918 - 0.399912 * Math.cos(B) + 0.070257 * Math.sin(B)
                 - 0.006758 * Math.cos(2 * B) + 0.000907 * Math.sin(2 * B)
                 - 0.002697 * Math.cos(3 * B) + 0.00148 * Math.sin(3 * B);
 
-            // Equation of time (minutes)
             const eot = 229.18 * (0.000075 + 0.001868 * Math.cos(B) - 0.032077 * Math.sin(B)
                 - 0.014615 * Math.cos(2 * B) - 0.04089 * Math.sin(2 * B));
 
             const positions = [];
 
             for (let hour = 0; hour < 24; hour += timeStep) {
-                // Solar time
                 const solarTime = hour + (eot + 4 * longitude) / 60;
                 const hourAngle = (solarTime - 12) * 15 * Math.PI / 180;
 
-                // Solar altitude
                 const sinAlt = Math.sin(latRad) * Math.sin(declination)
                     + Math.cos(latRad) * Math.cos(declination) * Math.cos(hourAngle);
                 const altitude = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
 
                 if (altitude <= 0) continue;
 
-                // Solar azimuth (from North, clockwise)
                 const cosAz = (Math.sin(declination) - Math.sin(latRad) * sinAlt)
                     / (Math.cos(latRad) * Math.cos(altitude));
                 let azimuth = Math.acos(Math.max(-1, Math.min(1, cosAz)));
@@ -988,75 +1419,127 @@
             return Math.floor(diff / (1000 * 60 * 60 * 24));
         }
 
-        // Convert solar azimuth + altitude to 3D direction vector (toward the sun)
         function sunDirection(azimuthDeg, altitudeDeg) {
             const az = azimuthDeg * Math.PI / 180;
             const alt = altitudeDeg * Math.PI / 180;
-            // IFC coords: X=East, Y=North, Z=Up
-            // Three.js: X=East, Y=Up, Z=-North (south)
             const ifcX = Math.sin(az) * Math.cos(alt);
             const ifcY = Math.cos(az) * Math.cos(alt);
             const ifcZ = Math.sin(alt);
-            // Convert to Three.js
             return new THREE.Vector3(ifcX, ifcZ, -ifcY).normalize();
         }
 
-        // ─── CLIENT-SIDE RAY CASTING (Three.js Raycaster) ───
-        async function runSunAnalysis(bboxMin, bboxMax, latitude, longitude, cellSize, timeStep, dateStr) {
-            const sunPositions = getSunPositions(latitude, longitude, dateStr, timeStep);
+        // ─── TERRAIN-AWARE RAY CASTING ───
+        async function runTerrainAnalysis(latitude, longitude, timeStep, dateStr) {
+            if (!selectedGroundMesh || !shadowBVH) {
+                throw new Error('Ground mesh and shadow casters must be set');
+            }
 
+            const sunPositions = getSunPositions(latitude, longitude, dateStr, timeStep);
             if (sunPositions.length === 0) {
                 throw new Error('No sun positions above horizon for given date/location');
             }
 
-            // Generate grid points (in IFC coords: X, Y at Z=0)
-            const xMin = bboxMin[0], yMin = bboxMin[1];
-            const xMax = bboxMax[0], yMax = bboxMax[1];
-            const cols = Math.max(1, Math.floor((xMax - xMin) / cellSize));
-            const rows = Math.max(1, Math.floor((yMax - yMin) / cellSize));
+            // Get ground mesh face data in world coords
+            selectedGroundMesh.updateWorldMatrix(true, false);
+            const wm = selectedGroundMesh.matrixWorld;
+            const normalMatrix = new THREE.Matrix3().getNormalMatrix(wm);
 
-            const gridPoints = [];
-            for (let row = 0; row < rows; row++) {
-                for (let col = 0; col < cols; col++) {
-                    gridPoints.push({
-                        ifcX: xMin + (col + 0.5) * cellSize,
-                        ifcY: yMin + (row + 0.5) * cellSize,
-                    });
+            const geo = selectedGroundMesh.geometry;
+            const pos = geo.attributes.position.array;
+            const idx = geo.index ? geo.index.array : null;
+
+            const faceCount = idx ? idx.length / 3 : pos.length / 9;
+
+            // Extract face centroids, normals, and areas in world space
+            const faceCentroids = [];  // {x, y, z}
+            const faceNormals = [];    // {x, y, z}
+            const faceAreas = [];      // scalar
+
+            // Get bounding box filter if using bbox mode
+            let bboxFilter = null;
+            if (!useEntireGroundMesh) {
+                const bx1 = parseFloat(document.getElementById('bbox_min_x').value);
+                const by1 = parseFloat(document.getElementById('bbox_min_y').value);
+                const bx2 = parseFloat(document.getElementById('bbox_max_x').value);
+                const by2 = parseFloat(document.getElementById('bbox_max_y').value);
+                if (!isNaN(bx1) && !isNaN(by1) && !isNaN(bx2) && !isNaN(by2)) {
+                    bboxFilter = { minX: Math.min(bx1, bx2), maxX: Math.max(bx1, bx2),
+                                   minY: Math.min(by1, by2), maxY: Math.max(by1, by2) };
                 }
             }
 
-            const totalRays = gridPoints.length * sunPositions.length;
-            showStatus(`Casting ${totalRays.toLocaleString()} rays (${gridPoints.length} cells x ${sunPositions.length} sun positions)...`);
+            const faceIndices = []; // which original face index maps to which analysis face
 
-            // Pre-compute sun direction vectors as plain arrays for BVH
+            for (let f = 0; f < faceCount; f++) {
+                let i0, i1, i2;
+                if (idx) {
+                    i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
+                } else {
+                    i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
+                }
+
+                const a = new THREE.Vector3(pos[i0*3], pos[i0*3+1], pos[i0*3+2]).applyMatrix4(wm);
+                const b = new THREE.Vector3(pos[i1*3], pos[i1*3+1], pos[i1*3+2]).applyMatrix4(wm);
+                const c = new THREE.Vector3(pos[i2*3], pos[i2*3+1], pos[i2*3+2]).applyMatrix4(wm);
+
+                const centroid = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1/3);
+
+                // Bbox filter: centroid in IFC coords (Three X = IFC X, Three -Z = IFC Y)
+                if (bboxFilter) {
+                    const ifcX = centroid.x;
+                    const ifcY = -centroid.z;
+                    if (ifcX < bboxFilter.minX || ifcX > bboxFilter.maxX ||
+                        ifcY < bboxFilter.minY || ifcY > bboxFilter.maxY) continue;
+                }
+
+                const edge1 = new THREE.Vector3().subVectors(b, a);
+                const edge2 = new THREE.Vector3().subVectors(c, a);
+                const normal = new THREE.Vector3().crossVectors(edge1, edge2);
+                const area = normal.length() * 0.5;
+                normal.normalize();
+
+                faceCentroids.push({ x: centroid.x, y: centroid.y, z: centroid.z });
+                faceNormals.push({ x: normal.x, y: normal.y, z: normal.z });
+                faceAreas.push(area);
+                faceIndices.push(f);
+            }
+
+            if (faceCentroids.length === 0) {
+                throw new Error('No faces found in the selected area');
+            }
+
+            const totalRays = faceCentroids.length * sunPositions.length;
+            showStatus(`Casting ${totalRays.toLocaleString()} rays (${faceCentroids.length} faces x ${sunPositions.length} sun positions)...`);
+
             const sunDirs = sunPositions.map(sp => {
                 const v = sunDirection(sp.azimuth, sp.altitude);
                 return [v.x, v.y, v.z];
             });
 
-            const sunHours = new Float32Array(gridPoints.length);
+            const faceSunHours = new Float32Array(faceCentroids.length);
             let raysProcessed = 0;
-
-            // Process in batches to keep UI responsive
             const BATCH_SIZE = 2000;
 
             for (let sunIdx = 0; sunIdx < sunDirs.length; sunIdx++) {
                 const [dx, dy, dz] = sunDirs[sunIdx];
 
-                for (let i = 0; i < gridPoints.length; i += BATCH_SIZE) {
-                    const end = Math.min(i + BATCH_SIZE, gridPoints.length);
+                for (let i = 0; i < faceCentroids.length; i += BATCH_SIZE) {
+                    const end = Math.min(i + BATCH_SIZE, faceCentroids.length);
 
                     for (let j = i; j < end; j++) {
-                        const gp = gridPoints[j];
-                        // Ray origin in Three.js coords (IFC X → Three X, IFC Y → Three -Z, Z=0 → Y=0.1)
-                        if (!sceneBVH.intersectsAny(gp.ifcX, 0.1, -gp.ifcY, dx, dy, dz)) {
-                            sunHours[j] += timeStep;
+                        const fc = faceCentroids[j];
+                        const fn = faceNormals[j];
+                        // Offset origin 10mm along face normal to avoid self-intersection
+                        const ox = fc.x + fn.x * 0.01;
+                        const oy = fc.y + fn.y * 0.01;
+                        const oz = fc.z + fn.z * 0.01;
+
+                        if (!shadowBVH.intersectsAny(ox, oy, oz, dx, dy, dz)) {
+                            faceSunHours[j] += timeStep;
                         }
                     }
 
                     raysProcessed += (end - i);
-
-                    // Yield to UI every batch
                     if (raysProcessed % (BATCH_SIZE * 4) === 0) {
                         const pct = Math.round(raysProcessed / totalRays * 100);
                         showStatus(`Ray casting... ${pct}%`);
@@ -1065,28 +1548,34 @@
                 }
             }
 
-            // BRE compliance
+            // BRE compliance using actual face areas
             const thresholdHours = 2.0;
-            let cellsMeeting = 0;
-            for (let i = 0; i < sunHours.length; i++) {
-                if (sunHours[i] >= thresholdHours) cellsMeeting++;
+            let areaMeeting = 0;
+            let totalArea = 0;
+            for (let i = 0; i < faceSunHours.length; i++) {
+                totalArea += faceAreas[i];
+                if (faceSunHours[i] >= thresholdHours) areaMeeting += faceAreas[i];
             }
-            const percentage = (cellsMeeting / sunHours.length) * 100;
+            const percentage = totalArea > 0 ? (areaMeeting / totalArea) * 100 : 0;
             const passes = percentage >= 50;
 
             return {
-                gridPoints,
-                gridShape: [rows, cols],
-                sunHours,
+                faceCentroids,
+                faceNormals,
+                faceAreas,
+                faceIndices,
+                faceSunHours,
                 sunPositions,
-                cellSize,
+                totalArea,
+                areaMeeting,
                 compliance: {
                     pass: passes,
                     percentage: Math.round(percentage * 10) / 10,
-                    cells_total: sunHours.length,
-                    cells_meeting: cellsMeeting,
+                    area_total: totalArea.toFixed(1),
+                    area_meeting: areaMeeting.toFixed(1),
+                    faces_total: faceSunHours.length,
                     threshold_hours: thresholdHours,
-                    message: `${percentage.toFixed(1)}% of amenity area receives ≥${thresholdHours}h sunlight on 21 March — ${passes ? 'PASS' : 'FAIL'}`,
+                    message: `${percentage.toFixed(1)}% of amenity area receives \u2265${thresholdHours}h sunlight on 21 March \u2014 ${passes ? 'PASS' : 'FAIL'}`,
                 },
             };
         }
@@ -1119,20 +1608,80 @@
             return [c[1], c[2], c[3]];
         }
 
+        // ─── PAINT VERTEX COLOURS ON GROUND MESH ───
+        function paintGroundMesh(results) {
+            if (!selectedGroundMesh) return;
+
+            const geo = selectedGroundMesh.geometry;
+            const pos = geo.attributes.position.array;
+            const idx = geo.index ? geo.index.array : null;
+            const vertCount = pos.length / 3;
+
+            // Build vertex -> face adjacency and accumulate sun hours per vertex
+            const vertSunHoursSum = new Float32Array(vertCount);
+            const vertFaceCount = new Uint16Array(vertCount);
+
+            // Map from original face index to analysis index
+            const faceToAnalysis = {};
+            for (let i = 0; i < results.faceIndices.length; i++) {
+                faceToAnalysis[results.faceIndices[i]] = i;
+            }
+
+            const totalFaces = idx ? idx.length / 3 : pos.length / 9;
+            for (let f = 0; f < totalFaces; f++) {
+                const analysisIdx = faceToAnalysis[f];
+                if (analysisIdx === undefined) continue;
+
+                const hours = results.faceSunHours[analysisIdx];
+                let i0, i1, i2;
+                if (idx) {
+                    i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
+                } else {
+                    i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
+                }
+
+                vertSunHoursSum[i0] += hours; vertFaceCount[i0]++;
+                vertSunHoursSum[i1] += hours; vertFaceCount[i1]++;
+                vertSunHoursSum[i2] += hours; vertFaceCount[i2]++;
+            }
+
+            // Create colour attribute
+            const colors = new Float32Array(vertCount * 3);
+            let hasAnyAnalysis = false;
+            for (let v = 0; v < vertCount; v++) {
+                if (vertFaceCount[v] > 0) {
+                    const avgHours = vertSunHoursSum[v] / vertFaceCount[v];
+                    const [r, g, b] = lerpColour(avgHours);
+                    colors[v * 3] = r;
+                    colors[v * 3 + 1] = g;
+                    colors[v * 3 + 2] = b;
+                    hasAnyAnalysis = true;
+                } else {
+                    // Non-analysed vertices: keep neutral grey
+                    colors[v * 3] = 0.5;
+                    colors[v * 3 + 1] = 0.5;
+                    colors[v * 3 + 2] = 0.5;
+                }
+            }
+
+            geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            // Switch material to vertex colours
+            selectedGroundMesh.material.dispose();
+            selectedGroundMesh.material = new THREE.MeshBasicMaterial({
+                vertexColors: true,
+                side: THREE.DoubleSide,
+            });
+
+            // Show colour legend
+            document.getElementById('colour-legend').classList.add('visible');
+        }
+
         // ─── RUN ANALYSIS ───
         async function runAnalysis() {
             const btn = document.getElementById('run-btn');
-            const bboxMinX = parseFloat(document.getElementById('bbox_min_x').value);
-            const bboxMinY = parseFloat(document.getElementById('bbox_min_y').value);
-            const bboxMaxX = parseFloat(document.getElementById('bbox_max_x').value);
-            const bboxMaxY = parseFloat(document.getElementById('bbox_max_y').value);
-
-            if (isNaN(bboxMinX) || isNaN(bboxMinY) || isNaN(bboxMaxX) || isNaN(bboxMaxY)) {
-                alert('Please define the amenity area bounding box first.');
-                return;
-            }
-            if (!ifcLoaded || !buildingMesh) {
-                alert('Please upload an IFC file first.');
+            if (!ifcLoaded || !selectedGroundMesh) {
+                alert('Please complete previous steps first.');
                 return;
             }
 
@@ -1140,29 +1689,27 @@
             btn.disabled = true;
 
             try {
-                const results = await runSunAnalysis(
-                    [bboxMinX, bboxMinY],
-                    [bboxMaxX, bboxMaxY],
+                const results = await runTerrainAnalysis(
                     parseFloat(document.getElementById('latitude').value),
                     parseFloat(document.getElementById('longitude').value),
-                    parseFloat(document.getElementById('cell_size').value),
                     parseFloat(document.getElementById('time_step').value),
                     document.getElementById('analysis_date').value
                 );
 
                 lastAnalysisResults = results;
-                renderHeatmap(results);
+                paintGroundMesh(results);
                 showCompliance(results.compliance);
-                document.getElementById('glb-btn').disabled = false;
-                document.getElementById('pdf-btn').disabled = false;
                 showStatus(
-                    `Analysis complete — ${results.sunPositions.length} sun positions, ` +
-                    `${results.gridShape[0]}x${results.gridShape[1]} grid`
+                    `Analysis complete \u2014 ${results.sunPositions.length} sun positions, ` +
+                    `${results.faceSunHours.length} faces`
                 );
                 setTimeout(hideStatus, 5000);
 
+                completeStep(4, results.compliance.pass ? 'PASS' : 'FAIL');
+
             } catch (err) {
                 alert('Analysis failed: ' + err.message);
+                console.error(err);
                 hideStatus();
             } finally {
                 btn.textContent = 'Run Analysis';
@@ -1170,85 +1717,46 @@
             }
         }
 
-        // ─── RENDER HEAT MAP ───
-        function renderHeatmap(results) {
-            if (heatmapGroup) {
-                scene.remove(heatmapGroup);
-                heatmapGroup.traverse(child => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) child.material.dispose();
-                });
-            }
-
-            heatmapGroup = new THREE.Group();
-            heatmapGroup.name = 'heatmap';
-
-            const half = results.cellSize / 2;
-            const positions = [];
-            const colors = [];
-
-            for (let i = 0; i < results.gridPoints.length; i++) {
-                const gp = results.gridPoints[i];
-                const hours = results.sunHours[i];
-                const [r, g, b] = lerpColour(hours);
-
-                // IFC (x, y) → Three.js (x, 0.02, -y)
-                const cx = gp.ifcX;
-                const cz = -gp.ifcY;
-
-                const v0 = [cx - half, 0.02, cz + half];
-                const v1 = [cx + half, 0.02, cz + half];
-                const v2 = [cx + half, 0.02, cz - half];
-                const v3 = [cx - half, 0.02, cz - half];
-
-                positions.push(...v0, ...v1, ...v2, ...v0, ...v2, ...v3);
-                for (let k = 0; k < 6; k++) colors.push(r, g, b);
-            }
-
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-            const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.name = 'heatmap_mesh';
-            heatmapGroup.add(mesh);
-            scene.add(heatmapGroup);
-        }
-
         // ─── COMPLIANCE DISPLAY ───
         function showCompliance(compliance) {
-            const panel = document.getElementById('compliance-panel');
-            panel.classList.add('visible');
-
             const status = document.getElementById('compliance-status');
             status.textContent = compliance.pass ? 'PASS' : 'FAIL';
             status.className = 'compliance-result ' + (compliance.pass ? 'pass' : 'fail');
 
             document.getElementById('compliance-pct').textContent = compliance.percentage.toFixed(1) + '%';
             document.getElementById('compliance-message').textContent =
-                'of amenity area receives ≥' + compliance.threshold_hours + 'h sunlight on 21 March';
+                'of amenity area receives \u2265' + compliance.threshold_hours + 'h sunlight on 21 March';
             document.getElementById('compliance-detail').innerHTML =
-                'Total cells: ' + compliance.cells_total +
-                ' &nbsp;|&nbsp; Cells meeting threshold: ' + compliance.cells_meeting +
-                '<br>BRE BR209 requires ≥50% of area receiving ≥2h sunlight';
+                'Total area: ' + compliance.area_total + 'm\u00b2' +
+                ' &nbsp;|&nbsp; Area meeting threshold: ' + compliance.area_meeting + 'm\u00b2' +
+                '<br>Faces analysed: ' + compliance.faces_total +
+                '<br>BRE BR209 requires \u226550% of area receiving \u22652h sunlight';
         }
 
-        // ─── EXPORT GLB (client-side via GLTFExporter) ───
+        // ─── EXPORT GLB (coloured ground + grey buildings) ───
         function downloadGLB() {
             const btn = document.getElementById('glb-btn');
             btn.textContent = 'Generating...';
             btn.disabled = true;
 
-            // Export building + heatmap
             const exportScene = new THREE.Scene();
-            if (buildingMesh) {
-                const clone = buildingMesh.clone();
-                clone.material = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+
+            // Add coloured ground mesh
+            if (selectedGroundMesh) {
+                selectedGroundMesh.updateWorldMatrix(true, false);
+                const clone = selectedGroundMesh.clone();
+                clone.applyMatrix4(selectedGroundMesh.matrixWorld);
                 exportScene.add(clone);
             }
-            if (heatmapGroup) {
-                exportScene.add(heatmapGroup.clone());
+
+            // Add all other meshes as grey
+            for (const mesh of allMeshes) {
+                if (mesh === selectedGroundMesh) continue;
+                mesh.updateWorldMatrix(true, false);
+                const clone = mesh.clone();
+                clone.applyMatrix4(mesh.matrixWorld);
+                clone.material = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+                exportScene.add(clone);
             }
 
             const exporter = new THREE.GLTFExporter();
@@ -1284,7 +1792,6 @@
                 const lat = document.getElementById('latitude').value;
                 const lng = document.getElementById('longitude').value;
 
-                // Title
                 doc.setFontSize(22);
                 doc.setTextColor(233, 69, 96);
                 doc.text('SUNFORM', 20, 25);
@@ -1292,12 +1799,10 @@
                 doc.setTextColor(100);
                 doc.text('Sun Hours Analysis Report', 20, 33);
 
-                // Date
                 doc.setFontSize(10);
                 doc.setTextColor(80);
                 doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), 20, 42);
 
-                // Site info
                 doc.setFontSize(13);
                 doc.setTextColor(0);
                 doc.text('Site Information', 20, 55);
@@ -1306,36 +1811,35 @@
                 doc.text('Latitude: ' + lat, 20, 63);
                 doc.text('Longitude: ' + lng, 20, 69);
                 doc.text('Analysis date: 21 March (Spring Equinox)', 20, 75);
+                doc.text('Total area analysed: ' + c.area_total + ' m2', 20, 81);
+                doc.text('Faces analysed: ' + c.faces_total, 20, 87);
 
-                // BRE result
                 doc.setFontSize(13);
                 doc.setTextColor(0);
-                doc.text('BRE BR209 Compliance', 20, 90);
+                doc.text('BRE BR209 Compliance', 20, 100);
 
                 doc.setFontSize(24);
                 if (c.pass) {
                     doc.setTextColor(76, 175, 80);
-                    doc.text('PASS', 20, 102);
+                    doc.text('PASS', 20, 112);
                 } else {
                     doc.setTextColor(244, 67, 54);
-                    doc.text('FAIL', 20, 102);
+                    doc.text('FAIL', 20, 112);
                 }
 
                 doc.setFontSize(10);
                 doc.setTextColor(60);
-                doc.text(c.message, 20, 112);
-                doc.text('Total cells: ' + c.cells_total + '  |  Cells meeting threshold: ' + c.cells_meeting, 20, 119);
+                doc.text(c.message, 20, 122);
+                doc.text('Area meeting threshold: ' + c.area_meeting + ' m2 of ' + c.area_total + ' m2', 20, 129);
 
-                // Capture heat map from canvas
                 renderer.render(scene, camera);
                 const imgData = renderer.domElement.toDataURL('image/png');
-                doc.addImage(imgData, 'PNG', 20, 130, 170, 100);
+                doc.addImage(imgData, 'PNG', 20, 140, 170, 100);
 
-                // Disclaimer
                 doc.setFontSize(8);
                 doc.setTextColor(120);
-                doc.text('SUNFORM — Indicative sun hours analysis only. User must verify all outputs before use in any planning submission.', 20, 245);
-                doc.text('This tool does not constitute a professional daylight and sunlight assessment.', 20, 250);
+                doc.text('SUNFORM \u2014 Indicative sun hours analysis only. User must verify all outputs before use in any planning submission.', 20, 250);
+                doc.text('This tool does not constitute a professional daylight and sunlight assessment.', 20, 255);
 
                 doc.save('SunForm_Report.pdf');
 
@@ -1354,6 +1858,7 @@
 
         function toggleBboxMode() {
             bboxMode = !bboxMode;
+            useEntireGroundMesh = false;
             const overlay = document.getElementById('bbox-overlay');
             const viewport = document.getElementById('viewport');
             const btn = document.getElementById('bbox-btn');
@@ -1361,18 +1866,19 @@
             overlay.classList.toggle('visible', bboxMode);
             viewport.classList.toggle('drawing-bbox', bboxMode);
 
+            document.getElementById('use-entire-btn').style.background = '';
+            document.getElementById('use-entire-btn').style.color = '';
+            document.getElementById('bbox-btn').style.background = bboxMode ? '#e94560' : '';
+            document.getElementById('bbox-btn').style.color = bboxMode ? '#fff' : '';
+            document.getElementById('bbox-fields').style.display = 'flex';
+            document.getElementById('bbox-fields2').style.display = 'flex';
+
             if (bboxMode) {
                 bboxCorner1 = null;
-                btn.textContent = 'Cancel Drawing';
-                btn.style.background = '#e94560';
-                btn.style.color = '#fff';
                 document.getElementById('bbox-hint').textContent = 'Click first corner on the ground plane';
                 document.getElementById('bbox-coords').textContent = '';
                 controls.enabled = false;
             } else {
-                btn.textContent = 'Draw Bounding Box';
-                btn.style.background = '';
-                btn.style.color = '';
                 controls.enabled = true;
                 removeTempBbox();
             }
@@ -1439,8 +1945,7 @@
             return hits.length > 0 ? hits[0].point : null;
         }
 
-        document.getElementById('viewport').addEventListener('click', (event) => {
-            if (!bboxMode) return;
+        function handleBboxClick(event) {
             const pt = getGroundIntersection(event);
             if (!pt) return;
             const ifcX = pt.x, ifcY = -pt.z;
@@ -1464,9 +1969,15 @@
                 document.getElementById('bbox_max_x').value = x2.toFixed(1);
                 document.getElementById('bbox_max_y').value = y2.toFixed(1);
                 bboxHelper = drawBboxRect(x1, y1, x2, y2, 0x00ccff);
-                toggleBboxMode();
+                // Exit bbox mode
+                bboxMode = false;
+                document.getElementById('bbox-overlay').classList.remove('visible');
+                document.getElementById('viewport').classList.remove('drawing-bbox');
+                document.getElementById('bbox-btn').style.background = '';
+                document.getElementById('bbox-btn').style.color = '';
+                controls.enabled = true;
             }
-        });
+        }
 
         document.getElementById('viewport').addEventListener('mousemove', (event) => {
             if (!bboxMode || !bboxCorner1) return;
@@ -1475,7 +1986,7 @@
             const ifcX = pt.x, ifcY = -pt.z;
             document.getElementById('bbox-coords').textContent =
                 `Corner 1: (${bboxCorner1.x.toFixed(1)}, ${bboxCorner1.y.toFixed(1)})` +
-                `  →  (${ifcX.toFixed(1)}, ${ifcY.toFixed(1)})`;
+                `  \u2192  (${ifcX.toFixed(1)}, ${ifcY.toFixed(1)})`;
             removeTempBbox();
             bboxTempHelper = drawBboxRect(bboxCorner1.x, bboxCorner1.y, ifcX, ifcY, 0xe94560);
         });
@@ -1494,8 +2005,10 @@
         // ─── KEYBOARD SHORTCUTS ───
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-            if (e.key === 'Escape' && bboxMode) toggleBboxMode();
-            if (e.key === 'b' || e.key === 'B') toggleBboxMode();
+            if (e.key === 'Escape') {
+                if (bboxMode) toggleBboxMode();
+                if (pickMode) setPickMode(false);
+            }
         });
 
         // ─── INIT ───
