@@ -272,6 +272,22 @@
             z-index: 5;
         }
 
+        /* ─── ORIENTATION TWO-POINT OVERLAY ─── */
+        .orient-overlay {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 26, 0.92);
+            border: 1px solid #D4880F;
+            border-radius: 8px;
+            padding: 10px 18px;
+            z-index: 15;
+            text-align: center;
+        }
+        .orient-overlay.visible { display: block; }
+
         /* ─── NORTH ARROW OVERLAY ─── */
         .north-arrow {
             display: none;
@@ -726,14 +742,14 @@
 
         /* ─── LOGO ─── */
         .logo-img {
-            height: 80px;
+            height: 240px;
             margin-bottom: 8px;
         }
         .modal-logo {
             display: block;
             max-width: 400px;
             height: auto;
-            margin-bottom: 16px;
+            margin-bottom: 6px;
         }
     </style>
 </head>
@@ -820,13 +836,25 @@
                 <span class="step-summary" id="step2-summary"></span>
             </div>
             <div class="step-body">
-                <p class="hint">North should be pointing up the screen. If your model is rotated, adjust below.</p>
+                <p class="hint">North should be pointing up the screen. If your model is rotated, adjust below or use two points to set the direction.</p>
                 <div class="field">
                     <label>Rotation <span class="unit">degrees</span></label>
                     <input type="number" id="north-rotation" value="0" step="5">
                 </div>
                 <div style="font-size:11px; color:#666; margin-bottom:8px;">
                     Positive = counter-clockwise. The north arrow updates as you type.
+                </div>
+                <div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+                    <select id="orient-direction" style="flex:0 0 auto; background:#0a0e1a; color:#e0e0e0; border:1px solid #333; border-radius:4px; padding:4px 6px; font-size:12px;">
+                        <option value="270">North</option>
+                        <option value="0">East</option>
+                        <option value="90">South</option>
+                        <option value="180">West</option>
+                    </select>
+                    <button class="btn btn-secondary" id="orient-two-point-btn" onclick="event.stopPropagation(); startTwoPointOrient();" style="flex:1; margin-top:0;">Set by Two Points</button>
+                </div>
+                <div style="font-size:11px; color:#666; margin-bottom:8px;">
+                    Select a direction, then click two points on the model. The line from point 1 to point 2 will be aligned to that direction.
                 </div>
                 <button class="btn btn-primary" onclick="event.stopPropagation(); confirmOrientation();">Confirm Orientation</button>
             </div>
@@ -965,12 +993,11 @@
     <div class="download-confirm-overlay" id="download-confirm-overlay">
         <div class="download-confirm-box">
             <h3>Confirm Download</h3>
-            <p>Before downloading, please confirm you understand the nature and limitations of this output:</p>
-            <p>SunForm outputs are <strong>indicative only</strong> and are provided for early-stage design exploration. They must not be used as planning evidence, for compliance assessment, or relied upon without independent professional verification.</p>
-            <p>Jake White Architecture accepts no liability for any loss, damage, or decisions arising from reliance on these outputs.</p>
+            <p>SunForm is beta software. This output is provided for <strong>testing purposes only</strong> and may be incomplete, inaccurate, or incorrect.</p>
+            <p>Do not share, present, or rely on this output for any formal purpose without independent professional verification.</p>
             <label class="checkbox-row">
                 <input type="checkbox" id="download-confirm-check" onchange="updateDownloadConfirm()">
-                <span>I understand that this output is indicative only and I accept full responsibility for its use.</span>
+                <span>I understand this is a beta output for testing only and I will not use it for any formal purpose.</span>
             </label>
             <div class="btn-row">
                 <button class="btn-cancel" onclick="hideDownloadConfirm()">Cancel</button>
@@ -987,6 +1014,10 @@
                 <polygon points="25,45 20,30 25,35 30,30" fill="#666"/>
             </svg>
             <div>N</div>
+        </div>
+        <div class="orient-overlay" id="orient-overlay">
+            <div style="color:#D4880F; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Set Orientation</div>
+            <div style="color:#aaa; font-size:12px;" id="orient-hint">Click the first point on the model</div>
         </div>
         <div class="pick-overlay" id="pick-overlay">
             <div style="color:#00CFC8; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Ground Mesh</div>
@@ -1045,6 +1076,9 @@
         let useEntireGroundMesh = true;
         let northRotationDeg = 0;
         let modelRotationGroup = null;
+        let orientMode = false;
+        let orientPoint1 = null;
+        let orientTempMarkers = [];
 
         // Season analysis state
         const SEASON_DATES = {
@@ -1216,6 +1250,7 @@
             if (n === 2) switchToOrtho();
             else switchToPersp();
             setPickMode(n === 3);
+            if (n !== 2 && orientMode) stopTwoPointOrient();
 
             // Mesh visibility: when going back to step 3 (select mesh), show meshes
             // and gray out previous results. On step 5 (results), hide meshes.
@@ -1540,6 +1575,108 @@
             completeStep(2, summary);
         }
 
+        // ─── TWO-POINT ORIENTATION ───
+        function startTwoPointOrient() {
+            orientMode = true;
+            orientPoint1 = null;
+            clearOrientMarkers();
+            controls.enabled = false;
+            document.getElementById('orient-overlay').classList.add('visible');
+            document.getElementById('orient-hint').textContent = 'Click the first point on the model';
+            document.getElementById('viewport').classList.add('picking-mesh');
+        }
+
+        function stopTwoPointOrient() {
+            orientMode = false;
+            orientPoint1 = null;
+            clearOrientMarkers();
+            controls.enabled = true;
+            document.getElementById('orient-overlay').classList.remove('visible');
+            document.getElementById('viewport').classList.remove('picking-mesh');
+        }
+
+        function clearOrientMarkers() {
+            for (const m of orientTempMarkers) {
+                scene.remove(m);
+                m.geometry.dispose();
+                m.material.dispose();
+            }
+            orientTempMarkers = [];
+        }
+
+        function addOrientMarker(point) {
+            const geo = new THREE.SphereGeometry(0.4, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xD4880F });
+            const marker = new THREE.Mesh(geo, mat);
+            marker.position.copy(point);
+            scene.add(marker);
+            orientTempMarkers.push(marker);
+        }
+
+        function handleOrientClick(event) {
+            const container = document.getElementById('viewport');
+            const rect = container.getBoundingClientRect();
+            const mouse = new THREE.Vector2(
+                ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                -((event.clientY - rect.top) / rect.height) * 2 + 1
+            );
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(allMeshes, false);
+            if (hits.length === 0) return;
+
+            const hitPoint = hits[0].point;
+
+            if (!orientPoint1) {
+                orientPoint1 = hitPoint.clone();
+                addOrientMarker(hitPoint);
+                document.getElementById('orient-hint').textContent = 'Click the second point on the model';
+            } else {
+                addOrientMarker(hitPoint);
+                const p2 = hitPoint.clone();
+
+                // Compute the angle of the vector P1→P2 in the XZ plane
+                // In Three.js plan view: -Z = screen up, +X = screen right
+                const dx = p2.x - orientPoint1.x;
+                const dz = p2.z - orientPoint1.z;
+
+                // Angle of vector from screen-up (-Z axis), measured clockwise
+                // atan2 gives angle from +X axis CCW, so we convert
+                const vectorAngleDeg = Math.atan2(dx, -dz) * 180 / Math.PI;
+
+                // The selected direction in AutoCAD convention (0=E, 90=S, 180=W, 270=N)
+                const targetDirDeg = parseFloat(document.getElementById('orient-direction').value);
+
+                // Convert target direction to screen angle:
+                // North (270) = screen up (0°), East (0) = screen right (90°),
+                // South (90) = screen down (180°), West (180) = screen left (270°)
+                // Screen angle = (targetDirDeg + 90) % 360... but we need the
+                // angle from -Z measured CW, same as vectorAngleDeg:
+                // AutoCAD 270 (North) → 0° from -Z
+                // AutoCAD 0 (East) → 90° from -Z
+                // AutoCAD 90 (South) → 180° from -Z
+                // AutoCAD 180 (West) → 270° from -Z
+                const targetScreenAngle = (targetDirDeg + 90) % 360;
+
+                // Rotation needed = target screen angle - measured vector angle
+                let rotation = targetScreenAngle - vectorAngleDeg;
+                // Normalize to -180..180
+                while (rotation > 180) rotation -= 360;
+                while (rotation <= -180) rotation += 360;
+
+                // Apply rotation
+                northRotationDeg = Math.round(rotation * 10) / 10;
+                document.getElementById('north-rotation').value = northRotationDeg;
+                if (modelRotationGroup) {
+                    modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
+                }
+                const arrow = document.getElementById('north-arrow');
+                arrow.querySelector('svg').style.transform = 'rotate(' + (-northRotationDeg) + 'deg)';
+
+                stopTwoPointOrient();
+            }
+        }
+
         // ─── STEP 3: GROUND MESH PICKING ───
         function setPickMode(on) {
             pickMode = on;
@@ -1619,6 +1756,10 @@
         }
 
         document.getElementById('viewport').addEventListener('click', (event) => {
+            if (orientMode) {
+                handleOrientClick(event);
+                return;
+            }
             if (pickMode) {
                 handleMeshPick(event);
                 return;
@@ -3029,10 +3170,10 @@
         }
 
         function proceedDownload() {
+            const type = pendingDownloadType;
             hideDownloadConfirm();
-            if (pendingDownloadType === 'glb') downloadGLB();
-            else if (pendingDownloadType === 'pdf') downloadPDF();
-            pendingDownloadType = null;
+            if (type === 'glb') downloadGLB();
+            else if (type === 'pdf') downloadPDF();
         }
 
         // ─── MESH VISIBILITY MANAGEMENT ───
