@@ -613,52 +613,206 @@
         .modal-box .btn-accept:hover:not(:disabled) {
             background: #E5A50A;
         }
+        .modal-box .role-gate {
+            margin-bottom: 14px;
+        }
+        .modal-box .role-gate label {
+            display: block;
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+        .modal-box .role-gate select {
+            width: 100%;
+            padding: 8px 10px;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .modal-box .role-gate select:focus {
+            outline: none;
+            border-color: #D4880F;
+        }
+        .modal-box .role-message {
+            font-size: 11px;
+            line-height: 1.5;
+            margin-top: 8px;
+            padding: 8px 10px;
+            border-radius: 4px;
+        }
+        .modal-box .role-message.allowed {
+            color: #00CFC8;
+            background: rgba(0, 207, 200, 0.08);
+            border: 1px solid rgba(0, 207, 200, 0.2);
+        }
+        .modal-box .role-message.blocked {
+            color: #D4880F;
+            background: rgba(212, 136, 15, 0.08);
+            border: 1px solid rgba(212, 136, 15, 0.2);
+        }
+
+        /* ─── DOWNLOAD CONFIRMATION MODAL ─── */
+        .download-confirm-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 9998;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .download-confirm-overlay.visible { display: flex; }
+        .download-confirm-box {
+            background: #16213e;
+            border: 1px solid #D4880F;
+            border-radius: 10px;
+            max-width: 480px;
+            width: 90%;
+            padding: 24px 28px;
+            color: #e0e0e0;
+        }
+        .download-confirm-box h3 {
+            font-size: 15px;
+            color: #E5A50A;
+            margin-bottom: 12px;
+        }
+        .download-confirm-box p {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #ccc;
+            margin-bottom: 10px;
+        }
+        .download-confirm-box .checkbox-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 10px 0;
+            font-size: 12px;
+            color: #ccc;
+            cursor: pointer;
+        }
+        .download-confirm-box .checkbox-row input[type="checkbox"] {
+            margin-top: 2px;
+            accent-color: #D4880F;
+        }
+        .download-confirm-box .btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+        }
+        .download-confirm-box .btn-row button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .download-confirm-box .btn-cancel {
+            background: #0f3460;
+            color: #e0e0e0;
+        }
+        .download-confirm-box .btn-proceed {
+            background: #D4880F;
+            color: #fff;
+        }
+        .download-confirm-box .btn-proceed:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* ─── LOGO ─── */
+        .logo-img {
+            height: 40px;
+            margin-bottom: 4px;
+        }
+        .modal-logo {
+            display: block;
+            max-width: 220px;
+            height: auto;
+            margin-bottom: 12px;
+        }
     </style>
 </head>
 <body>
     <!-- ─── DISCLAIMER MODAL ─── -->
     <div class="modal-overlay" id="disclaimer-modal">
         <div class="modal-box">
+            <img src="/static/img/sunform-logo.png" alt="SunForm" class="modal-logo">
             <h2>SunForm <span class="beta-badge">Beta</span></h2>
             <div class="modal-subtitle">Indicative Sun Hours Analysis Tool</div>
 
-            <h3>1. Beta Software</h3>
-            <p>SunForm is currently in <strong>beta</strong>. All outputs are <strong>indicative only</strong> and intended for early-stage design exploration. They must not be treated as definitive or relied upon for final design decisions without independent verification.</p>
+            <!-- ─── PROFESSIONAL ROLE GATE ─── -->
+            <div class="role-gate">
+                <label for="role-select">I am a:</label>
+                <select id="role-select" onchange="updateRoleGate()">
+                    <option value="">— Please select —</option>
+                    <option value="architect">Architect</option>
+                    <option value="arch_tech">Architectural Technologist</option>
+                    <option value="arch_designer">Architectural Designer</option>
+                    <option value="daylight">Daylighting Consultant</option>
+                    <option value="struct_civil">Structural or Civil Engineer</option>
+                    <option value="planning">Planning Consultant</option>
+                    <option value="urban">Urban Designer</option>
+                    <option value="other_pro">Other design or construction professional</option>
+                    <option value="not_professional">I am not a design professional</option>
+                </select>
+                <div class="role-message" id="role-message" style="display:none;"></div>
+            </div>
 
-            <h3>2. Not a Replacement for Professional Advice</h3>
-            <p>The provision of this free software is <strong>not intended to be a replacement for expert daylighting consulting professionals</strong> and the specialist software that they use. Critical design decisions regarding daylight, sunlight, and overshadowing must be made in the context of a qualified daylighting consultant.</p>
+            <div id="disclaimer-terms">
+                <h3>1. Beta Software</h3>
+                <p>SunForm is currently in <strong>beta</strong>. All outputs are <strong>indicative only</strong> and intended for early-stage design exploration. They must not be treated as definitive or relied upon for final design decisions without independent verification.</p>
 
-            <h3>3. No Compliance Warranty</h3>
-            <p>Outputs have not been verified against any building regulations, standards, or codes of practice &mdash; including BRE 209, BS EN 17037, the Building Regulations 2010, associated Approved Documents, or any international equivalent. No representation or warranty is made that any output complies with any regulatory requirement.</p>
+                <h3>2. Not a Replacement for Professional Advice</h3>
+                <p>The provision of this free software is <strong>not intended to be a replacement for expert daylighting consulting professionals</strong> and the specialist software that they use. Critical design decisions regarding daylight, sunlight, and overshadowing must be made in the context of a qualified daylighting consultant.</p>
 
-            <h3>4. User Responsibility</h3>
-            <ul>
-                <li>You are solely responsible for verifying the accuracy, suitability, and regulatory compliance of all outputs.</li>
-                <li>You will not rely on any output as a final design assessment or instruction without independent professional verification.</li>
-                <li>Any use of exported files (PDF, GLB) is entirely at your own risk.</li>
-            </ul>
+                <h3>3. No Compliance Warranty</h3>
+                <p>Outputs have not been verified against any building regulations, standards, or codes of practice &mdash; including BRE 209, BS EN 17037, the Building Regulations 2010, associated Approved Documents, or any international equivalent. No representation or warranty is made that any output complies with any regulatory requirement.</p>
 
-            <h3>5. Limitation of Liability</h3>
-            <p>SunForm is provided <strong>&ldquo;as is&rdquo;</strong> without warranty of any kind, whether express or implied. To the fullest extent permitted by law, Jake White Architecture shall not be liable for any loss, damage, injury, cost, or expense (whether direct, indirect, or consequential) arising from the use of or reliance upon any output, any errors or omissions in the outputs, any decisions or actions taken based on the outputs, or any failure of the tool to produce accurate results.</p>
+                <h3>4. User Responsibility</h3>
+                <ul>
+                    <li>You are solely responsible for verifying the accuracy, suitability, and regulatory compliance of all outputs.</li>
+                    <li>You will not rely on any output as a final design assessment or instruction without independent professional verification.</li>
+                    <li>Any use of exported files (PDF, GLB) is entirely at your own risk.</li>
+                    <li>SunForm is intended for use by persons with sufficient technical knowledge and professional competence to understand the nature, limitations, and appropriate application of solar analysis outputs. It is not intended for use by members of the public without relevant design or construction experience. You confirm that you have the necessary competence to interpret the outputs in context, and that you will not use SunForm for third-party impact assessment, planning evidence, or any purpose where its outputs may be relied upon by others without independent professional verification.</li>
+                </ul>
 
-            <h3>6. Intellectual Property</h3>
-            <p>SunForm is provided free of charge. Outputs may be used freely at your own discretion and risk. The tool itself, including source code and design, remains the intellectual property of Jake White Architecture.</p>
+                <h3>5. Limitation of Liability</h3>
+                <p>SunForm is provided <strong>&ldquo;as is&rdquo;</strong> without warranty of any kind, whether express or implied. To the fullest extent permitted by law, Jake White Architecture shall not be liable for any loss, damage, injury, cost, or expense (whether direct, indirect, or consequential) arising from the use of or reliance upon any output, any errors or omissions in the outputs, any decisions or actions taken based on the outputs, or any failure of the tool to produce accurate results.</p>
 
-            <h3>7. Changes to These Terms</h3>
-            <p>These terms may be updated from time to time. Continued use of SunForm following any changes constitutes acceptance of the revised terms.</p>
+                <h3>6. Intellectual Property</h3>
+                <p>SunForm is provided free of charge. Outputs may be used freely at your own discretion and risk. The tool itself, including source code and design, remains the intellectual property of Jake White Architecture.</p>
 
-            <p style="margin-top:14px; font-size:11px; color:#888;">SunForm is provided by Jake White Architecture. For professional Architectural Technology services, visit <a href="https://www.jakewhitearchitecture.com" target="_blank" style="color:#00CFC8;">jakewhitearchitecture.com</a></p>
+                <h3>7. Changes to These Terms</h3>
+                <p>These terms may be updated from time to time. Continued use of SunForm following any changes constitutes acceptance of the revised terms.</p>
+
+                <p style="margin-top:14px; font-size:11px; color:#888;">SunForm is provided by Jake White Architecture. For professional Architectural Technology services, visit <a href="https://www.jakewhitearchitecture.com" target="_blank" style="color:#00CFC8;">jakewhitearchitecture.com</a></p>
+            </div>
 
             <hr style="border-color:#0f3460; margin:16px 0 12px;">
 
-            <label class="checkbox-row" id="disclaimer-check1-label">
-                <input type="checkbox" id="disclaimer-check1" onchange="updateDisclaimerAccept()">
-                <span>I have read, understood, and accept the Terms of Use &amp; Disclaimer. I acknowledge that SunForm is beta software and all outputs are indicative only.</span>
-            </label>
-            <label class="checkbox-row" id="disclaimer-check2-label">
-                <input type="checkbox" id="disclaimer-check2" onchange="updateDisclaimerAccept()">
-                <span>I understand that SunForm is not a replacement for professional daylighting consultants and their software. I will not use its outputs as a substitute for expert advice.</span>
-            </label>
+            <div id="disclaimer-checkboxes">
+                <label class="checkbox-row">
+                    <input type="checkbox" id="disclaimer-check1" onchange="updateDisclaimerAccept()" disabled>
+                    <span>I have read, understood, and accept the Terms of Use &amp; Disclaimer. I acknowledge that SunForm is beta software and all outputs are indicative only.</span>
+                </label>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="disclaimer-check2" onchange="updateDisclaimerAccept()" disabled>
+                    <span>I understand that SunForm is not a replacement for professional daylighting consultants and their software. I will not use its outputs as a substitute for expert advice.</span>
+                </label>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="disclaimer-check3" onchange="updateDisclaimerAccept()" disabled>
+                    <span>I confirm that I have sufficient professional or technical knowledge to understand the nature and limitations of solar analysis outputs, and that I am competent to apply them appropriately within a design process.</span>
+                </label>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="disclaimer-check4" onchange="updateDisclaimerAccept()" disabled>
+                    <span>I confirm that I will not use SunForm outputs as planning evidence, in third-party impact assessments, or in any context where others may rely on them without independent professional verification.</span>
+                </label>
+            </div>
 
             <button class="btn-accept" id="disclaimer-accept-btn" disabled onclick="acceptDisclaimer()">Accept &amp; Continue</button>
         </div>
@@ -666,6 +820,7 @@
 
     <div class="panel">
       <div class="panel-scroll">
+        <img src="/static/img/sunform-logo.png" alt="SunForm" class="logo-img">
         <h1 style="display:flex; align-items:center; gap:6px;">SunForm <span style="font-size:9px; background:#D4880F; color:#000; padding:1px 5px; border-radius:3px; font-weight:700; letter-spacing:0.5px;">BETA</span></h1>
         <p class="subtitle">Indicative Sun Hours Analysis</p>
 
@@ -823,8 +978,8 @@
                     <div class="results-detail" id="results-detail"></div>
                 </div>
                 <div style="display:flex; gap:8px; margin-top:10px;">
-                    <button class="btn btn-primary" id="glb-btn" onclick="event.stopPropagation(); downloadGLB();" style="flex:1;">Download GLB</button>
-                    <button class="btn btn-secondary" id="pdf-btn" onclick="event.stopPropagation(); downloadPDF();" style="flex:1;">Download PDF</button>
+                    <button class="btn btn-primary" id="glb-btn" onclick="event.stopPropagation(); showDownloadConfirm('glb');" style="flex:1;">Download GLB</button>
+                    <button class="btn btn-secondary" id="pdf-btn" onclick="event.stopPropagation(); showDownloadConfirm('pdf');" style="flex:1;">Download PDF</button>
                 </div>
                 <button class="btn btn-secondary" onclick="event.stopPropagation(); resetWorkflow();" style="margin-top:8px;">New Analysis</button>
                 <div class="bug-report">
@@ -842,6 +997,24 @@
         </div>
 
       </div>
+    </div>
+
+    <!-- ─── DOWNLOAD CONFIRMATION MODAL ─── -->
+    <div class="download-confirm-overlay" id="download-confirm-overlay">
+        <div class="download-confirm-box">
+            <h3>Confirm Download</h3>
+            <p>Before downloading, please confirm you understand the nature and limitations of this output:</p>
+            <p>SunForm outputs are <strong>indicative only</strong> and are provided for early-stage design exploration. They must not be used as planning evidence, for compliance assessment, or relied upon without independent professional verification.</p>
+            <p>Jake White Architecture accepts no liability for any loss, damage, or decisions arising from reliance on these outputs.</p>
+            <label class="checkbox-row">
+                <input type="checkbox" id="download-confirm-check" onchange="updateDownloadConfirm()">
+                <span>I understand that this output is indicative only and I accept full responsibility for its use.</span>
+            </label>
+            <div class="btn-row">
+                <button class="btn-cancel" onclick="hideDownloadConfirm()">Cancel</button>
+                <button class="btn-proceed" id="download-confirm-btn" disabled onclick="proceedDownload()">Download</button>
+            </div>
+        </div>
     </div>
 
     <div class="viewport" id="viewport">
@@ -1852,6 +2025,115 @@
             return tris;
         }
 
+        // ─── MESH HOLE HEALING ───
+        // Finds boundary edges (edges belonging to only one triangle) in the
+        // top-surface mesh, chains them into closed loops, and fills each loop
+        // with a fan of new triangles from the loop centroid.
+        function healMeshHoles(tris) {
+            // Build edge -> count map using a canonical key
+            function edgeKey(a, b) {
+                // Round to avoid float precision mismatches
+                const ax = a[0].toFixed(4), ay = a[1].toFixed(4), az = a[2].toFixed(4);
+                const bx = b[0].toFixed(4), by = b[1].toFixed(4), bz = b[2].toFixed(4);
+                const ka = `${ax},${ay},${az}`;
+                const kb = `${bx},${by},${bz}`;
+                return ka < kb ? ka + '|' + kb : kb + '|' + ka;
+            }
+
+            function vertKey(v) {
+                return `${v[0].toFixed(4)},${v[1].toFixed(4)},${v[2].toFixed(4)}`;
+            }
+
+            // Count how many triangles each edge belongs to
+            const edgeCounts = new Map();
+            const edgeVerts = new Map(); // key -> [vertA, vertB]
+            for (const tri of tris) {
+                const [a, b, c] = tri;
+                const edges = [[a, b], [b, c], [c, a]];
+                for (const [ea, eb] of edges) {
+                    const key = edgeKey(ea, eb);
+                    edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1);
+                    if (!edgeVerts.has(key)) edgeVerts.set(key, [ea, eb]);
+                }
+            }
+
+            // Boundary edges: count === 1
+            const boundaryEdges = [];
+            for (const [key, count] of edgeCounts) {
+                if (count === 1) {
+                    boundaryEdges.push(edgeVerts.get(key));
+                }
+            }
+
+            if (boundaryEdges.length === 0) return; // no holes
+
+            // Build adjacency: vertex -> list of connected boundary vertices
+            const adj = new Map();
+            for (const [a, b] of boundaryEdges) {
+                const ka = vertKey(a), kb = vertKey(b);
+                if (!adj.has(ka)) adj.set(ka, []);
+                if (!adj.has(kb)) adj.set(kb, []);
+                adj.get(ka).push({ key: kb, vert: b });
+                adj.get(kb).push({ key: ka, vert: a });
+            }
+
+            // Walk boundary edges into closed loops
+            const visited = new Set();
+            const loops = [];
+            for (const [startKey] of adj) {
+                if (visited.has(startKey)) continue;
+                const loop = [];
+                let currentKey = startKey;
+                let stuck = false;
+                while (!visited.has(currentKey)) {
+                    visited.add(currentKey);
+                    const neighbours = adj.get(currentKey);
+                    if (!neighbours || neighbours.length === 0) { stuck = true; break; }
+                    loop.push(neighbours[0].vert); // store the vertex coords
+                    // Pick the next unvisited neighbour
+                    let found = false;
+                    for (const nb of neighbours) {
+                        if (!visited.has(nb.key)) {
+                            currentKey = nb.key;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) break;
+                }
+                if (loop.length >= 3 && !stuck) {
+                    loops.push(loop);
+                }
+            }
+
+            // Fill each loop with fan triangles from the centroid
+            let filled = 0;
+            for (const loop of loops) {
+                // Skip very large loops (likely outer boundary, not a hole)
+                if (loop.length > 500) continue;
+
+                // Compute centroid
+                let cx = 0, cy = 0, cz = 0;
+                for (const v of loop) {
+                    cx += v[0]; cy += v[1]; cz += v[2];
+                }
+                cx /= loop.length; cy /= loop.length; cz /= loop.length;
+                const center = [cx, cy, cz];
+
+                // Fan triangulate
+                for (let i = 0; i < loop.length; i++) {
+                    const a = loop[i];
+                    const b = loop[(i + 1) % loop.length];
+                    tris.push([a, b, center]);
+                    filled++;
+                }
+            }
+
+            if (filled > 0) {
+                console.log(`Hole healing: found ${loops.length} loops, filled with ${filled} triangles`);
+            }
+        }
+
         // ─── PREPARE GRID CELLS (merge + slice — done ONCE, cached) ───
         let cachedCellData = null;  // reused across seasons
         let cachedGridSize = null;
@@ -1948,7 +2230,13 @@
 
             showStatus(`Top surface: ${worldTris.length} of ${allMergedTris.length} faces kept`);
 
-            // 3. Slice every triangle along grid lines
+            // 3. Heal holes in the top surface mesh
+            showStatus('Healing mesh holes...');
+            await new Promise(r => setTimeout(r, 0));
+            healMeshHoles(worldTris);
+            showStatus(`Healed mesh: ${worldTris.length} triangles`);
+
+            // 4. Slice every triangle along grid lines
             showStatus(`Slicing ${worldTris.length} triangles along ${gridSize}m grid...`);
             await new Promise(r => setTimeout(r, 0));
 
@@ -2869,14 +3157,80 @@
         }
 
         // ─── DISCLAIMER MODAL ───
+        let roleGateAllowed = false;
+
+        function updateRoleGate() {
+            const sel = document.getElementById('role-select');
+            const val = sel.value;
+            const msgEl = document.getElementById('role-message');
+            const checkboxes = document.querySelectorAll('#disclaimer-checkboxes input[type="checkbox"]');
+
+            if (!val) {
+                // No selection
+                msgEl.style.display = 'none';
+                roleGateAllowed = false;
+                checkboxes.forEach(cb => { cb.disabled = true; cb.checked = false; });
+                updateDisclaimerAccept();
+                return;
+            }
+
+            if (val === 'not_professional') {
+                msgEl.style.display = 'block';
+                msgEl.className = 'role-message blocked';
+                msgEl.innerHTML = 'SunForm is not suitable for use without relevant design or construction experience. If you need daylight or sunlight analysis for a property matter, please consult a qualified daylighting consultant or architect.';
+                roleGateAllowed = false;
+                checkboxes.forEach(cb => { cb.disabled = true; cb.checked = false; });
+                updateDisclaimerAccept();
+                return;
+            }
+
+            // Valid professional role
+            msgEl.style.display = 'block';
+            msgEl.className = 'role-message allowed';
+            msgEl.innerHTML = 'By selecting your role above and accepting the terms below, you confirm that you have sufficient professional knowledge to understand and appropriately apply solar analysis outputs.';
+            roleGateAllowed = true;
+            checkboxes.forEach(cb => { cb.disabled = false; });
+            updateDisclaimerAccept();
+        }
+
         function updateDisclaimerAccept() {
             const c1 = document.getElementById('disclaimer-check1').checked;
             const c2 = document.getElementById('disclaimer-check2').checked;
-            document.getElementById('disclaimer-accept-btn').disabled = !(c1 && c2);
+            const c3 = document.getElementById('disclaimer-check3').checked;
+            const c4 = document.getElementById('disclaimer-check4').checked;
+            const allChecked = c1 && c2 && c3 && c4;
+            document.getElementById('disclaimer-accept-btn').disabled = !(roleGateAllowed && allChecked);
         }
 
         function acceptDisclaimer() {
             document.getElementById('disclaimer-modal').classList.add('hidden');
+        }
+
+        // ─── DOWNLOAD CONFIRMATION ───
+        let pendingDownloadType = null;
+
+        function showDownloadConfirm(type) {
+            pendingDownloadType = type;
+            document.getElementById('download-confirm-check').checked = false;
+            document.getElementById('download-confirm-btn').disabled = true;
+            document.getElementById('download-confirm-overlay').classList.add('visible');
+        }
+
+        function hideDownloadConfirm() {
+            document.getElementById('download-confirm-overlay').classList.remove('visible');
+            pendingDownloadType = null;
+        }
+
+        function updateDownloadConfirm() {
+            document.getElementById('download-confirm-btn').disabled =
+                !document.getElementById('download-confirm-check').checked;
+        }
+
+        function proceedDownload() {
+            hideDownloadConfirm();
+            if (pendingDownloadType === 'glb') downloadGLB();
+            else if (pendingDownloadType === 'pdf') downloadPDF();
+            pendingDownloadType = null;
         }
 
         // ─── MESH VISIBILITY MANAGEMENT ───
