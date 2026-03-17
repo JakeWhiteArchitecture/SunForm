@@ -791,9 +791,9 @@
                 <hr style="border-color:#0f3460; margin:12px 0;">
                 <label style="font-size:12px; color:#aaa; margin-bottom:3px; display:block;">Seasons to Analyse</label>
                 <div class="season-toggles">
-                    <div class="season-toggle" id="season-winter" onclick="toggleSeason('winter')">Winter<br><span style="font-weight:400; font-size:10px;">21 Dec</span></div>
-                    <div class="season-toggle active" id="season-spring" onclick="toggleSeason('spring')">Spring/Autumn<br><span style="font-weight:400; font-size:10px;">21 Mar</span></div>
-                    <div class="season-toggle" id="season-summer" onclick="toggleSeason('summer')">Summer<br><span style="font-weight:400; font-size:10px;">21 Jun</span></div>
+                    <div class="season-toggle" id="season-winter" onclick="toggleSeason('winter')">Winter</div>
+                    <div class="season-toggle active" id="season-spring" onclick="toggleSeason('spring')">Spring/Autumn</div>
+                    <div class="season-toggle" id="season-summer" onclick="toggleSeason('summer')">Summer</div>
                 </div>
                 <div style="font-size:11px; color:#666; margin-bottom:8px;">Select one or more seasons. At least one must be active.</div>
                 <div class="field-row">
@@ -2317,11 +2317,24 @@
             // Add currently visible season heatmap
             const activeHeatmap = seasonHeatmaps[visibleSeason];
             if (activeHeatmap) {
-                exportScene.add(activeHeatmap.clone());
+                const hmClone = activeHeatmap.clone();
+                // Convert vertex-color MeshBasicMaterial to MeshStandardMaterial for GLB compat
+                hmClone.traverse(c => {
+                    if (c.isMesh && c.material) {
+                        const newMat = new THREE.MeshStandardMaterial({
+                            vertexColors: c.material.vertexColors,
+                            side: THREE.DoubleSide,
+                            roughness: 1.0,
+                            metalness: 0.0,
+                        });
+                        c.material.dispose();
+                        c.material = newMat;
+                    }
+                });
+                exportScene.add(hmClone);
             }
 
             // Add all meshes as grey context geometry
-            const groundSet = new Set(selectedGroundMeshes);
             for (const mesh of allMeshes) {
                 mesh.updateWorldMatrix(true, false);
                 const clone = mesh.clone();
@@ -2330,23 +2343,30 @@
                 exportScene.add(clone);
             }
 
-            const exporter = new THREE.GLTFExporter();
-            exporter.parse(exportScene, (result) => {
-                const blob = new Blob([result], { type: 'model/gltf-binary' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                const d = new Date();
-                a.download = `SunForm_${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}.glb`;
-                a.click();
-                URL.revokeObjectURL(url);
+            try {
+                const exporter = new THREE.GLTFExporter();
+                exporter.parse(exportScene, (result) => {
+                    const blob = new Blob(
+                        [result],
+                        { type: 'application/octet-stream' }
+                    );
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const d = new Date();
+                    a.download = `SunForm_${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}.glb`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    btn.textContent = 'Download GLB';
+                    btn.disabled = false;
+                }, { binary: true });
+            } catch (err) {
+                alert('GLB export error: ' + err.message);
                 btn.textContent = 'Download GLB';
                 btn.disabled = false;
-            }, (err) => {
-                alert('GLB export error: ' + err);
-                btn.textContent = 'Download GLB';
-                btn.disabled = false;
-            }, { binary: true });
+            }
         }
 
         // ─── EXPORT PDF (plan view: raster heatmap + vector mesh edges) ───
