@@ -851,6 +851,7 @@
                         <option value="270">West</option>
                     </select>
                     <button class="btn btn-secondary" id="orient-two-point-btn" onclick="event.stopPropagation(); startTwoPointOrient();" style="flex:1; margin-top:0;">Set by Two Points</button>
+                    <button class="btn btn-secondary" id="orient-clear-btn" onclick="event.stopPropagation(); clearTwoPointOrient();" style="flex:0 0 auto; margin-top:0; display:none;">Clear</button>
                 </div>
                 <div style="font-size:11px; color:#666; margin-bottom:8px;">
                     Select a direction, then click two points on the model. The line from point 1 to point 2 will be aligned to that direction.
@@ -1245,7 +1246,7 @@
             currentStep = n;
 
             // Step-specific modes
-            if (n === 2) switchToOrtho();
+            if (n === 2) { switchToOrtho(); clearTwoPointOrient(); }
             else switchToPersp();
             setPickMode(n === 3);
             if (n !== 2 && orientMode) stopTwoPointOrient();
@@ -1591,6 +1592,15 @@
             controls.enabled = true;
             document.getElementById('orient-overlay').classList.remove('visible');
             document.getElementById('viewport').classList.remove('picking-mesh');
+            // Disable the button so further clicks don't re-enter orient mode;
+            // show Clear button to allow resetting
+            document.getElementById('orient-two-point-btn').disabled = true;
+            document.getElementById('orient-clear-btn').style.display = '';
+        }
+
+        function clearTwoPointOrient() {
+            document.getElementById('orient-two-point-btn').disabled = false;
+            document.getElementById('orient-clear-btn').style.display = 'none';
         }
 
         function clearOrientMarkers() {
