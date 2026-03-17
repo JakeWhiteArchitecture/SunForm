@@ -92,7 +92,7 @@
         }
 
         .step.completed .step-number {
-            background: #4caf50;
+            background: #00CFC8;
             color: #fff;
         }
 
@@ -110,7 +110,7 @@
 
         .step-summary {
             font-size: 11px;
-            color: #4caf50;
+            color: #00CFC8;
             display: none;
         }
 
@@ -125,7 +125,7 @@
         .step.active .step-body { display: block; }
 
         .step-check {
-            color: #4caf50;
+            color: #00CFC8;
             font-size: 16px;
             display: none;
         }
@@ -188,15 +188,15 @@
         }
 
         .upload-zone.loaded {
-            border-color: #4caf50;
-            background: rgba(76, 175, 80, 0.05);
+            border-color: #00CFC8;
+            background: rgba(0, 207, 200, 0.05);
         }
 
         .upload-zone .upload-icon { font-size: 28px; margin-bottom: 6px; }
         .upload-zone .upload-text { font-size: 13px; color: #aaa; }
         .upload-zone .upload-filename {
             font-size: 12px;
-            color: #4caf50;
+            color: #00CFC8;
             margin-top: 4px;
             font-weight: 600;
         }
@@ -247,8 +247,8 @@
         .btn-secondary { background: #0f3460; color: #e0e0e0; }
         .btn-secondary:hover:not(:disabled) { background: #1a4a80; }
 
-        .btn-run { background: #4caf50; color: white; font-size: 15px; padding: 12px; }
-        .btn-run:hover:not(:disabled) { background: #43a047; }
+        .btn-run { background: #D4880F; color: white; font-size: 15px; padding: 12px; }
+        .btn-run:hover:not(:disabled) { background: #E5A50A; }
 
         /* ─── 3D VIEWPORT ─── */
         .viewport {
@@ -845,7 +845,7 @@
     </div>
 
     <div class="viewport" id="viewport">
-        <div class="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag</div>
+        <div class="viewport-info" id="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag &nbsp;|&nbsp; F: fly mode &nbsp; O: orbit mode</div>
         <div class="north-arrow" id="north-arrow">
             <svg viewBox="0 0 50 50">
                 <polygon points="25,5 30,20 25,15 20,20" fill="#E5A50A"/>
@@ -918,14 +918,19 @@
             summer: '2024-06-21',
         };
         const SEASON_LABELS = {
-            winter: 'Winter (21 Dec)',
-            spring: 'Spring/Autumn (21 Mar)',
-            summer: 'Summer (21 Jun)',
+            winter: 'Winter',
+            spring: 'Spring/Autumn',
+            summer: 'Summer',
         };
         let activeSeasons = { winter: false, spring: true, summer: false };
         let seasonResults = {};         // { winter: {results}, spring: {results}, ... }
         let seasonHeatmaps = {};        // { winter: THREE.Group, ... }
         let visibleSeason = 'spring';   // currently displayed season
+
+        // Fly mode state
+        let flyMode = false;
+        const flyKeys = { w: false, a: false, s: false, d: false, q: false, e: false };
+        const FLY_SPEED = 0.5;
 
         // Leaflet map state
         let locationMap = null;
@@ -996,6 +1001,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            updateFlyMovement();
             controls.update();
             renderer.render(scene, camera);
         }
@@ -1143,6 +1149,8 @@
             }
             seasonHeatmaps = {};
             seasonResults = {};
+            cachedCellData = null;
+            cachedGridSize = null;
             visibleSeason = 'spring';
             document.getElementById('season-switcher').classList.remove('visible');
             clearAllHighlights();
@@ -1844,17 +1852,11 @@
             return tris;
         }
 
-        // ─── TERRAIN-AWARE RAY CASTING (GRID-SLICED MESH) ───
-        async function runTerrainAnalysis(latitude, longitude, timeStep, dateStr) {
-            if (selectedGroundMeshes.length === 0 || !shadowBVH) {
-                throw new Error('Ground meshes and shadow casters must be set');
-            }
+        // ─── PREPARE GRID CELLS (merge + slice — done ONCE, cached) ───
+        let cachedCellData = null;  // reused across seasons
+        let cachedGridSize = null;
 
-            const sunPositions = getSunPositions(latitude, longitude, dateStr, timeStep);
-            if (sunPositions.length === 0) {
-                throw new Error('No sun positions above horizon for given date/location');
-            }
-
+        async function prepareGridCells() {
             const gridSize = parseFloat(document.getElementById('grid_resolution').value) || 1.0;
 
             // Apply bbox filter if set
@@ -1873,7 +1875,7 @@
             // 1. Merge all selected ground mesh fragments into one unified set
             showStatus('Merging ground mesh fragments...');
             await new Promise(r => setTimeout(r, 0));
-            const mergedVerts = []; // flat: x,y,z,x,y,z,...
+            const mergedVerts = [];
             const mergedIdx = [];
             let vertOffset = 0;
 
@@ -1891,19 +1893,15 @@
                 }
 
                 if (idx) {
-                    for (let i = 0; i < idx.length; i++) {
-                        mergedIdx.push(idx[i] + vertOffset);
-                    }
+                    for (let i = 0; i < idx.length; i++) mergedIdx.push(idx[i] + vertOffset);
                 } else {
-                    for (let i = 0; i < numVerts; i++) {
-                        mergedIdx.push(i + vertOffset);
-                    }
+                    for (let i = 0; i < numVerts; i++) mergedIdx.push(i + vertOffset);
                 }
                 vertOffset += numVerts;
             }
 
             // Build all merged triangles as arrays
-            const allMergedTris = []; // each: [[x,y,z],[x,y,z],[x,y,z]]
+            const allMergedTris = [];
             const faceCount = mergedIdx.length / 3;
             for (let f = 0; f < faceCount; f++) {
                 const i0 = mergedIdx[f * 3], i1 = mergedIdx[f * 3 + 1], i2 = mergedIdx[f * 3 + 2];
@@ -1914,85 +1912,65 @@
                 ]);
             }
 
-            // 2. Extract top surface — keep only faces with no other face above them
+            // 2. Extract top surface
             showStatus(`Extracting top surface from ${allMergedTris.length} faces...`);
             await new Promise(r => setTimeout(r, 0));
 
-            // Build a BVH of the merged terrain for self-ray-casting
             const terrainBVH = new BVH(new Float32Array(mergedVerts), new Uint32Array(mergedIdx));
 
-            const worldTris = []; // filtered top-surface triangles
-            const MIN_UPWARD_NY = 0.1; // face normal Y must be > 0.1 (excludes walls & bottom)
+            const worldTris = [];
+            const MIN_UPWARD_NY = 0.1;
             for (let f = 0; f < allMergedTris.length; f++) {
                 const tri = allMergedTris[f];
                 const [a, b, c] = tri;
-
-                // Compute face normal to reject side walls and bottom faces early
                 const e1x = b[0]-a[0], e1y = b[1]-a[1], e1z = b[2]-a[2];
                 const e2x = c[0]-a[0], e2y = c[1]-a[1], e2z = c[2]-a[2];
                 const fnx = e1y*e2z - e1z*e2y;
                 const fny = e1z*e2x - e1x*e2z;
                 const fnz = e1x*e2y - e1y*e2x;
                 const fnLen = Math.sqrt(fnx*fnx + fny*fny + fnz*fnz);
-                if (fnLen === 0) continue; // degenerate triangle
-                // Normalise and check — keep only faces with upward component
+                if (fnLen === 0) continue;
                 const nyNorm = Math.abs(fny) / fnLen;
-                if (nyNorm < MIN_UPWARD_NY) continue; // vertical wall or bottom
+                if (nyNorm < MIN_UPWARD_NY) continue;
 
-                // Centroid of this face
                 const cx = (a[0] + b[0] + c[0]) / 3;
                 const cy = (a[1] + b[1] + c[1]) / 3;
                 const cz = (a[2] + b[2] + c[2]) / 3;
-
-                // Cast ray upward (+Y in Three.js) from just above the face centroid
-                // If the ray hits another face in the same mesh, this face is NOT on top
-                const rayOriginY = cy + 0.005; // 5mm above centroid
+                const rayOriginY = cy + 0.005;
                 const hasAbove = terrainBVH.intersectsAny(cx, rayOriginY, cz, 0, 1, 0);
-
-                if (!hasAbove) {
-                    worldTris.push(tri);
-                }
+                if (!hasAbove) worldTris.push(tri);
 
                 if (f % 1000 === 0 && f > 0) {
-                    const pct = Math.round(f / allMergedTris.length * 100);
-                    showStatus(`Extracting top surface... ${pct}%`);
+                    showStatus(`Extracting top surface... ${Math.round(f / allMergedTris.length * 100)}%`);
                     await new Promise(r => setTimeout(r, 0));
                 }
             }
 
             showStatus(`Top surface: ${worldTris.length} of ${allMergedTris.length} faces kept`);
 
-            // 2. Slice every triangle along grid lines
+            // 3. Slice every triangle along grid lines
             showStatus(`Slicing ${worldTris.length} triangles along ${gridSize}m grid...`);
             await new Promise(r => setTimeout(r, 0));
 
-            // Assign sub-triangles to grid cells: key "col,row" -> { tris, area, centroid, normal }
             const cells = new Map();
-
             for (let ti = 0; ti < worldTris.length; ti++) {
                 const subTris = clipTriToGrid(worldTris[ti], gridSize);
-
                 for (const st of subTris) {
                     const [a, b, c] = st;
-                    // Centroid
                     const cx = (a[0] + b[0] + c[0]) / 3;
                     const cy = (a[1] + b[1] + c[1]) / 3;
                     const cz = (a[2] + b[2] + c[2]) / 3;
 
-                    // Bbox filter (IFC coords: X = Three X, Y = -Three Z)
                     if (bboxFilter) {
-                        const ifcX = cx;
-                        const ifcY = -cz;
+                        const ifcX = cx, ifcY = -cz;
                         if (ifcX < bboxFilter.minX || ifcX > bboxFilter.maxX ||
                             ifcY < bboxFilter.minY || ifcY > bboxFilter.maxY) continue;
                     }
 
-                    // Determine grid cell
                     const col = Math.floor(cx / gridSize);
                     const row = Math.floor(cz / gridSize);
                     const key = col + ',' + row;
 
-                    // Face normal & area
                     const e1x = b[0]-a[0], e1y = b[1]-a[1], e1z = b[2]-a[2];
                     const e2x = c[0]-a[0], e2y = c[1]-a[1], e2z = c[2]-a[2];
                     const nx = e1y*e2z - e1z*e2y;
@@ -2002,12 +1980,9 @@
                     const area = len * 0.5;
 
                     if (!cells.has(key)) {
-                        cells.set(key, {
-                            tris: [],
-                            area: 0,
+                        cells.set(key, { tris: [], area: 0,
                             sumCx: 0, sumCy: 0, sumCz: 0,
-                            sumNx: 0, sumNy: 0, sumNz: 0,
-                        });
+                            sumNx: 0, sumNy: 0, sumNz: 0 });
                     }
                     const cell = cells.get(key);
                     cell.tris.push(st);
@@ -2016,18 +1991,14 @@
                     cell.sumCy += cy * area;
                     cell.sumCz += cz * area;
                     if (len > 0) {
-                        // Force normal to point upward (+Y) regardless of winding
                         const sign = ny >= 0 ? 1 : -1;
                         cell.sumNx += sign * (nx / len) * area;
                         cell.sumNy += sign * (ny / len) * area;
                         cell.sumNz += sign * (nz / len) * area;
                     }
                 }
-
-                // Yield occasionally during slicing
                 if (ti % 500 === 0 && ti > 0) {
-                    const pct = Math.round(ti / worldTris.length * 100);
-                    showStatus(`Slicing triangles... ${pct}%`);
+                    showStatus(`Slicing triangles... ${Math.round(ti / worldTris.length * 100)}%`);
                     await new Promise(r => setTimeout(r, 0));
                 }
             }
@@ -2036,7 +2007,6 @@
                 throw new Error('No grid cells found on the selected ground meshes');
             }
 
-            // Finalize per-cell centroids and normals (area-weighted averages)
             const cellKeys = Array.from(cells.keys());
             const cellData = cellKeys.map(k => {
                 const c = cells.get(k);
@@ -2053,7 +2023,26 @@
                 };
             });
 
-            // 3. Ray-cast sun hours per grid cell
+            cachedCellData = cellData;
+            cachedGridSize = gridSize;
+            showStatus(`Grid prepared: ${cellData.length} cells at ${gridSize}m resolution`);
+            return cellData;
+        }
+
+        // ─── RAY CAST SUN HOURS (uses cached cell data) ───
+        async function runTerrainAnalysis(latitude, longitude, timeStep, dateStr, cellData) {
+            if (!shadowBVH) {
+                throw new Error('Shadow casters must be set');
+            }
+
+            const sunPositions = getSunPositions(latitude, longitude, dateStr, timeStep);
+            if (sunPositions.length === 0) {
+                throw new Error('No sun positions above horizon for given date/location');
+            }
+
+            const gridSize = cachedGridSize;
+
+            // Ray-cast sun hours per grid cell
             const totalRays = cellData.length * sunPositions.length;
             showStatus(`Casting ${totalRays.toLocaleString()} rays (${cellData.length} cells x ${sunPositions.length} sun positions)...`);
 
@@ -2229,12 +2218,15 @@
                 const lng = parseFloat(document.getElementById('longitude').value);
                 const timeStep = parseFloat(document.getElementById('time_step').value);
 
+                // Prepare grid cells ONCE (merge + slice + top-surface extraction)
+                const cellData = await prepareGridCells();
+
                 for (let si = 0; si < seasons.length; si++) {
                     const season = seasons[si];
                     const dateStr = SEASON_DATES[season];
-                    showStatus(`Analysing ${SEASON_LABELS[season]} (${si + 1}/${seasons.length})...`);
+                    showStatus(`Ray casting ${SEASON_LABELS[season]} (${si + 1}/${seasons.length})...`);
 
-                    const results = await runTerrainAnalysis(lat, lng, timeStep, dateStr);
+                    const results = await runTerrainAnalysis(lat, lng, timeStep, dateStr, cellData);
                     results.season = season;
                     results.seasonLabel = SEASON_LABELS[season];
                     seasonResults[season] = results;
@@ -2481,8 +2473,12 @@
                     doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), pageW - 20, pageH - 5, { align: 'right' });
                 }
 
-                // Restore scene state
-                for (const mesh of allMeshes) mesh.visible = false; // keep hidden (step 5)
+                // Restore scene state — show non-ground meshes, hide ground (step 5)
+                const pdfGroundSet = new Set(selectedGroundMeshes);
+                for (const mesh of allMeshes) {
+                    mesh.visible = !pdfGroundSet.has(mesh);
+                }
+                for (const hl of groundHighlights) hl.visible = false;
                 for (const [k, group] of Object.entries(seasonHeatmaps)) {
                     group.visible = (k === visibleSeason);
                 }
@@ -2653,12 +2649,87 @@
             document.getElementById('status-overlay').style.display = 'none';
         }
 
+        // ─── FLY / ORBIT MODE ───
+        function enableFlyMode() {
+            flyMode = true;
+            controls.enableRotate = true;
+            controls.enablePan = true;
+            controls.enableZoom = true;
+            // In fly mode we use the orbit controls for looking, WASD for moving
+            updateViewportInfo();
+        }
+
+        function enableOrbitMode() {
+            flyMode = false;
+            // Reset all fly keys
+            for (const k in flyKeys) flyKeys[k] = false;
+            updateViewportInfo();
+        }
+
+        function updateViewportInfo() {
+            const el = document.getElementById('viewport-info');
+            if (flyMode) {
+                el.textContent = 'FLY MODE — W/S: forward/back | A/D: strafe | Q/E: up/down | Mouse: look | O: orbit mode';
+            } else {
+                el.textContent = 'ORBIT MODE — Drag: orbit | Scroll: zoom | Right-drag: pan | F: fly mode';
+            }
+        }
+
+        // Fly mode animation loop (runs inside main animate)
+        function updateFlyMovement() {
+            if (!flyMode) return;
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            const right = new THREE.Vector3().crossVectors(dir, camera.up).normalize();
+            const up = new THREE.Vector3(0, 1, 0);
+
+            const move = new THREE.Vector3();
+            if (flyKeys.w) move.add(dir);
+            if (flyKeys.s) move.sub(dir);
+            if (flyKeys.a) move.sub(right);
+            if (flyKeys.d) move.add(right);
+            if (flyKeys.q) move.sub(up);
+            if (flyKeys.e) move.add(up);
+
+            if (move.length() > 0) {
+                move.normalize().multiplyScalar(FLY_SPEED);
+                camera.position.add(move);
+                controls.target.add(move);
+                controls.update();
+            }
+        }
+
         // ─── KEYBOARD SHORTCUTS ───
         document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-            if (e.key === 'Escape') {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+            const key = e.key.toLowerCase();
+
+            if (key === 'escape') {
                 if (bboxMode) toggleBboxMode();
                 if (pickMode) setPickMode(false);
+                return;
+            }
+
+            if (key === 'f') {
+                enableFlyMode();
+                return;
+            }
+            if (key === 'o') {
+                enableOrbitMode();
+                return;
+            }
+
+            // WASD + Q/E for fly mode
+            if (key in flyKeys) {
+                flyKeys[key] = true;
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in flyKeys) {
+                flyKeys[key] = false;
             }
         });
 
@@ -2790,9 +2861,13 @@
 
         // ─── MESH VISIBILITY MANAGEMENT ───
         function hideCalculationMeshes() {
-            // Hide all IFC meshes and ground highlights after analysis
+            // Hide only the ground meshes used for calculation (to avoid aliasing)
+            // Keep all non-ground building meshes visible
+            const groundSet = new Set(selectedGroundMeshes);
             for (const mesh of allMeshes) {
-                mesh.visible = false;
+                if (groundSet.has(mesh)) {
+                    mesh.visible = false;
+                }
             }
             for (const hl of groundHighlights) {
                 hl.visible = false;
@@ -2800,9 +2875,12 @@
         }
 
         function showCalculationMeshes() {
-            // Reinstate IFC mesh visibility
+            // Reinstate ground mesh visibility (e.g. when going back to select mesh)
+            const groundSet = new Set(selectedGroundMeshes);
             for (const mesh of allMeshes) {
-                mesh.visible = true;
+                if (groundSet.has(mesh)) {
+                    mesh.visible = true;
+                }
             }
             for (const hl of groundHighlights) {
                 hl.visible = true;
