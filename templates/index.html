@@ -1472,7 +1472,88 @@
             return new THREE.Vector3(ifcX, ifcZ, -ifcY).normalize();
         }
 
-        // ─── TERRAIN-AWARE RAY CASTING ───
+        // ─── TRIANGLE-GRID CLIPPING HELPERS ───
+        function lerpVert(a, b, t) {
+            return [
+                a[0] + t * (b[0] - a[0]),
+                a[1] + t * (b[1] - a[1]),
+                a[2] + t * (b[2] - a[2]),
+            ];
+        }
+
+        // Split an array of triangles along an axis-aligned plane (axis: 0=X, 2=Z)
+        function splitTrisAlongPlane(tris, axis, value) {
+            const result = [];
+            for (const tri of tris) {
+                const [a, b, c] = tri;
+                const da = a[axis] - value;
+                const db = b[axis] - value;
+                const dc = c[axis] - value;
+                const sa = da >= 0;
+                const sb = db >= 0;
+                const sc = dc >= 0;
+
+                if (sa === sb && sb === sc) {
+                    result.push(tri);
+                    continue;
+                }
+
+                // Find the lone vertex (the one on its own side)
+                let lone, pair1, pair2, dLone, dPair1, dPair2;
+                if (sa !== sb && sa !== sc) {
+                    lone = a; pair1 = b; pair2 = c;
+                    dLone = da; dPair1 = db; dPair2 = dc;
+                } else if (sb !== sa && sb !== sc) {
+                    lone = b; pair1 = a; pair2 = c;
+                    dLone = db; dPair1 = da; dPair2 = dc;
+                } else {
+                    lone = c; pair1 = a; pair2 = b;
+                    dLone = dc; dPair1 = da; dPair2 = db;
+                }
+
+                const t1 = dLone / (dLone - dPair1);
+                const m1 = lerpVert(lone, pair1, t1);
+                const t2 = dLone / (dLone - dPair2);
+                const m2 = lerpVert(lone, pair2, t2);
+
+                // Lone side: 1 triangle
+                result.push([lone, m1, m2]);
+                // Pair side: quad = 2 triangles
+                result.push([m1, pair1, pair2]);
+                result.push([m1, pair2, m2]);
+            }
+            return result;
+        }
+
+        // Clip a single triangle against all grid lines it crosses
+        function clipTriToGrid(tri, gridSize) {
+            let tris = [tri];
+
+            // Find X grid lines this triangle crosses
+            const minX = Math.min(tri[0][0], tri[1][0], tri[2][0]);
+            const maxX = Math.max(tri[0][0], tri[1][0], tri[2][0]);
+            const firstX = Math.ceil(minX / gridSize) * gridSize;
+            for (let x = firstX; x < maxX; x += gridSize) {
+                tris = splitTrisAlongPlane(tris, 0, x);
+            }
+
+            // Find Z grid lines the (now-split) triangles cross
+            let minZ = Infinity, maxZ = -Infinity;
+            for (const t of tris) {
+                for (const v of t) {
+                    if (v[2] < minZ) minZ = v[2];
+                    if (v[2] > maxZ) maxZ = v[2];
+                }
+            }
+            const firstZ = Math.ceil(minZ / gridSize) * gridSize;
+            for (let z = firstZ; z < maxZ; z += gridSize) {
+                tris = splitTrisAlongPlane(tris, 2, z);
+            }
+
+            return tris;
+        }
+
+        // ─── TERRAIN-AWARE RAY CASTING (GRID-SLICED MESH) ───
         async function runTerrainAnalysis(latitude, longitude, timeStep, dateStr) {
             if (selectedGroundMeshes.length === 0 || !shadowBVH) {
                 throw new Error('Ground meshes and shadow casters must be set');
@@ -1484,16 +1565,6 @@
             }
 
             const gridSize = parseFloat(document.getElementById('grid_resolution').value) || 1.0;
-
-            // Compute world-space bounding box of all selected ground meshes
-            const groundBBox = new THREE.Box3();
-            for (const gm of selectedGroundMeshes) {
-                gm.updateWorldMatrix(true, false);
-                const geo = gm.geometry;
-                if (!geo.boundingBox) geo.computeBoundingBox();
-                const meshBox = geo.boundingBox.clone().applyMatrix4(gm.matrixWorld);
-                groundBBox.union(meshBox);
-            }
 
             // Apply bbox filter if set
             let bboxFilter = null;
@@ -1508,93 +1579,149 @@
                 }
             }
 
-            // Build a THREE.Raycaster for downward probing onto ground meshes
-            const downRay = new THREE.Raycaster();
-            downRay.far = (groundBBox.max.y - groundBBox.min.y) + 10;
+            // 1. Collect world-space triangles from all selected ground meshes
+            showStatus('Extracting ground mesh triangles...');
+            await new Promise(r => setTimeout(r, 0));
+            const worldTris = []; // each: [[x,y,z],[x,y,z],[x,y,z]]
 
-            // Generate regular grid over the XZ bounding box, ray-cast down to find ground
-            showStatus('Building analysis grid...');
+            for (const gm of selectedGroundMeshes) {
+                gm.updateWorldMatrix(true, false);
+                const wm = gm.matrixWorld;
+                const geo = gm.geometry;
+                const pos = geo.attributes.position.array;
+                const idx = geo.index ? geo.index.array : null;
+                const faceCount = idx ? idx.length / 3 : pos.length / 9;
+
+                for (let f = 0; f < faceCount; f++) {
+                    let i0, i1, i2;
+                    if (idx) {
+                        i0 = idx[f * 3]; i1 = idx[f * 3 + 1]; i2 = idx[f * 3 + 2];
+                    } else {
+                        i0 = f * 3; i1 = f * 3 + 1; i2 = f * 3 + 2;
+                    }
+                    const a = new THREE.Vector3(pos[i0*3], pos[i0*3+1], pos[i0*3+2]).applyMatrix4(wm);
+                    const b = new THREE.Vector3(pos[i1*3], pos[i1*3+1], pos[i1*3+2]).applyMatrix4(wm);
+                    const c = new THREE.Vector3(pos[i2*3], pos[i2*3+1], pos[i2*3+2]).applyMatrix4(wm);
+                    worldTris.push([[a.x, a.y, a.z], [b.x, b.y, b.z], [c.x, c.y, c.z]]);
+                }
+            }
+
+            // 2. Slice every triangle along grid lines
+            showStatus(`Slicing ${worldTris.length} triangles along ${gridSize}m grid...`);
             await new Promise(r => setTimeout(r, 0));
 
-            const gridPoints = [];   // {x, y, z} world positions on ground surface
-            const gridNormals = [];  // {x, y, z} surface normal at each point
-            const gridCols = [];     // grid column index
-            const gridRows = [];     // grid row index
+            // Assign sub-triangles to grid cells: key "col,row" -> { tris, area, centroid, normal }
+            const cells = new Map();
 
-            const startX = Math.floor(groundBBox.min.x / gridSize) * gridSize;
-            const startZ = Math.floor(groundBBox.min.z / gridSize) * gridSize;
-            const endX = Math.ceil(groundBBox.max.x / gridSize) * gridSize;
-            const endZ = Math.ceil(groundBBox.max.z / gridSize) * gridSize;
-            const probeY = groundBBox.max.y + 5; // cast from above
+            for (let ti = 0; ti < worldTris.length; ti++) {
+                const subTris = clipTriToGrid(worldTris[ti], gridSize);
 
-            let col = 0;
-            for (let gx = startX; gx < endX; gx += gridSize) {
-                let row = 0;
-                for (let gz = startZ; gz < endZ; gz += gridSize) {
-                    const cx = gx + gridSize * 0.5;
-                    const cz = gz + gridSize * 0.5;
+                for (const st of subTris) {
+                    const [a, b, c] = st;
+                    // Centroid
+                    const cx = (a[0] + b[0] + c[0]) / 3;
+                    const cy = (a[1] + b[1] + c[1]) / 3;
+                    const cz = (a[2] + b[2] + c[2]) / 3;
 
                     // Bbox filter (IFC coords: X = Three X, Y = -Three Z)
                     if (bboxFilter) {
                         const ifcX = cx;
                         const ifcY = -cz;
                         if (ifcX < bboxFilter.minX || ifcX > bboxFilter.maxX ||
-                            ifcY < bboxFilter.minY || ifcY > bboxFilter.maxY) {
-                            row++;
-                            continue;
-                        }
+                            ifcY < bboxFilter.minY || ifcY > bboxFilter.maxY) continue;
                     }
 
-                    // Cast ray downward to hit ground meshes
-                    downRay.set(new THREE.Vector3(cx, probeY, cz), new THREE.Vector3(0, -1, 0));
-                    const hits = downRay.intersectObjects(selectedGroundMeshes, false);
-                    if (hits.length > 0) {
-                        const hit = hits[0];
-                        gridPoints.push({ x: hit.point.x, y: hit.point.y, z: hit.point.z });
-                        const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
-                                           : new THREE.Vector3(0, 1, 0);
-                        gridNormals.push({ x: n.x, y: n.y, z: n.z });
-                        gridCols.push(col);
-                        gridRows.push(row);
+                    // Determine grid cell
+                    const col = Math.floor(cx / gridSize);
+                    const row = Math.floor(cz / gridSize);
+                    const key = col + ',' + row;
+
+                    // Face normal & area
+                    const e1x = b[0]-a[0], e1y = b[1]-a[1], e1z = b[2]-a[2];
+                    const e2x = c[0]-a[0], e2y = c[1]-a[1], e2z = c[2]-a[2];
+                    const nx = e1y*e2z - e1z*e2y;
+                    const ny = e1z*e2x - e1x*e2z;
+                    const nz = e1x*e2y - e1y*e2x;
+                    const len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+                    const area = len * 0.5;
+
+                    if (!cells.has(key)) {
+                        cells.set(key, {
+                            tris: [],
+                            area: 0,
+                            sumCx: 0, sumCy: 0, sumCz: 0,
+                            sumNx: 0, sumNy: 0, sumNz: 0,
+                        });
                     }
-                    row++;
+                    const cell = cells.get(key);
+                    cell.tris.push(st);
+                    cell.area += area;
+                    cell.sumCx += cx * area;
+                    cell.sumCy += cy * area;
+                    cell.sumCz += cz * area;
+                    if (len > 0) {
+                        cell.sumNx += (nx / len) * area;
+                        cell.sumNy += (ny / len) * area;
+                        cell.sumNz += (nz / len) * area;
+                    }
                 }
-                col++;
+
+                // Yield occasionally during slicing
+                if (ti % 500 === 0 && ti > 0) {
+                    const pct = Math.round(ti / worldTris.length * 100);
+                    showStatus(`Slicing triangles... ${pct}%`);
+                    await new Promise(r => setTimeout(r, 0));
+                }
             }
 
-            if (gridPoints.length === 0) {
-                throw new Error('No grid points found on the selected ground meshes');
+            if (cells.size === 0) {
+                throw new Error('No grid cells found on the selected ground meshes');
             }
 
-            const cellArea = gridSize * gridSize;
-            const totalRays = gridPoints.length * sunPositions.length;
-            showStatus(`Casting ${totalRays.toLocaleString()} rays (${gridPoints.length} grid cells x ${sunPositions.length} sun positions)...`);
+            // Finalize per-cell centroids and normals (area-weighted averages)
+            const cellKeys = Array.from(cells.keys());
+            const cellData = cellKeys.map(k => {
+                const c = cells.get(k);
+                const a = c.area || 1;
+                const nLen = Math.sqrt(c.sumNx*c.sumNx + c.sumNy*c.sumNy + c.sumNz*c.sumNz);
+                return {
+                    key: k,
+                    tris: c.tris,
+                    area: c.area,
+                    centroid: { x: c.sumCx / a, y: c.sumCy / a, z: c.sumCz / a },
+                    normal: nLen > 0
+                        ? { x: c.sumNx / nLen, y: c.sumNy / nLen, z: c.sumNz / nLen }
+                        : { x: 0, y: 1, z: 0 },
+                };
+            });
+
+            // 3. Ray-cast sun hours per grid cell
+            const totalRays = cellData.length * sunPositions.length;
+            showStatus(`Casting ${totalRays.toLocaleString()} rays (${cellData.length} cells x ${sunPositions.length} sun positions)...`);
 
             const sunDirs = sunPositions.map(sp => {
                 const v = sunDirection(sp.azimuth, sp.altitude);
                 return [v.x, v.y, v.z];
             });
 
-            const gridSunHours = new Float32Array(gridPoints.length);
+            const cellSunHours = new Float32Array(cellData.length);
             let raysProcessed = 0;
             const BATCH_SIZE = 2000;
 
             for (let sunIdx = 0; sunIdx < sunDirs.length; sunIdx++) {
                 const [dx, dy, dz] = sunDirs[sunIdx];
 
-                for (let i = 0; i < gridPoints.length; i += BATCH_SIZE) {
-                    const end = Math.min(i + BATCH_SIZE, gridPoints.length);
+                for (let i = 0; i < cellData.length; i += BATCH_SIZE) {
+                    const end = Math.min(i + BATCH_SIZE, cellData.length);
 
                     for (let j = i; j < end; j++) {
-                        const gp = gridPoints[j];
-                        const gn = gridNormals[j];
-                        // Offset origin slightly above surface to avoid self-intersection
-                        const ox = gp.x + gn.x * 0.01;
-                        const oy = gp.y + gn.y * 0.01;
-                        const oz = gp.z + gn.z * 0.01;
+                        const cd = cellData[j];
+                        const ox = cd.centroid.x + cd.normal.x * 0.01;
+                        const oy = cd.centroid.y + cd.normal.y * 0.01;
+                        const oz = cd.centroid.z + cd.normal.z * 0.01;
 
                         if (!shadowBVH.intersectsAny(ox, oy, oz, dx, dy, dz)) {
-                            gridSunHours[j] += timeStep;
+                            cellSunHours[j] += timeStep;
                         }
                     }
 
@@ -1607,21 +1734,20 @@
                 }
             }
 
-            // BRE compliance using uniform grid cell areas
+            // BRE compliance using actual cell areas
             const thresholdHours = 2.0;
-            let cellsMeeting = 0;
-            for (let i = 0; i < gridSunHours.length; i++) {
-                if (gridSunHours[i] >= thresholdHours) cellsMeeting++;
+            let areaMeeting = 0;
+            let totalArea = 0;
+            for (let i = 0; i < cellData.length; i++) {
+                totalArea += cellData[i].area;
+                if (cellSunHours[i] >= thresholdHours) areaMeeting += cellData[i].area;
             }
-            const totalArea = gridPoints.length * cellArea;
-            const areaMeeting = cellsMeeting * cellArea;
-            const percentage = gridPoints.length > 0 ? (cellsMeeting / gridPoints.length) * 100 : 0;
+            const percentage = totalArea > 0 ? (areaMeeting / totalArea) * 100 : 0;
             const passes = percentage >= 50;
 
             return {
-                gridPoints,
-                gridNormals,
-                gridSunHours,
+                cellData,
+                cellSunHours,
                 gridSize,
                 sunPositions,
                 totalArea,
@@ -1631,7 +1757,7 @@
                     percentage: Math.round(percentage * 10) / 10,
                     area_total: totalArea.toFixed(1),
                     area_meeting: areaMeeting.toFixed(1),
-                    cells_total: gridPoints.length,
+                    cells_total: cellData.length,
                     threshold_hours: thresholdHours,
                     message: `${percentage.toFixed(1)}% of amenity area receives \u2265${thresholdHours}h sunlight on 21 March \u2014 ${passes ? 'PASS' : 'FAIL'}`,
                 },
@@ -1666,9 +1792,9 @@
             return [c[1], c[2], c[3]];
         }
 
-        // ─── PAINT REGULAR GRID TILES ONTO GROUND ───
+        // ─── PAINT GRID-SLICED MESH TILES (20mm OFFSET) ───
         function paintGroundMesh(results) {
-            if (selectedGroundMeshes.length === 0) return;
+            if (!results.cellData || results.cellData.length === 0) return;
 
             // Remove previous heatmap overlay
             if (heatmapGroup) {
@@ -1682,34 +1808,28 @@
             heatmapGroup = new THREE.Group();
             heatmapGroup.name = 'heatmap';
 
-            const gs = results.gridSize;
-            const half = gs * 0.5;
             const off = 0.02; // 20mm offset above surface
 
             const tilePositions = [];
             const tileColors = [];
 
-            for (let i = 0; i < results.gridPoints.length; i++) {
-                const gp = results.gridPoints[i];
-                const gn = results.gridNormals[i];
-                const hours = results.gridSunHours[i];
+            for (let i = 0; i < results.cellData.length; i++) {
+                const cd = results.cellData[i];
+                const hours = results.cellSunHours[i];
                 const [r, g, b] = lerpColour(hours);
+                const n = cd.normal;
 
-                // Offset the center point slightly above the surface
-                const cy = gp.y + gn.y * off + off;
-
-                // Build a flat square quad (2 triangles) centered on the grid point
-                // Corners: SW, SE, NE, NW in XZ plane
-                const x0 = gp.x - half, x1 = gp.x + half;
-                const z0 = gp.z - half, z1 = gp.z + half;
-
-                // Triangle 1: SW, SE, NE
-                tilePositions.push(x0, cy, z0,  x1, cy, z0,  x1, cy, z1);
-                tileColors.push(r, g, b,  r, g, b,  r, g, b);
-
-                // Triangle 2: SW, NE, NW
-                tilePositions.push(x0, cy, z0,  x1, cy, z1,  x0, cy, z1);
-                tileColors.push(r, g, b,  r, g, b,  r, g, b);
+                // Paint each sub-triangle in this cell with the same colour
+                for (const tri of cd.tris) {
+                    for (const v of tri) {
+                        tilePositions.push(
+                            v[0] + n.x * off,
+                            v[1] + n.y * off,
+                            v[2] + n.z * off
+                        );
+                        tileColors.push(r, g, b);
+                    }
+                }
             }
 
             if (tilePositions.length > 0) {
@@ -1757,7 +1877,7 @@
                 showCompliance(results.compliance);
                 showStatus(
                     `Analysis complete \u2014 ${results.sunPositions.length} sun positions, ` +
-                    `${results.gridPoints.length} grid cells (${results.gridSize}m)`
+                    `${results.cellData.length} grid cells (${results.gridSize}m)`
                 );
                 setTimeout(hideStatus, 5000);
 
