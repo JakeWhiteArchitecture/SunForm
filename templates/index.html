@@ -2960,6 +2960,7 @@
             const key = e.key.toLowerCase();
 
             if (key === 'escape') {
+                if (flyMode) { enableOrbitMode(); return; }
                 if (bboxMode) toggleBboxMode();
                 if (pickMode) setPickMode(false);
                 return;
