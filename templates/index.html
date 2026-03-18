@@ -1101,7 +1101,7 @@
     <div class="viewport" id="viewport">
         <div class="fly-crosshair" id="fly-crosshair">+</div>
         <div class="viewport-info" id="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag &nbsp;|&nbsp; F: fly mode &nbsp; O: orbit mode</div>
-        <div style="position:absolute; bottom:20px; right:20px; z-index:10; text-align:center;">
+        <div style="position:absolute; top:32px; right:20px; z-index:10; text-align:center;">
             <a href="https://buymeacoffee.com/jakewhite" target="_blank" rel="noopener noreferrer"
                style="display:inline-block; background:rgba(212,136,15,0.85); color:#fff; font-size:11px; font-weight:600; padding:6px 14px; border-radius:4px; text-decoration:none; letter-spacing:0.3px; backdrop-filter:blur(4px);">
                 ☕ Buy me a coffee
@@ -3659,8 +3659,6 @@
                 const lineMat = new THREE.LineBasicMaterial({
                     color: blocked ? 0xFF4444 : 0xFFD700,
                     linewidth: 1,
-                    transparent: true,
-                    opacity: blocked ? 0.4 : 0.8,
                 });
                 const line = new THREE.Line(lineGeo, lineMat);
                 rayProbeGroup.add(line);
