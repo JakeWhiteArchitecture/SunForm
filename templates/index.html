@@ -779,7 +779,7 @@
         </div>
     </div>
 
-    <div class="panel" ondblclick="event.stopPropagation();">
+    <div class="panel">
       <div class="panel-scroll">
         <img src="/sunform-logo.png" alt="SunForm" class="logo-img">
         <h1 style="display:flex; align-items:center; gap:6px;">SunForm (Beta)</h1>
@@ -1117,6 +1117,10 @@
             groundPlane.rotation.x = -Math.PI / 2;
             groundPlane.position.y = 0;
             scene.add(groundPlane);
+
+            document.querySelector('.panel').addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
 
             window.addEventListener('resize', () => {
                 const w = container.clientWidth;
