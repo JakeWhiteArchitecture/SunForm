@@ -272,6 +272,21 @@
             z-index: 5;
         }
 
+        /* ─── FLY MODE CROSSHAIR ─── */
+        .fly-crosshair {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 24px;
+            font-weight: 300;
+            pointer-events: none;
+            line-height: 1;
+        }
+
         /* ─── NORTH ARROW OVERLAY ─── */
         .north-arrow {
             display: none;
@@ -979,6 +994,7 @@
     </div>
 
     <div class="viewport" id="viewport">
+        <div class="fly-crosshair" id="fly-crosshair">+</div>
         <div class="viewport-info" id="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag &nbsp;|&nbsp; F: fly mode &nbsp; O: orbit mode</div>
         <div class="north-arrow" id="north-arrow">
             <div id="north-arrow-rotator" style="display:inline-block;">
@@ -1702,10 +1718,12 @@
         function handleMeshPick(event) {
             const container = document.getElementById('viewport');
             const rect = container.getBoundingClientRect();
-            const mouse = new THREE.Vector2(
-                ((event.clientX - rect.left) / rect.width) * 2 - 1,
-                -((event.clientY - rect.top) / rect.height) * 2 + 1
-            );
+            const mouse = flyMode
+                ? new THREE.Vector2(0, 0)
+                : new THREE.Vector2(
+                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                    -((event.clientY - rect.top) / rect.height) * 2 + 1
+                );
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(mouse, camera);
             const hits = raycaster.intersectObjects(allMeshes, false);
@@ -2870,6 +2888,7 @@
             flyYaw = euler.y;
             flyPitch = euler.x;
             renderer.domElement.requestPointerLock();
+            document.getElementById('fly-crosshair').style.display = 'block';
             updateViewportInfo();
         }
 
@@ -2878,6 +2897,7 @@
             for (const k in flyKeys) flyKeys[k] = false;
             if (document.pointerLockElement) document.exitPointerLock();
             controls.enabled = true;
+            document.getElementById('fly-crosshair').style.display = 'none';
             // Restore orbit target to model centre
             if (buildingGroup) {
                 const bb = new THREE.Box3().setFromObject(buildingGroup);
