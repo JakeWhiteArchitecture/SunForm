@@ -404,6 +404,7 @@
             display: none;
             position: absolute;
             left: 20px;
+            top: auto;
             bottom: 60px;
             z-index: 12;
             background: rgba(10, 10, 30, 0.92);
@@ -426,6 +427,11 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: grab;
+            user-select: none;
+        }
+        .ray-probe-panel .probe-title:active {
+            cursor: grabbing;
         }
         .ray-probe-panel .probe-clear-btn {
             background: #D4880F;
@@ -1034,6 +1040,8 @@
                     <div class="field">
                         <label>Time Step <span class="unit">hours</span></label>
                         <select id="time_step">
+                            <option value="0.0833">5 min</option>
+                            <option value="0.25">15 min</option>
                             <option value="0.5">30 min</option>
                             <option value="1" selected>1 hour</option>
                         </select>
@@ -3510,6 +3518,56 @@
             document.getElementById('ray-probe-panel').classList.remove('visible');
         }
 
+        // ─── PROBE PANEL DRAG ───
+        let probeDragging = false;
+        let probeDragOffX = 0;
+        let probeDragOffY = 0;
+
+        function initProbeDrag() {
+            const panel = document.getElementById('ray-probe-panel');
+            const title = panel.querySelector('.probe-title');
+
+            title.addEventListener('mousedown', (e) => {
+                // Don't drag when clicking the Clear button
+                if (e.target.closest('.probe-clear-btn')) return;
+                e.preventDefault();
+                probeDragging = true;
+                const rect = panel.getBoundingClientRect();
+                probeDragOffX = e.clientX - rect.left;
+                probeDragOffY = e.clientY - rect.top;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!probeDragging) return;
+                const viewport = document.getElementById('viewport');
+                const vr = viewport.getBoundingClientRect();
+                const pw = panel.offsetWidth;
+                const ph = panel.offsetHeight;
+
+                let newLeft = e.clientX - vr.left - probeDragOffX;
+                let newTop = e.clientY - vr.top - probeDragOffY;
+
+                // Clamp to viewport bounds
+                newLeft = Math.max(0, Math.min(newLeft, vr.width - pw));
+                newTop = Math.max(0, Math.min(newTop, vr.height - ph));
+
+                panel.style.left = newLeft + 'px';
+                panel.style.top = newTop + 'px';
+                panel.style.bottom = 'auto';
+            });
+
+            document.addEventListener('mouseup', () => {
+                probeDragging = false;
+            });
+        }
+
+        function resetProbePosition() {
+            const panel = document.getElementById('ray-probe-panel');
+            panel.style.left = '20px';
+            panel.style.bottom = '60px';
+            panel.style.top = 'auto';
+        }
+
         function handleRayProbeClick(event) {
             // Only works when results are showing
             if (currentStep !== 6) return;
@@ -3642,12 +3700,14 @@
             }
             html += '</table>';
             document.getElementById('probe-table').innerHTML = html;
+            resetProbePosition();
             panel.classList.add('visible');
         }
 
         // ─── INIT ───
         initThree();
         initWebIfc();
+        initProbeDrag();
         // Leaflet must init after DOM is ready and step-5 is visible at least once
         // We defer map init to when step 4 opens
         let mapInitialized = false;
