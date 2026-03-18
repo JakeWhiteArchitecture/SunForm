@@ -3034,6 +3034,7 @@
             locationMap = L.map('location-map', {
                 zoomControl: true,
                 attributionControl: false,
+                doubleClickZoom: false,
             }).setView([54.0, -2.0], 6); // UK overview
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
