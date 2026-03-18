@@ -1,0 +1,3252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SunForm — Sun Hours Analysis</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ─── LEFT PANEL ─── */
+        .panel {
+            width: 380px;
+            min-width: 380px;
+            background: #16213e;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #0f3460;
+        }
+
+        .panel-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 20px 20px 20px;
+        }
+
+        .panel h1 {
+            font-size: 20px;
+            color: #D4880F;
+            margin-bottom: 4px;
+        }
+
+        .panel .subtitle {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+
+        /* ─── ACCORDION STEPS ─── */
+        .step {
+            margin-bottom: 4px;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            overflow: hidden;
+            transition: opacity 0.2s;
+        }
+
+        .step.upcoming {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            background: #1a1a2e;
+            cursor: pointer;
+            user-select: none;
+            gap: 10px;
+        }
+
+        .step-header:hover {
+            background: #1e2444;
+        }
+
+        .step-number {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #0f3460;
+            color: #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step.active .step-number {
+            background: #D4880F;
+            color: #fff;
+        }
+
+        .step.completed .step-number {
+            background: #00CFC8;
+            color: #fff;
+        }
+
+        .step-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #aaa;
+            flex: 1;
+        }
+
+        .step.active .step-title { color: #e0e0e0; }
+        .step.completed .step-title { color: #aaa; }
+
+        .step-summary {
+            font-size: 11px;
+            color: #00CFC8;
+            display: none;
+        }
+
+        .step.completed .step-summary { display: inline; }
+
+        .step-body {
+            display: none;
+            padding: 12px 14px 16px;
+            border-top: 1px solid #0f3460;
+        }
+
+        .step.active .step-body { display: block; }
+
+        .step-check {
+            color: #00CFC8;
+            font-size: 16px;
+            display: none;
+        }
+
+        .step.completed .step-check { display: inline; }
+
+        /* ─── FORM FIELDS ─── */
+        .field {
+            margin-bottom: 10px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 3px;
+        }
+
+        .field input, .field select {
+            width: 100%;
+            padding: 6px 10px;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .field input:focus, .field select:focus {
+            outline: none;
+            border-color: #D4880F;
+        }
+
+        .field .unit {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .field-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .field-row .field { flex: 1; }
+
+        /* ─── FILE UPLOAD ─── */
+        .upload-zone {
+            border: 2px dashed #0f3460;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #D4880F;
+            background: rgba(212, 136, 15, 0.05);
+        }
+
+        .upload-zone.loaded {
+            border-color: #00CFC8;
+            background: rgba(0, 207, 200, 0.05);
+        }
+
+        .upload-zone .upload-icon { font-size: 28px; margin-bottom: 6px; }
+        .upload-zone .upload-text { font-size: 13px; color: #aaa; }
+        .upload-zone .upload-filename {
+            font-size: 12px;
+            color: #00CFC8;
+            margin-top: 4px;
+            font-weight: 600;
+        }
+
+        /* ─── RESULTS PANEL ─── */
+        .results-panel {
+            background: #1a1a2e;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .results-panel.visible { display: block; }
+
+        .results-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #e0e0e0;
+        }
+
+        .results-detail {
+            font-size: 12px;
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        /* ─── BUTTONS ─── */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-primary { background: #D4880F; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #B8720A; }
+
+        .btn-secondary { background: #0f3460; color: #e0e0e0; }
+        .btn-secondary:hover:not(:disabled) { background: #1a4a80; }
+
+        .btn-run { background: #D4880F; color: white; font-size: 15px; padding: 12px; }
+        .btn-run:hover:not(:disabled) { background: #E5A50A; }
+
+        /* ─── 3D VIEWPORT ─── */
+        .viewport {
+            flex: 1;
+            position: relative;
+            background: #0a0a1a;
+        }
+
+        .viewport canvas {
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+
+        .viewport-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 11px;
+            color: #00CFC8;
+            z-index: 5;
+        }
+
+        /* ─── FLY MODE CROSSHAIR ─── */
+        .fly-crosshair {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 24px;
+            font-weight: 300;
+            pointer-events: none;
+            line-height: 1;
+        }
+
+        /* ─── NORTH ARROW OVERLAY ─── */
+        .north-arrow {
+            display: none;
+            position: absolute;
+            top: 50px;
+            right: 20px;
+            z-index: 10;
+            text-align: center;
+            color: #D4880F;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .north-arrow svg {
+            width: 50px;
+            height: 50px;
+        }
+
+        /* ─── BOUNDING BOX MODE INDICATOR ─── */
+        .bbox-overlay {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 5;
+            background: rgba(22, 33, 62, 0.95);
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.6;
+            border: 1px solid #D4880F;
+            min-width: 200px;
+        }
+
+        .bbox-overlay.visible { display: block; }
+        .bbox-overlay .bbox-title { color: #D4880F; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .bbox-overlay .bbox-hint { color: #aaa; font-size: 12px; }
+        .bbox-overlay .bbox-coords { color: #00CFC8; font-size: 12px; margin-top: 4px; font-family: monospace; }
+
+        .viewport.drawing-bbox { cursor: crosshair; }
+        .viewport.picking-mesh { cursor: crosshair; }
+
+        /* ─── PICKING OVERLAY ─── */
+        .pick-overlay {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 5;
+            background: rgba(22, 33, 62, 0.95);
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.6;
+            border: 1px solid #00CFC8;
+            min-width: 200px;
+        }
+
+        .pick-overlay.visible { display: block; }
+
+        /* ─── STATUS OVERLAY ─── */
+        .status-overlay {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(22, 33, 62, 0.9);
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.4;
+            border: 1px solid #0f3460;
+            color: #aaa;
+            z-index: 10;
+            text-align: center;
+            max-width: 260px;
+        }
+
+        /* ─── COLOUR LEGEND (viewport overlay) ─── */
+        .colour-legend {
+            display: none;
+            position: absolute;
+            right: 20px;
+            bottom: 60px;
+            z-index: 10;
+            width: 36px;
+            text-align: center;
+        }
+
+        .colour-legend.visible { display: flex; flex-direction: column; align-items: center; }
+
+        .colour-legend .legend-label {
+            font-size: 10px;
+            color: #ccc;
+            margin: 2px 0;
+        }
+
+        .colour-legend .legend-bar-v {
+            width: 18px;
+            height: 180px;
+            border-radius: 3px;
+            border: 1px solid #333;
+            background: linear-gradient(to top,
+                rgb(38, 0, 64),
+                rgb(204, 26, 26),
+                rgb(255, 128, 0),
+                rgb(255, 217, 0),
+                rgb(255, 255, 51),
+                rgb(255, 255, 204)
+            );
+            position: relative;
+        }
+
+
+        /* ─── PROGRESS BAR ─── */
+        .progress-bar {
+            display: none;
+            height: 3px;
+            background: #0f3460;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar.visible { display: block; }
+
+        .progress-bar .progress-fill {
+            height: 100%;
+            background: #D4880F;
+            border-radius: 2px;
+            transition: width 0.3s;
+            animation: progress-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes progress-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ─── DISCLAIMER ─── */
+        .disclaimer {
+            font-size: 10px;
+            color: #555;
+            margin-top: 12px;
+            line-height: 1.5;
+            padding-top: 8px;
+            border-top: 1px solid #0f3460;
+        }
+
+        .hint { font-size: 12px; color: #aaa; margin-bottom: 8px; line-height: 1.5; }
+
+        /* ─── LOCATION MAP ─── */
+        .location-map {
+            width: 100%;
+            height: 180px;
+            border-radius: 4px;
+            border: 1px solid #0f3460;
+            margin-bottom: 8px;
+        }
+        .location-search {
+            width: 100%;
+            padding: 6px 10px;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+        .location-search:focus { outline: none; border-color: #D4880F; }
+
+        /* ─── SEASON TOGGLES ─── */
+        .season-toggles {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .season-toggle {
+            flex: 1;
+            padding: 6px 4px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #888;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+        .season-toggle.active {
+            border-color: #D4880F;
+            color: #e0e0e0;
+            background: rgba(212, 136, 15, 0.15);
+        }
+
+        /* ─── SEASON SWITCHER (viewport overlay) ─── */
+        .season-switcher {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(22, 33, 62, 0.95);
+            border-radius: 6px;
+            border: 1px solid #0f3460;
+            padding: 4px;
+            gap: 4px;
+        }
+        .season-switcher.visible { display: flex; }
+        .season-sw-btn {
+            padding: 5px 12px;
+            border: none;
+            border-radius: 3px;
+            background: transparent;
+            color: #888;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .season-sw-btn.active {
+            background: #D4880F;
+            color: #fff;
+        }
+
+        /* ─── BUG REPORT ─── */
+        .bug-report {
+            font-size: 10px;
+            color: #666;
+            margin-top: 6px;
+            text-align: center;
+        }
+        .bug-report a {
+            color: #888;
+            text-decoration: none;
+        }
+        .bug-report a:hover { color: #D4880F; text-decoration: underline; }
+
+        /* ─── SELECTED MESH INDICATOR ─── */
+        .selected-mesh-name {
+            font-size: 12px;
+            color: #00CFC8;
+            margin: 6px 0;
+            font-family: monospace;
+        }
+
+        /* ─── DISCLAIMER MODAL ─── */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal-box {
+            background: #16213e;
+            border: 1px solid #D4880F;
+            border-radius: 10px;
+            max-width: 620px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 28px 32px;
+            color: #e0e0e0;
+        }
+        .modal-box h2 {
+            font-size: 18px;
+            color: #E5A50A;
+            margin-bottom: 4px;
+        }
+        .modal-box .modal-subtitle {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 16px;
+        }
+        .modal-box h3 {
+            font-size: 13px;
+            color: #D4880F;
+            margin: 14px 0 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .modal-box p, .modal-box li {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #ccc;
+        }
+        .modal-box ul { padding-left: 18px; margin: 4px 0; }
+        .modal-box .beta-badge {
+            display: inline-block;
+            background: #D4880F;
+            color: #000;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .modal-box .checkbox-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 10px 0;
+            font-size: 12px;
+            color: #ccc;
+            cursor: pointer;
+        }
+        .modal-box .checkbox-row input[type="checkbox"] {
+            margin-top: 2px;
+            accent-color: #D4880F;
+        }
+        .modal-box .btn-accept {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            background: #D4880F;
+            color: #fff;
+            transition: background 0.2s;
+        }
+        .modal-box .btn-accept:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .modal-box .btn-accept:hover:not(:disabled) {
+            background: #E5A50A;
+        }
+        .modal-box .role-gate {
+            margin-bottom: 14px;
+        }
+        .modal-box .role-gate label {
+            display: block;
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+        .modal-box .role-gate select {
+            width: 100%;
+            padding: 8px 10px;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .modal-box .role-gate select:focus {
+            outline: none;
+            border-color: #D4880F;
+        }
+        .modal-box .role-message {
+            font-size: 11px;
+            line-height: 1.5;
+            margin-top: 8px;
+            padding: 8px 10px;
+            border-radius: 4px;
+        }
+        .modal-box .role-message.allowed {
+            color: #00CFC8;
+            background: rgba(0, 207, 200, 0.08);
+            border: 1px solid rgba(0, 207, 200, 0.2);
+        }
+        .modal-box .role-message.blocked {
+            color: #D4880F;
+            background: rgba(212, 136, 15, 0.08);
+            border: 1px solid rgba(212, 136, 15, 0.2);
+        }
+
+        /* ─── DOWNLOAD CONFIRMATION MODAL ─── */
+        .download-confirm-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 9998;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .download-confirm-overlay.visible { display: flex; }
+        .download-confirm-box {
+            background: #16213e;
+            border: 1px solid #D4880F;
+            border-radius: 10px;
+            max-width: 480px;
+            width: 90%;
+            padding: 24px 28px;
+            color: #e0e0e0;
+        }
+        .download-confirm-box h3 {
+            font-size: 15px;
+            color: #E5A50A;
+            margin-bottom: 12px;
+        }
+        .download-confirm-box p {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #ccc;
+            margin-bottom: 10px;
+        }
+        .download-confirm-box .checkbox-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 10px 0;
+            font-size: 12px;
+            color: #ccc;
+            cursor: pointer;
+        }
+        .download-confirm-box .checkbox-row input[type="checkbox"] {
+            margin-top: 2px;
+            accent-color: #D4880F;
+        }
+        .download-confirm-box .btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+        }
+        .download-confirm-box .btn-row button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .download-confirm-box .btn-cancel {
+            background: #0f3460;
+            color: #e0e0e0;
+        }
+        .download-confirm-box .btn-proceed {
+            background: #D4880F;
+            color: #fff;
+        }
+        .download-confirm-box .btn-proceed:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* ─── LOGO ─── */
+        .logo-img {
+            display: block;
+            width: 100%;
+            max-height: 260px;
+            object-fit: contain;
+            margin: -20px auto -50px auto;
+        }
+        .modal-logo {
+            display: block;
+            max-width: 400px;
+            height: auto;
+            margin: -20px auto -40px auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- ─── DISCLAIMER MODAL ─── -->
+    <div class="modal-overlay" id="disclaimer-modal">
+        <div class="modal-box">
+            <img src="/sunform-logo.png" alt="SunForm" class="modal-logo">
+            <h2>SunForm &mdash; Terms of Use</h2>
+
+            <div id="disclaimer-terms">
+                <p>SunForm is currently in active beta development. You are using unfinished software. Outputs may be incomplete, inaccurate, or incorrect &mdash; this is expected at this stage and is part of why your testing matters.</p>
+
+                <p>All outputs are indicative only. They have not been validated against any building regulation, standard, or code of practice &mdash; including BRE 209, BS EN 17037, or the Building Regulations 2010. Do not use them for any formal purpose.</p>
+
+                <p>As a beta tester you are asked to use SunForm critically. If something looks wrong, it may well be. Please report anything unexpected so the tool can be improved.</p>
+
+                <p>SunForm is provided free of charge and entirely at your own risk. To the fullest extent permitted by law, Jake White Architecture accepts no liability for any loss or damage arising from use of or reliance upon its outputs.</p>
+
+                <p>The tool and its source code remain the intellectual property of Jake White Architecture.</p>
+
+                <p style="margin-top:14px; font-weight:600; color:#ccc; font-size:12px;">Third-Party Software Credits</p>
+                <p style="font-size:11px; color:#999; margin-top:4px;">SunForm incorporates the following open-source libraries. These are independent projects maintained by their respective authors; Jake White Architecture does not claim ownership of, nor accept liability for, any third-party component.</p>
+                <ul style="font-size:11px; color:#999; margin:6px 0 0 16px; padding:0; line-height:1.7;">
+                    <li><strong style="color:#bbb;">Three.js</strong> (r128) &mdash; 3D rendering &mdash; MIT License &mdash; &copy; Three.js Authors</li>
+                    <li><strong style="color:#bbb;">web-ifc</strong> (0.0.57) &mdash; IFC file parsing &mdash; Mozilla Public License 2.0 &mdash; &copy; IFC.js Contributors</li>
+                    <li><strong style="color:#bbb;">Leaflet</strong> (1.9.4) &mdash; Interactive maps &mdash; BSD-2-Clause License &mdash; &copy; Volodymyr Agafonkin</li>
+                    <li><strong style="color:#bbb;">jsPDF</strong> (2.5.2) &mdash; PDF generation &mdash; MIT License &mdash; &copy; jsPDF Contributors</li>
+                    <li><strong style="color:#bbb;">Flask</strong> (3.x) &mdash; Python web framework &mdash; BSD-3-Clause License &mdash; &copy; Pallets Projects</li>
+                </ul>
+                <p style="font-size:11px; color:#999; margin-top:8px;">Sun position calculations use the Spencer (1971) algorithm; shadow ray&ndash;triangle intersection uses the M&ouml;ller&ndash;Trumbore algorithm. Both are implemented from published academic sources and carry no third-party licence obligations.</p>
+
+                <p style="margin-top:14px; font-size:11px; color:#888;">SunForm is provided by Jake White Architecture. For professional Architectural Technology services, visit <a href="https://www.jakewhitearchitecture.com" target="_blank" style="color:#00CFC8;">jakewhitearchitecture.com</a></p>
+            </div>
+
+            <hr style="border-color:#0f3460; margin:16px 0 12px;">
+
+            <div style="font-size:12px; color:#aaa; margin-bottom:8px;">Confirmations:</div>
+            <div id="disclaimer-checkboxes">
+                <label class="checkbox-row">
+                    <input type="checkbox" id="disclaimer-check1" onchange="updateDisclaimerAccept()">
+                    <span>I understand that SunForm is beta software and outputs may be inaccurate. I will not use them for any formal purpose.</span>
+                </label>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="disclaimer-check2" onchange="updateDisclaimerAccept()">
+                    <span>I confirm that I am competent to interpret solar analysis outputs and would be able to identify inconsistencies or errors in the results.</span>
+                </label>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="disclaimer-check3" onchange="updateDisclaimerAccept()">
+                    <span>I understand that SunForm is not a substitute for professional daylighting consultancy and I will not present its outputs to others as verified analysis.</span>
+                </label>
+            </div>
+
+            <button class="btn-accept" id="disclaimer-accept-btn" disabled onclick="acceptDisclaimer()">Accept &amp; Continue</button>
+        </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-scroll">
+        <img src="/sunform-logo.png" alt="SunForm" class="logo-img">
+        <p class="subtitle" style="text-align:center;">A free sun hours web tool (Beta)</p>
+
+        <!-- STEP 1: IMPORT -->
+        <div class="step active" id="step-1" onclick="openStep(1)">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">Import</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step1-summary"></span>
+            </div>
+            <div class="step-body">
+                <div class="upload-zone" id="upload-zone" onclick="event.stopPropagation(); document.getElementById('ifc-file').click();">
+                    <div class="upload-icon">&#9729;</div>
+                    <div class="upload-text" id="upload-text">
+                        Drop IFC file here or click to browse
+                    </div>
+                    <div class="upload-filename" id="upload-filename" style="display:none;"></div>
+                </div>
+                <input type="file" id="ifc-file" accept=".ifc" style="display:none;" onchange="handleFileUpload(this);">
+                <div class="progress-bar" id="upload-progress">
+                    <div class="progress-fill" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: CONFIRM ORIENTATION -->
+        <div class="step upcoming" id="step-2" onclick="openStep(2)">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">Confirm Orientation</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step2-summary"></span>
+            </div>
+            <div class="step-body">
+                <button class="btn btn-primary" onclick="event.stopPropagation(); confirmOrientation();" style="margin-bottom:8px;">Confirm Orientation</button>
+                <button class="btn btn-secondary" id="orient-manual-btn" onclick="event.stopPropagation(); toggleManualOrient();">Set Orientation Manually</button>
+                <div id="orient-manual-panel" style="display:none; margin-top:10px;">
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <button class="btn btn-secondary" onclick="event.stopPropagation(); applyManualRotation(1);" style="margin-top:0; padding:4px 10px; font-size:16px;">&#x2190;</button>
+                        <input type="number" id="north-rotation" value="0" step="5" style="width:70px; text-align:center;">
+                        <button class="btn btn-secondary" onclick="event.stopPropagation(); applyManualRotation(-1);" style="margin-top:0; padding:4px 10px; font-size:16px;">&#x2192;</button>
+                        <span class="unit" style="margin-left:2px;">&deg;</span>
+                    </div>
+                </div>
+                <div id="orient-post-rotation" style="display:none; margin-top:8px;">
+                    <button class="btn btn-primary" onclick="event.stopPropagation(); confirmOrientation();" style="margin-bottom:8px;">Confirm Orientation</button>
+                    <button class="btn btn-secondary" onclick="event.stopPropagation(); resetOrientation();">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3: SELECT GROUND MESH -->
+        <div class="step upcoming" id="step-3" onclick="openStep(3)">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">Select Ground Mesh</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step3-summary"></span>
+            </div>
+            <div class="step-body">
+                <p class="hint">Click on ground/terrain surfaces in the 3D view. Click again to deselect.</p>
+                <div class="selected-mesh-name" id="selected-mesh-name">No meshes selected</div>
+                <div id="ground-suggestions" style="margin-bottom:8px;"></div>
+                <button class="btn btn-primary" id="confirm-ground-btn" onclick="event.stopPropagation(); confirmGroundMesh();" disabled>Confirm Selection</button>
+            </div>
+        </div>
+
+        <!-- STEP 4: DEFINE ANALYSIS AREA -->
+        <div class="step upcoming" id="step-4" onclick="openStep(4)">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-title">Define Analysis Area</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step4-summary"></span>
+            </div>
+            <div class="step-body">
+                <div style="display:flex; gap:8px; margin-bottom:10px;">
+                    <button class="btn btn-secondary" id="use-entire-btn" onclick="event.stopPropagation(); useEntireMesh();" style="flex:1; margin-top:0;">Use Entire Mesh</button>
+                    <button class="btn btn-secondary" id="bbox-btn" onclick="event.stopPropagation(); toggleBboxMode();" style="flex:1; margin-top:0;">Draw Bounding Box</button>
+                </div>
+                <div class="field-row" id="bbox-fields" style="display:none;">
+                    <div class="field">
+                        <label>Min X <span class="unit">m</span></label>
+                        <input type="number" id="bbox_min_x" value="" step="0.5" placeholder="auto">
+                    </div>
+                    <div class="field">
+                        <label>Min Y <span class="unit">m</span></label>
+                        <input type="number" id="bbox_min_y" value="" step="0.5" placeholder="auto">
+                    </div>
+                </div>
+                <div class="field-row" id="bbox-fields2" style="display:none;">
+                    <div class="field">
+                        <label>Max X <span class="unit">m</span></label>
+                        <input type="number" id="bbox_max_x" value="" step="0.5" placeholder="auto">
+                    </div>
+                    <div class="field">
+                        <label>Max Y <span class="unit">m</span></label>
+                        <input type="number" id="bbox_max_y" value="" step="0.5" placeholder="auto">
+                    </div>
+                </div>
+                <hr style="border-color:#0f3460; margin:12px 0;">
+                <div class="field-row">
+                    <div class="field">
+                        <label>Grid Resolution <span class="unit">m</span></label>
+                        <select id="grid_resolution">
+                            <option value="0.5">0.5 m</option>
+                            <option value="1" selected>1 m</option>
+                            <option value="2">2 m</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="font-size:11px; color:#666; margin-bottom:8px;">Smaller grid = more detail but slower analysis.</div>
+                <hr style="border-color:#0f3460; margin:12px 0;">
+                <label style="font-size:12px; color:#aaa; margin-bottom:3px; display:block;">Site Location</label>
+                <input type="text" class="location-search" id="location-search" placeholder="Search place name or postcode..." autocomplete="off">
+                <div class="location-map" id="location-map"></div>
+                <div class="field-row">
+                    <div class="field">
+                        <label>Latitude</label>
+                        <input type="number" id="latitude" value="51.5074" min="-90" max="90" step="0.0001">
+                    </div>
+                    <div class="field">
+                        <label>Longitude</label>
+                        <input type="number" id="longitude" value="-0.1278" min="-180" max="180" step="0.0001">
+                    </div>
+                </div>
+                <hr style="border-color:#0f3460; margin:12px 0;">
+                <label style="font-size:12px; color:#aaa; margin-bottom:3px; display:block;">Seasons to Analyse</label>
+                <div class="season-toggles">
+                    <div class="season-toggle" id="season-winter" onclick="toggleSeason('winter')">Winter</div>
+                    <div class="season-toggle active" id="season-spring" onclick="toggleSeason('spring')">Spring/Autumn</div>
+                    <div class="season-toggle" id="season-summer" onclick="toggleSeason('summer')">Summer</div>
+                </div>
+                <div style="font-size:11px; color:#666; margin-bottom:8px;">Select one or more seasons. At least one must be active.</div>
+                <div class="field-row">
+                    <div class="field">
+                        <label>Time Step <span class="unit">hours</span></label>
+                        <select id="time_step">
+                            <option value="0.5">30 min</option>
+                            <option value="1" selected>1 hour</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-run" id="run-btn" onclick="event.stopPropagation(); runAnalysis();">Run Analysis</button>
+            </div>
+        </div>
+
+        <!-- STEP 5: RESULTS -->
+        <div class="step upcoming" id="step-5" onclick="openStep(5)">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <div class="step-title">Results</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step5-summary"></span>
+            </div>
+            <div class="step-body">
+                <div class="results-panel visible" id="results-panel">
+                    <div class="results-title" id="results-title">Sun Hours Summary</div>
+                    <div class="results-detail" id="results-detail"></div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:10px;">
+                    <button class="btn btn-primary" id="glb-btn" onclick="event.stopPropagation(); showDownloadConfirm('glb');" style="flex:1;">Download GLB</button>
+                    <button class="btn btn-secondary" id="pdf-btn" onclick="event.stopPropagation(); showDownloadConfirm('pdf');" style="flex:1;">Download PDF</button>
+                </div>
+                <button class="btn btn-secondary" onclick="event.stopPropagation(); resetWorkflow();" style="margin-top:8px;">New Analysis</button>
+                <div class="bug-report">
+                    Results look wrong? <a id="bug-report-link" href="#">Report an issue</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="disclaimer">
+            SunForm is beta software. There is no warranty. The Software provided under the author is incomplete and may contain errors or inaccuracies and therefore cannot be relied upon for design decision making.
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── DOWNLOAD CONFIRMATION MODAL ─── -->
+    <div class="download-confirm-overlay" id="download-confirm-overlay">
+        <div class="download-confirm-box">
+            <h3>Confirm Download</h3>
+            <p>SunForm is beta software. There is no warranty. The Software provided under the author is incomplete and may contain errors or inaccuracies and therefore cannot be relied upon for design decision making.</p>
+            <label class="checkbox-row">
+                <input type="checkbox" id="download-confirm-check" onchange="updateDownloadConfirm()">
+                <span>I understand this is a beta output for testing only and I will not use it for any formal purpose.</span>
+            </label>
+            <div class="btn-row">
+                <button class="btn-cancel" onclick="hideDownloadConfirm()">Cancel</button>
+                <button class="btn-proceed" id="download-confirm-btn" disabled onclick="proceedDownload()">Download</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="viewport" id="viewport">
+        <div class="fly-crosshair" id="fly-crosshair">+</div>
+        <div class="viewport-info" id="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag &nbsp;|&nbsp; F: fly mode &nbsp; O: orbit mode</div>
+        <div class="north-arrow" id="north-arrow">
+            <div id="north-arrow-rotator" style="display:inline-block;">
+                <div>N</div>
+                <svg viewBox="0 0 50 50">
+                    <polygon points="25,5 30,20 25,15 20,20" fill="#E5A50A"/>
+                    <polygon points="25,45 20,30 25,35 30,30" fill="#666"/>
+                </svg>
+            </div>
+        </div>
+        <div class="pick-overlay" id="pick-overlay">
+            <div style="color:#00CFC8; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Ground Mesh</div>
+            <div style="color:#aaa; font-size:12px;">Click on a mesh in the 3D view</div>
+        </div>
+        <div class="bbox-overlay" id="bbox-overlay">
+            <div class="bbox-title">Bounding Box Tool</div>
+            <div class="bbox-hint" id="bbox-hint">Click first corner on the ground plane</div>
+            <div class="bbox-coords" id="bbox-coords"></div>
+        </div>
+        <div class="colour-legend" id="colour-legend">
+            <div class="legend-label">6h+</div>
+            <div class="legend-bar-v">
+            </div>
+            <div class="legend-label">0h</div>
+        </div>
+        <div class="season-switcher" id="season-switcher">
+            <button class="season-sw-btn" id="sw-winter" onclick="switchVisibleSeason('winter')">Winter</button>
+            <button class="season-sw-btn" id="sw-spring" onclick="switchVisibleSeason('spring')">Spring/Autumn</button>
+            <button class="season-sw-btn" id="sw-summer" onclick="switchVisibleSeason('summer')">Summer</button>
+        </div>
+        <div class="status-overlay" id="status-overlay" style="display:none;"></div>
+        <div style="position:absolute; bottom:20px; right:20px; z-index:10; text-align:center;">
+            <a href="https://buymeacoffee.com/jakewhite" target="_blank" rel="noopener noreferrer"
+               style="display:inline-block; background:rgba(212,136,15,0.85); color:#fff; font-size:11px; font-weight:600; padding:6px 14px; border-radius:4px; text-decoration:none; letter-spacing:0.3px; backdrop-filter:blur(4px);">
+                ☕ Buy me a coffee
+            </a>
+        </div>
+    </div>
+
+    <!-- Leaflet.js for location picker -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Three.js r128 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+    <!-- web-ifc for client-side IFC parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/web-ifc@0.0.57/web-ifc-api-iife.js"></script>
+    <!-- jsPDF for client-side PDF export -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+
+    <script>
+        // ─── GLOBAL STATE ───
+        let scene, camera, renderer, controls;
+        let perspCamera, orthoCamera;
+        let buildingGroup = null;
+        let allMeshes = [];         // individual THREE.Mesh objects from IFC
+        let allMeshMeta = [];       // { mesh, expressID, ifcType, name } per mesh
+        let selectedGroundMeshes = [];  // array of selected ground THREE.Mesh objects
+        let groundHighlights = [];      // cyan wireframe overlays
+        let shadowBVH = null;       // BVH of all meshes EXCEPT ground
+        let heatmapGroup = null;
+        let bboxHelper = null;
+        let groundPlane = null;
+        let ifcApi = null;
+        let ifcLoaded = false;
+        let lastAnalysisResults = null;
+        let currentStep = 1;
+        let pickMode = false;
+        let useEntireGroundMesh = true;
+        let northRotationDeg = 0;
+        let rotationAnimFrame = null;
+        let modelRotationGroup = null;
+
+        // Season analysis state
+        const SEASON_DATES = {
+            winter: '2024-12-21',
+            spring: '2024-03-21',
+            summer: '2024-06-21',
+        };
+        const SEASON_LABELS = {
+            winter: 'Winter',
+            spring: 'Spring/Autumn',
+            summer: 'Summer',
+        };
+        let activeSeasons = { winter: false, spring: true, summer: false };
+        let seasonResults = {};         // { winter: {results}, spring: {results}, ... }
+        let seasonHeatmaps = {};        // { winter: THREE.Group, ... }
+        let visibleSeason = 'spring';   // currently displayed season
+
+        // Fly mode state
+        let flyMode = false;
+        const flyKeys = { w: false, a: false, s: false, d: false, q: false, e: false };
+        const FLY_SPEED = 0.5;
+        let flyYaw = 0;
+        let flyPitch = 0;
+        let flyYawTarget = 0;
+        let flyPitchTarget = 0;
+        const FLY_LOOK_SMOOTHING = 0.15;
+
+        // Leaflet map state
+        let locationMap = null;
+        let locationMarker = null;
+
+        // ─── THREE.JS SETUP ───
+        function initThree() {
+            const container = document.getElementById('viewport');
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+
+            perspCamera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000);
+            perspCamera.position.set(50, 40, 50);
+
+            orthoCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 0.1, 10000);
+            orthoCamera.position.set(0, 500, 0);
+            orthoCamera.lookAt(0, 0, 0);
+
+            camera = perspCamera;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 5, 0);
+            controls.update();
+
+            const ambient = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambient);
+
+            const dir1 = new THREE.DirectionalLight(0xffffff, 0.8);
+            dir1.position.set(50, 80, 30);
+            scene.add(dir1);
+
+            const dir2 = new THREE.DirectionalLight(0x8888ff, 0.3);
+            dir2.position.set(-30, 20, -50);
+            scene.add(dir2);
+
+            const grid = new THREE.GridHelper(200, 200, 0x222244, 0x111133);
+            grid.visible = false;
+            scene.add(grid);
+
+            const planeGeo = new THREE.PlaneGeometry(2000, 2000);
+            const planeMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
+            groundPlane = new THREE.Mesh(planeGeo, planeMat);
+            groundPlane.rotation.x = -Math.PI / 2;
+            groundPlane.position.y = 0;
+            scene.add(groundPlane);
+
+            document.querySelector('.panel').addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+
+            window.addEventListener('resize', () => {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                perspCamera.aspect = w / h;
+                perspCamera.updateProjectionMatrix();
+                updateOrthoCamera();
+                renderer.setSize(w, h);
+            });
+
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateFlyMovement();
+            if (!flyMode) controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function updateOrthoCamera() {
+            if (!buildingGroup) return;
+            const bb = new THREE.Box3().setFromObject(buildingGroup);
+            const cx = (bb.min.x + bb.max.x) / 2;
+            const cz = (bb.min.z + bb.max.z) / 2;
+            const sx = (bb.max.x - bb.min.x) / 2 + 10;
+            const sz = (bb.max.z - bb.min.z) / 2 + 10;
+            const s = Math.max(sx, sz);
+            const container = document.getElementById('viewport');
+            const aspect = container.clientWidth / container.clientHeight;
+            orthoCamera.left = -s * aspect;
+            orthoCamera.right = s * aspect;
+            orthoCamera.top = s;
+            orthoCamera.bottom = -s;
+            orthoCamera.position.set(cx, 500, cz);
+            orthoCamera.lookAt(cx, 0, cz);
+            orthoCamera.updateProjectionMatrix();
+        }
+
+        function switchToOrtho() {
+            updateOrthoCamera();
+            camera = orthoCamera;
+            controls.object = camera;
+            controls.enableRotate = false;
+            controls.update();
+        }
+
+        function switchToPersp() {
+            camera = perspCamera;
+            controls.object = camera;
+            controls.enableRotate = true;
+            controls.update();
+        }
+
+        // ─── INIT WEB-IFC ───
+        async function initWebIfc() {
+            try {
+                ifcApi = new WebIFC.IfcAPI();
+                await ifcApi.Init();
+                console.log('web-ifc initialised');
+            } catch (err) {
+                console.error('web-ifc init failed:', err);
+                ifcApi = null;
+            }
+        }
+
+        // ─── ACCORDION WORKFLOW ───
+        function openStep(n) {
+            const step = document.getElementById('step-' + n);
+            if (step.classList.contains('upcoming')) return;
+            // Only allow opening completed steps or current step
+            for (let i = 1; i <= 5; i++) {
+                const s = document.getElementById('step-' + i);
+                if (i === n) {
+                    s.classList.add('active');
+                    s.classList.remove('upcoming');
+                } else if (s.classList.contains('completed')) {
+                    s.classList.remove('active');
+                } else if (i > n) {
+                    if (!s.classList.contains('completed')) {
+                        s.classList.add('upcoming');
+                    }
+                    s.classList.remove('active');
+                } else {
+                    s.classList.remove('active');
+                }
+            }
+            currentStep = n;
+
+            // Step-specific modes
+            if (n === 2) { switchToOrtho(); }
+            else switchToPersp();
+            setPickMode(n === 3);
+
+            // Show compass only during orientation step
+            document.getElementById('north-arrow').style.display = (n === 2) ? 'block' : 'none';
+
+            // Mesh visibility: when going back to step 3 (select mesh), show meshes
+            // and gray out previous results. On step 5 (results), hide meshes.
+            if (n === 3 && Object.keys(seasonHeatmaps).length > 0) {
+                showCalculationMeshes();
+                grayOutResults();
+            } else if (n === 5) {
+                hideCalculationMeshes();
+                restoreResults();
+            } else if (n !== 3) {
+                // For other steps, ensure meshes are visible and results normal
+                showCalculationMeshes();
+                if (Object.keys(seasonHeatmaps).length > 0) {
+                    restoreResults();
+                }
+            }
+
+            // Lazy-init Leaflet map when step 4 first opens
+            if (n === 4 && !mapInitialized) {
+                mapInitialized = true;
+                setTimeout(() => {
+                    initLocationMap();
+                    locationMap.invalidateSize();
+                }, 100);
+            }
+        }
+
+        function completeStep(n, summary) {
+            const step = document.getElementById('step-' + n);
+            step.classList.add('completed');
+            step.classList.remove('active');
+            const sumEl = document.getElementById('step' + n + '-summary');
+            if (sumEl) sumEl.textContent = summary;
+            // Advance to next
+            const next = n + 1;
+            if (next <= 5) {
+                const ns = document.getElementById('step-' + next);
+                ns.classList.remove('upcoming');
+                openStep(next);
+            }
+        }
+
+        function resetWorkflow() {
+            // Restore mesh visibility before cleanup
+            showCalculationMeshes();
+            // Reset all state
+            if (buildingGroup) {
+                scene.remove(buildingGroup);
+                buildingGroup = null;
+            }
+            if (modelRotationGroup) {
+                scene.remove(modelRotationGroup);
+                modelRotationGroup = null;
+            }
+            if (heatmapGroup) {
+                scene.remove(heatmapGroup);
+                heatmapGroup = null;
+            }
+            // Remove all season heatmaps
+            for (const [key, group] of Object.entries(seasonHeatmaps)) {
+                scene.remove(group);
+                group.traverse(c => {
+                    if (c.geometry) c.geometry.dispose();
+                    if (c.material) c.material.dispose();
+                });
+            }
+            seasonHeatmaps = {};
+            seasonResults = {};
+            cachedCellData = null;
+            cachedGridSize = null;
+            visibleSeason = 'spring';
+            document.getElementById('season-switcher').classList.remove('visible');
+            clearAllHighlights();
+            removeBboxHelper();
+            allMeshes = [];
+            allMeshMeta = [];
+            selectedGroundMeshes = [];
+            shadowBVH = null;
+            ifcLoaded = false;
+            lastAnalysisResults = null;
+            useEntireGroundMesh = true;
+            northRotationDeg = 0;
+            document.getElementById('colour-legend').classList.remove('visible');
+            document.getElementById('upload-text').textContent = 'Drop IFC file here or click to browse';
+            document.getElementById('upload-filename').style.display = 'none';
+            document.getElementById('upload-zone').classList.remove('loaded');
+            document.getElementById('north-rotation').value = '0';
+            document.getElementById('selected-mesh-name').textContent = 'No meshes selected';
+            document.getElementById('ground-suggestions').innerHTML = '';
+            document.getElementById('bbox-fields').style.display = 'none';
+            document.getElementById('bbox-fields2').style.display = 'none';
+
+            for (let i = 1; i <= 5; i++) {
+                const s = document.getElementById('step-' + i);
+                s.classList.remove('completed', 'active', 'upcoming');
+                if (i === 1) s.classList.add('active');
+                else s.classList.add('upcoming');
+                const sum = document.getElementById('step' + i + '-summary');
+                if (sum) sum.textContent = '';
+            }
+            currentStep = 1;
+            switchToPersp();
+        }
+
+        // ─── IFC UPLOAD (client-side parsing — per-mesh) ───
+        const uploadZone = document.getElementById('upload-zone');
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].name.toLowerCase().endsWith('.ifc')) {
+                parseIFCClientSide(files[0]);
+            }
+        });
+
+        function handleFileUpload(input) {
+            if (input.files.length > 0) {
+                parseIFCClientSide(input.files[0]);
+            }
+        }
+
+        async function parseIFCClientSide(file) {
+            if (!ifcApi) {
+                document.getElementById('upload-text').textContent =
+                    'web-ifc not ready. Please wait and try again.';
+                return;
+            }
+
+            const progressBar = document.getElementById('upload-progress');
+            progressBar.classList.add('visible');
+            document.getElementById('upload-text').textContent = 'Parsing IFC (client-side)...';
+            showStatus('Parsing IFC file in browser...');
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+                const modelID = ifcApi.OpenModel(data);
+
+                // Collect per-mesh geometry
+                if (buildingGroup) {
+                    scene.remove(buildingGroup);
+                    buildingGroup.traverse(c => {
+                        if (c.geometry) c.geometry.dispose();
+                        if (c.material) c.material.dispose();
+                    });
+                }
+                if (modelRotationGroup) {
+                    scene.remove(modelRotationGroup);
+                }
+
+                buildingGroup = new THREE.Group();
+                buildingGroup.name = 'buildings';
+                modelRotationGroup = new THREE.Group();
+                modelRotationGroup.name = 'rotation_group';
+                modelRotationGroup.add(buildingGroup);
+                scene.add(modelRotationGroup);
+
+                allMeshes = [];
+                allMeshMeta = [];
+
+                // Gather IFC type info for express IDs
+                const ifcTypes = {};
+                try {
+                    // Try to get IfcSite and IfcSlab entities for ground suggestions
+                    const IFCSITE = 4097777520;
+                    const IFCSLAB = 1529196076;
+                    const IFCBUILDINGSTOREY = 3124254112;
+                    [IFCSITE, IFCSLAB].forEach(typeId => {
+                        try {
+                            const ids = ifcApi.GetLineIDsWithType(modelID, typeId);
+                            for (let i = 0; i < ids.size(); i++) {
+                                ifcTypes[ids.get(i)] = typeId === IFCSITE ? 'IfcSite' : 'IfcSlab';
+                            }
+                        } catch(e) {}
+                    });
+                } catch(e) {}
+
+                let meshIndex = 0;
+                ifcApi.StreamAllMeshes(modelID, (mesh) => {
+                    const expressID = mesh.expressID;
+                    const placedGeometries = mesh.geometries;
+
+                    const meshVertices = [];
+                    const meshIndices = [];
+                    let vertexOffset = 0;
+
+                    for (let i = 0; i < placedGeometries.size(); i++) {
+                        const placedGeom = placedGeometries.get(i);
+                        const geomData = ifcApi.GetGeometry(modelID, placedGeom.geometryExpressID);
+
+                        const vertPtr = geomData.GetVertexData();
+                        const vertSize = geomData.GetVertexDataSize();
+                        const idxPtr = geomData.GetIndexData();
+                        const idxSize = geomData.GetIndexDataSize();
+
+                        const verts = new Float32Array(ifcApi.GetVertexArray(vertPtr, vertSize));
+                        const indices = new Uint32Array(ifcApi.GetIndexArray(idxPtr, idxSize));
+                        geomData.delete();
+
+                        if (verts.length === 0 || indices.length === 0) continue;
+
+                        const flatMatrix = placedGeom.flatTransformation;
+                        const m = new THREE.Matrix4();
+                        m.set(
+                            flatMatrix[0], flatMatrix[4], flatMatrix[8],  flatMatrix[12],
+                            flatMatrix[1], flatMatrix[5], flatMatrix[9],  flatMatrix[13],
+                            flatMatrix[2], flatMatrix[6], flatMatrix[10], flatMatrix[14],
+                            flatMatrix[3], flatMatrix[7], flatMatrix[11], flatMatrix[15]
+                        );
+
+                        const numVerts = verts.length / 6;
+                        for (let v = 0; v < numVerts; v++) {
+                            const pos = new THREE.Vector3(
+                                verts[v * 6], verts[v * 6 + 1], verts[v * 6 + 2]
+                            );
+                            pos.applyMatrix4(m);
+                            meshVertices.push(pos.x, pos.y, pos.z);
+                        }
+
+                        for (let idx = 0; idx < indices.length; idx++) {
+                            meshIndices.push(indices[idx] + vertexOffset);
+                        }
+                        vertexOffset += numVerts;
+                    }
+
+                    if (meshVertices.length === 0) return;
+
+                    const geo = new THREE.BufferGeometry();
+                    const positions = new Float32Array(meshVertices);
+                    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    geo.setIndex(new THREE.BufferAttribute(new Uint32Array(meshIndices), 1));
+                    geo.computeVertexNormals();
+
+                    const mat = new THREE.MeshPhongMaterial({
+                        color: 0xdddddd,
+                        flatShading: true,
+                        side: THREE.DoubleSide,
+                    });
+
+                    const thMesh = new THREE.Mesh(geo, mat);
+                    thMesh.name = 'mesh_' + meshIndex;
+                    thMesh.userData.expressID = expressID;
+                    thMesh.userData.ifcType = ifcTypes[expressID] || '';
+                    buildingGroup.add(thMesh);
+
+                    allMeshes.push(thMesh);
+                    allMeshMeta.push({
+                        mesh: thMesh,
+                        expressID: expressID,
+                        ifcType: ifcTypes[expressID] || '',
+                        name: 'mesh_' + meshIndex + (ifcTypes[expressID] ? ' (' + ifcTypes[expressID] + ')' : ''),
+                    });
+                    meshIndex++;
+                });
+
+                ifcApi.CloseModel(modelID);
+
+                if (allMeshes.length === 0) {
+                    throw new Error('No geometry found in IFC file');
+                }
+
+                ifcLoaded = true;
+
+                // Fit camera
+                const bb = new THREE.Box3().setFromObject(buildingGroup);
+                const cx = (bb.min.x + bb.max.x) / 2;
+                const cy = (bb.min.y + bb.max.y) / 2;
+                const cz = (bb.min.z + bb.max.z) / 2;
+                const size = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z);
+                const dist = size * 1.5;
+                perspCamera.position.set(cx + dist, cy + dist * 0.7, cz + dist);
+                controls.target.set(cx, cy, cz);
+                controls.update();
+
+                uploadZone.classList.add('loaded');
+                document.getElementById('upload-text').textContent = 'IFC loaded';
+                document.getElementById('upload-filename').textContent = file.name + ' (' + allMeshes.length + ' meshes)';
+                document.getElementById('upload-filename').style.display = 'block';
+                progressBar.classList.remove('visible');
+                hideStatus();
+
+                completeStep(1, file.name);
+
+            } catch (err) {
+                console.error('IFC parse error:', err);
+                progressBar.classList.remove('visible');
+                document.getElementById('upload-text').textContent = 'Parse error: ' + err.message;
+                uploadZone.classList.remove('loaded');
+                hideStatus();
+            }
+        }
+
+        // ─── STEP 2: ORIENTATION ───
+
+        function confirmOrientation() {
+            const summary = northRotationDeg === 0 ? 'North: confirmed' : 'North: rotated ' + (northRotationDeg > 0 ? '+' : '') + northRotationDeg + '\u00b0';
+            completeStep(2, summary);
+        }
+
+        // ─── MANUAL ORIENTATION ───
+
+        function toggleManualOrient() {
+            var panel = document.getElementById('orient-manual-panel');
+            var btn = document.getElementById('orient-manual-btn');
+            if (panel.style.display === 'none') {
+                panel.style.display = '';
+                btn.textContent = 'Hide Manual Controls';
+            } else {
+                panel.style.display = 'none';
+                btn.textContent = 'Set Orientation Manually';
+            }
+        }
+
+        function applyManualRotation(sign) {
+            var degrees = parseFloat(document.getElementById('north-rotation').value) || 0;
+            if (degrees === 0) return;
+            var targetDeg = northRotationDeg + sign * Math.abs(degrees);
+            while (targetDeg > 180) targetDeg -= 360;
+            while (targetDeg <= -180) targetDeg += 360;
+            targetDeg = Math.round(targetDeg * 10) / 10;
+            animateRotation(targetDeg, 400, function() {
+                document.getElementById('orient-manual-panel').style.display = 'none';
+                document.getElementById('orient-manual-btn').style.display = 'none';
+                document.querySelector('#step-2 .step-body > .btn-primary').style.display = 'none';
+                document.getElementById('orient-post-rotation').style.display = '';
+            });
+        }
+
+        function resetOrientation() {
+            animateRotation(0, 400, function() {
+                document.getElementById('orient-post-rotation').style.display = 'none';
+                document.getElementById('orient-manual-btn').style.display = '';
+                document.getElementById('orient-manual-btn').textContent = 'Set Orientation Manually';
+                document.getElementById('orient-manual-panel').style.display = 'none';
+                document.getElementById('north-rotation').value = '0';
+                document.querySelector('#step-2 .step-body > .btn-primary').style.display = '';
+            });
+        }
+
+        function animateRotation(targetDeg, duration, onComplete) {
+            if (rotationAnimFrame) cancelAnimationFrame(rotationAnimFrame);
+            duration = duration || 400;
+            const startDeg = northRotationDeg;
+            let delta = targetDeg - startDeg;
+            while (delta > 180) delta -= 360;
+            while (delta <= -180) delta += 360;
+            const endDeg = startDeg + delta;
+            const startTime = performance.now();
+
+            function tick(now) {
+                const t = Math.min((now - startTime) / duration, 1);
+                const eased = t * (2 - t); // ease-out
+                northRotationDeg = startDeg + delta * eased;
+                if (modelRotationGroup) {
+                    modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
+                }
+                document.getElementById('north-arrow-rotator').style.transform = 'rotate(' + (-northRotationDeg) + 'deg)';
+                if (t < 1) {
+                    rotationAnimFrame = requestAnimationFrame(tick);
+                } else {
+                    northRotationDeg = Math.round(endDeg * 10) / 10;
+                    document.getElementById('north-rotation').value = 0;
+                    if (modelRotationGroup) {
+                        modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
+                    }
+                    rotationAnimFrame = null;
+                    if (onComplete) onComplete();
+                }
+            }
+            rotationAnimFrame = requestAnimationFrame(tick);
+        }
+
+        // ─── STEP 3: GROUND MESH PICKING ───
+        function setPickMode(on) {
+            pickMode = on;
+            const viewport = document.getElementById('viewport');
+            const overlay = document.getElementById('pick-overlay');
+            viewport.classList.toggle('picking-mesh', on);
+            overlay.classList.toggle('visible', on);
+        }
+
+        function clearAllHighlights() {
+            for (const hl of groundHighlights) {
+                if (hl.parent) hl.parent.remove(hl);
+                else scene.remove(hl);
+                hl.geometry.dispose();
+                hl.material.dispose();
+            }
+            groundHighlights = [];
+        }
+
+        function addHighlight(mesh) {
+            // Tint the mesh faces to cyan-ish so selection is clearly visible
+            if (!mesh.userData._origColor) {
+                mesh.userData._origColor = mesh.material.color.getHex();
+            }
+            mesh.material = mesh.material.clone();
+            mesh.material.color.setHex(0x00CFC8);
+            mesh.material.opacity = 0.7;
+            mesh.material.transparent = true;
+
+            const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
+            const hl = new THREE.LineSegments(edges,
+                new THREE.LineBasicMaterial({ color: 0x0AF5E3, linewidth: 2 }));
+            hl.position.copy(mesh.position);
+            hl.rotation.copy(mesh.rotation);
+            hl.scale.copy(mesh.scale);
+            hl.userData._groundRef = mesh;
+            if (mesh.parent) {
+                mesh.parent.add(hl);
+            } else {
+                scene.add(hl);
+            }
+            groundHighlights.push(hl);
+        }
+
+        function removeHighlight(mesh) {
+            // Restore original mesh colour
+            if (mesh.userData._origColor !== undefined) {
+                mesh.material = mesh.material.clone();
+                mesh.material.color.setHex(mesh.userData._origColor);
+                mesh.material.opacity = 1.0;
+                mesh.material.transparent = false;
+            }
+
+            const idx = groundHighlights.findIndex(hl => hl.userData._groundRef === mesh);
+            if (idx === -1) return;
+            const hl = groundHighlights[idx];
+            if (hl.parent) hl.parent.remove(hl);
+            else scene.remove(hl);
+            hl.geometry.dispose();
+            hl.material.dispose();
+            groundHighlights.splice(idx, 1);
+        }
+
+        function updateSelectedMeshLabel() {
+            if (selectedGroundMeshes.length === 0) {
+                document.getElementById('selected-mesh-name').textContent = 'No meshes selected';
+                document.getElementById('confirm-ground-btn').disabled = true;
+            } else {
+                const names = selectedGroundMeshes.map(m => {
+                    const meta = allMeshMeta.find(mm => mm.mesh === m);
+                    return meta ? meta.name : m.name;
+                });
+                document.getElementById('selected-mesh-name').textContent =
+                    names.length + ' mesh' + (names.length > 1 ? 'es' : '') + ': ' + names.join(', ');
+                document.getElementById('confirm-ground-btn').disabled = false;
+            }
+        }
+
+        document.getElementById('viewport').addEventListener('click', (event) => {
+            if (event.target !== renderer.domElement) return;
+            if (pickMode) {
+                handleMeshPick(event);
+                return;
+            }
+            if (bboxMode) {
+                handleBboxClick(event);
+                return;
+            }
+        });
+
+        function handleMeshPick(event) {
+            const container = document.getElementById('viewport');
+            const rect = container.getBoundingClientRect();
+            const mouse = flyMode
+                ? new THREE.Vector2(0, 0)
+                : new THREE.Vector2(
+                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                    -((event.clientY - rect.top) / rect.height) * 2 + 1
+                );
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(allMeshes, false);
+            if (hits.length === 0) return;
+
+            const hitMesh = hits[0].object;
+            const existingIdx = selectedGroundMeshes.indexOf(hitMesh);
+
+            if (existingIdx !== -1) {
+                // Deselect — toggle off
+                selectedGroundMeshes.splice(existingIdx, 1);
+                removeHighlight(hitMesh);
+            } else {
+                // Select — toggle on
+                selectedGroundMeshes.push(hitMesh);
+                addHighlight(hitMesh);
+            }
+
+            updateSelectedMeshLabel();
+        }
+
+        function confirmGroundMesh() {
+            if (selectedGroundMeshes.length === 0) return;
+            setPickMode(false);
+
+            buildShadowBVH();
+
+            const count = selectedGroundMeshes.length;
+            const summary = 'Ground: ' + count + ' mesh' + (count > 1 ? 'es' : '');
+            completeStep(3, summary);
+        }
+
+        // ─── BUILD SHADOW BVH (all meshes except ground) ───
+        function buildShadowBVH() {
+            showStatus('Building BVH for shadow casters...');
+            // Concatenate all non-ground mesh triangles into one set of arrays
+            const allVerts = [];
+            const allIdx = [];
+            let offset = 0;
+
+            const groundSet = new Set(selectedGroundMeshes);
+            for (const mesh of allMeshes) {
+                if (groundSet.has(mesh)) continue;
+                const geo = mesh.geometry;
+                const pos = geo.attributes.position.array;
+                const idx = geo.index ? geo.index.array : null;
+
+                // Apply world matrix to get transformed positions
+                mesh.updateWorldMatrix(true, false);
+                const wm = mesh.matrixWorld;
+
+                const numVerts = pos.length / 3;
+                for (let v = 0; v < numVerts; v++) {
+                    const p = new THREE.Vector3(pos[v*3], pos[v*3+1], pos[v*3+2]);
+                    p.applyMatrix4(wm);
+                    allVerts.push(p.x, p.y, p.z);
+                }
+
+                if (idx) {
+                    for (let i = 0; i < idx.length; i++) {
+                        allIdx.push(idx[i] + offset);
+                    }
+                } else {
+                    for (let i = 0; i < numVerts; i++) {
+                        allIdx.push(i + offset);
+                    }
+                }
+                offset += numVerts;
+            }
+
+            if (allVerts.length > 0) {
+                shadowBVH = new BVH(new Float32Array(allVerts), new Uint32Array(allIdx));
+                console.log('Shadow BVH built:', (allIdx.length / 3) + ' triangles');
+            } else {
+                shadowBVH = null;
+            }
+            hideStatus();
+        }
+
+        // ─── STEP 4: ANALYSIS AREA ───
+        function useEntireMesh() {
+            useEntireGroundMesh = true;
+            document.getElementById('use-entire-btn').style.background = '#D4880F';
+            document.getElementById('use-entire-btn').style.color = '#fff';
+            document.getElementById('bbox-btn').style.background = '';
+            document.getElementById('bbox-btn').style.color = '';
+            document.getElementById('bbox-fields').style.display = 'none';
+            document.getElementById('bbox-fields2').style.display = 'none';
+            removeBboxHelper();
+        }
+
+        // ─── BVH (Bounding Volume Hierarchy) for fast ray casting ───
+        class BVH {
+            constructor(positions, index) {
+                const triCount = index.length / 3;
+                const tris = new Array(triCount);
+                for (let i = 0; i < triCount; i++) {
+                    const i0 = index[i * 3] * 3, i1 = index[i * 3 + 1] * 3, i2 = index[i * 3 + 2] * 3;
+                    const ax = positions[i0], ay = positions[i0+1], az = positions[i0+2];
+                    const bx = positions[i1], by = positions[i1+1], bz = positions[i1+2];
+                    const cx = positions[i2], cy = positions[i2+1], cz = positions[i2+2];
+                    tris[i] = {
+                        ax, ay, az, bx, by, bz, cx, cy, cz,
+                        centX: (ax + bx + cx) / 3,
+                        centY: (ay + by + cy) / 3,
+                        centZ: (az + bz + cz) / 3,
+                    };
+                }
+                this.root = this._build(tris, 0, tris.length);
+            }
+
+            _build(tris, start, end) {
+                let mnx = Infinity, mny = Infinity, mnz = Infinity;
+                let mxx = -Infinity, mxy = -Infinity, mxz = -Infinity;
+                for (let i = start; i < end; i++) {
+                    const t = tris[i];
+                    mnx = Math.min(mnx, t.ax, t.bx, t.cx);
+                    mny = Math.min(mny, t.ay, t.by, t.cy);
+                    mnz = Math.min(mnz, t.az, t.bz, t.cz);
+                    mxx = Math.max(mxx, t.ax, t.bx, t.cx);
+                    mxy = Math.max(mxy, t.ay, t.by, t.cy);
+                    mxz = Math.max(mxz, t.az, t.bz, t.cz);
+                }
+                const node = { minX: mnx, minY: mny, minZ: mnz, maxX: mxx, maxY: mxy, maxZ: mxz };
+                const count = end - start;
+
+                if (count <= 8) {
+                    const buf = new Float64Array(count * 9);
+                    for (let i = start; i < end; i++) {
+                        const t = tris[i], o = (i - start) * 9;
+                        buf[o] = t.ax; buf[o+1] = t.ay; buf[o+2] = t.az;
+                        buf[o+3] = t.bx; buf[o+4] = t.by; buf[o+5] = t.bz;
+                        buf[o+6] = t.cx; buf[o+7] = t.cy; buf[o+8] = t.cz;
+                    }
+                    node.tris = buf;
+                    node.triCount = count;
+                    return node;
+                }
+
+                const dx = mxx - mnx, dy = mxy - mny, dz = mxz - mnz;
+                const axis = dx >= dy && dx >= dz ? 'centX' : dy >= dz ? 'centY' : 'centZ';
+                const mid = (start + end) >> 1;
+                const slice = tris.slice(start, end);
+                slice.sort((a, b) => a[axis] - b[axis]);
+                for (let i = 0; i < slice.length; i++) tris[start + i] = slice[i];
+
+                node.left = this._build(tris, start, mid);
+                node.right = this._build(tris, mid, end);
+                return node;
+            }
+
+            intersectsAny(ox, oy, oz, dx, dy, dz) {
+                const invDx = 1 / dx, invDy = 1 / dy, invDz = 1 / dz;
+                return this._query(this.root, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz);
+            }
+
+            _query(node, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz) {
+                let tmin, tmax, tymin, tymax, tzmin, tzmax;
+                if (invDx >= 0) {
+                    tmin = (node.minX - ox) * invDx;
+                    tmax = (node.maxX - ox) * invDx;
+                } else {
+                    tmin = (node.maxX - ox) * invDx;
+                    tmax = (node.minX - ox) * invDx;
+                }
+                if (invDy >= 0) {
+                    tymin = (node.minY - oy) * invDy;
+                    tymax = (node.maxY - oy) * invDy;
+                } else {
+                    tymin = (node.maxY - oy) * invDy;
+                    tymax = (node.minY - oy) * invDy;
+                }
+                if (tmin > tymax || tymin > tmax) return false;
+                if (tymin > tmin) tmin = tymin;
+                if (tymax < tmax) tmax = tymax;
+                if (invDz >= 0) {
+                    tzmin = (node.minZ - oz) * invDz;
+                    tzmax = (node.maxZ - oz) * invDz;
+                } else {
+                    tzmin = (node.maxZ - oz) * invDz;
+                    tzmax = (node.minZ - oz) * invDz;
+                }
+                if (tmin > tzmax || tzmin > tmax) return false;
+                if (tzmin > tmin) tmin = tzmin;
+                if (tzmax < tmax) tmax = tzmax;
+                if (tmax < 0) return false;
+
+                if (node.tris) {
+                    const buf = node.tris;
+                    for (let i = 0; i < node.triCount; i++) {
+                        const o = i * 9;
+                        const e1x = buf[o+3] - buf[o], e1y = buf[o+4] - buf[o+1], e1z = buf[o+5] - buf[o+2];
+                        const e2x = buf[o+6] - buf[o], e2y = buf[o+7] - buf[o+1], e2z = buf[o+8] - buf[o+2];
+                        const px = dy * e2z - dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y - dy * e2x;
+                        const det = e1x * px + e1y * py + e1z * pz;
+                        if (det > -1e-10 && det < 1e-10) continue;
+                        const invDet = 1 / det;
+                        const tx = ox - buf[o], ty = oy - buf[o+1], tz = oz - buf[o+2];
+                        const u = (tx * px + ty * py + tz * pz) * invDet;
+                        if (u < 0 || u > 1) continue;
+                        const qx = ty * e1z - tz * e1y, qy = tz * e1x - tx * e1z, qz = tx * e1y - ty * e1x;
+                        const v = (dx * qx + dy * qy + dz * qz) * invDet;
+                        if (v < 0 || u + v > 1) continue;
+                        const t = (e2x * qx + e2y * qy + e2z * qz) * invDet;
+                        if (t > 1e-4) return true;
+                    }
+                    return false;
+                }
+
+                return this._query(node.left, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz)
+                    || this._query(node.right, ox, oy, oz, dx, dy, dz, invDx, invDy, invDz);
+            }
+        }
+
+        // ─── SUN POSITION CALCULATOR (pure JS — Spencer 1971) ───
+        function getSunPositions(latitude, longitude, dateStr, timeStep) {
+            const date = new Date(dateStr + 'T12:00:00');
+            const dayOfYear = getDayOfYear(date);
+            const latRad = latitude * Math.PI / 180;
+
+            const B = (dayOfYear - 1) * 2 * Math.PI / 365;
+            const declination = 0.006918 - 0.399912 * Math.cos(B) + 0.070257 * Math.sin(B)
+                - 0.006758 * Math.cos(2 * B) + 0.000907 * Math.sin(2 * B)
+                - 0.002697 * Math.cos(3 * B) + 0.00148 * Math.sin(3 * B);
+
+            const eot = 229.18 * (0.000075 + 0.001868 * Math.cos(B) - 0.032077 * Math.sin(B)
+                - 0.014615 * Math.cos(2 * B) - 0.04089 * Math.sin(2 * B));
+
+            const positions = [];
+
+            for (let hour = 0; hour < 24; hour += timeStep) {
+                const solarTime = hour + (eot + 4 * longitude) / 60;
+                const hourAngle = (solarTime - 12) * 15 * Math.PI / 180;
+
+                const sinAlt = Math.sin(latRad) * Math.sin(declination)
+                    + Math.cos(latRad) * Math.cos(declination) * Math.cos(hourAngle);
+                const altitude = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+
+                if (altitude <= 0) continue;
+
+                const cosAz = (Math.sin(declination) - Math.sin(latRad) * sinAlt)
+                    / (Math.cos(latRad) * Math.cos(altitude));
+                let azimuth = Math.acos(Math.max(-1, Math.min(1, cosAz)));
+                if (hourAngle > 0) azimuth = 2 * Math.PI - azimuth;
+
+                positions.push({
+                    azimuth: azimuth * 180 / Math.PI,
+                    altitude: altitude * 180 / Math.PI,
+                    hour: hour,
+                });
+            }
+
+            return positions;
+        }
+
+        function getDayOfYear(date) {
+            const start = new Date(date.getFullYear(), 0, 0);
+            const diff = date - start;
+            return Math.floor(diff / (1000 * 60 * 60 * 24));
+        }
+
+        function sunDirection(azimuthDeg, altitudeDeg) {
+            // Azimuth: 0°=North, 90°=East, 180°=South, 270°=West (CW from North)
+            const az = azimuthDeg * Math.PI / 180;
+            const alt = altitudeDeg * Math.PI / 180;
+            const ifcX = Math.sin(az) * Math.cos(alt);
+            const ifcY = Math.cos(az) * Math.cos(alt);
+            const ifcZ = Math.sin(alt);
+            return new THREE.Vector3(ifcX, ifcZ, -ifcY).normalize();
+        }
+
+        // ─── TRIANGLE-GRID CLIPPING HELPERS ───
+        function lerpVert(a, b, t) {
+            return [
+                a[0] + t * (b[0] - a[0]),
+                a[1] + t * (b[1] - a[1]),
+                a[2] + t * (b[2] - a[2]),
+            ];
+        }
+
+        // Split an array of triangles along an axis-aligned plane (axis: 0=X, 2=Z)
+        function splitTrisAlongPlane(tris, axis, value) {
+            const result = [];
+            for (const tri of tris) {
+                const [a, b, c] = tri;
+                const da = a[axis] - value;
+                const db = b[axis] - value;
+                const dc = c[axis] - value;
+                const sa = da >= 0;
+                const sb = db >= 0;
+                const sc = dc >= 0;
+
+                if (sa === sb && sb === sc) {
+                    result.push(tri);
+                    continue;
+                }
+
+                // Find the lone vertex (the one on its own side)
+                let lone, pair1, pair2, dLone, dPair1, dPair2;
+                if (sa !== sb && sa !== sc) {
+                    lone = a; pair1 = b; pair2 = c;
+                    dLone = da; dPair1 = db; dPair2 = dc;
+                } else if (sb !== sa && sb !== sc) {
+                    lone = b; pair1 = a; pair2 = c;
+                    dLone = db; dPair1 = da; dPair2 = dc;
+                } else {
+                    lone = c; pair1 = a; pair2 = b;
+                    dLone = dc; dPair1 = da; dPair2 = db;
+                }
+
+                const t1 = dLone / (dLone - dPair1);
+                const m1 = lerpVert(lone, pair1, t1);
+                const t2 = dLone / (dLone - dPair2);
+                const m2 = lerpVert(lone, pair2, t2);
+
+                // Lone side: 1 triangle
+                result.push([lone, m1, m2]);
+                // Pair side: quad = 2 triangles
+                result.push([m1, pair1, pair2]);
+                result.push([m1, pair2, m2]);
+            }
+            return result;
+        }
+
+        // Clip a single triangle against all grid lines it crosses
+        function clipTriToGrid(tri, gridSize) {
+            let tris = [tri];
+
+            // Find X grid lines this triangle crosses
+            const minX = Math.min(tri[0][0], tri[1][0], tri[2][0]);
+            const maxX = Math.max(tri[0][0], tri[1][0], tri[2][0]);
+            const firstX = Math.ceil(minX / gridSize) * gridSize;
+            for (let x = firstX; x < maxX; x += gridSize) {
+                tris = splitTrisAlongPlane(tris, 0, x);
+            }
+
+            // Find Z grid lines the (now-split) triangles cross
+            let minZ = Infinity, maxZ = -Infinity;
+            for (const t of tris) {
+                for (const v of t) {
+                    if (v[2] < minZ) minZ = v[2];
+                    if (v[2] > maxZ) maxZ = v[2];
+                }
+            }
+            const firstZ = Math.ceil(minZ / gridSize) * gridSize;
+            for (let z = firstZ; z < maxZ; z += gridSize) {
+                tris = splitTrisAlongPlane(tris, 2, z);
+            }
+
+            return tris;
+        }
+
+        // ─── PREPARE GRID CELLS (merge + slice — done ONCE, cached) ───
+        let cachedCellData = null;  // reused across seasons
+        let cachedGridSize = null;
+
+        async function prepareGridCells() {
+            const gridSize = parseFloat(document.getElementById('grid_resolution').value) || 1.0;
+
+            // Apply bbox filter if set
+            let bboxFilter = null;
+            if (!useEntireGroundMesh) {
+                const bx1 = parseFloat(document.getElementById('bbox_min_x').value);
+                const by1 = parseFloat(document.getElementById('bbox_min_y').value);
+                const bx2 = parseFloat(document.getElementById('bbox_max_x').value);
+                const by2 = parseFloat(document.getElementById('bbox_max_y').value);
+                if (!isNaN(bx1) && !isNaN(by1) && !isNaN(bx2) && !isNaN(by2)) {
+                    bboxFilter = { minX: Math.min(bx1, bx2), maxX: Math.max(bx1, bx2),
+                                   minY: Math.min(by1, by2), maxY: Math.max(by1, by2) };
+                }
+            }
+
+            // 1. Merge all selected ground mesh fragments into one unified set
+            showStatus('Merging ground mesh fragments...');
+            await new Promise(r => setTimeout(r, 0));
+            const mergedVerts = [];
+            const mergedIdx = [];
+            let vertOffset = 0;
+
+            for (const gm of selectedGroundMeshes) {
+                gm.updateWorldMatrix(true, false);
+                const wm = gm.matrixWorld;
+                const geo = gm.geometry;
+                const pos = geo.attributes.position.array;
+                const idx = geo.index ? geo.index.array : null;
+                const numVerts = pos.length / 3;
+
+                for (let v = 0; v < numVerts; v++) {
+                    const p = new THREE.Vector3(pos[v*3], pos[v*3+1], pos[v*3+2]).applyMatrix4(wm);
+                    mergedVerts.push(p.x, p.y, p.z);
+                }
+
+                if (idx) {
+                    for (let i = 0; i < idx.length; i++) mergedIdx.push(idx[i] + vertOffset);
+                } else {
+                    for (let i = 0; i < numVerts; i++) mergedIdx.push(i + vertOffset);
+                }
+                vertOffset += numVerts;
+            }
+
+            // Build all merged triangles as arrays
+            const allMergedTris = [];
+            const faceCount = mergedIdx.length / 3;
+            for (let f = 0; f < faceCount; f++) {
+                const i0 = mergedIdx[f * 3], i1 = mergedIdx[f * 3 + 1], i2 = mergedIdx[f * 3 + 2];
+                allMergedTris.push([
+                    [mergedVerts[i0*3], mergedVerts[i0*3+1], mergedVerts[i0*3+2]],
+                    [mergedVerts[i1*3], mergedVerts[i1*3+1], mergedVerts[i1*3+2]],
+                    [mergedVerts[i2*3], mergedVerts[i2*3+1], mergedVerts[i2*3+2]],
+                ]);
+            }
+
+            // 2. Filter to upward-facing surfaces only (reject walls, soffits, bottoms)
+            showStatus(`Filtering ${allMergedTris.length} faces to upward-facing surfaces...`);
+            await new Promise(r => setTimeout(r, 0));
+
+            const worldTris = [];
+            const MIN_UPWARD_NY = 0.1;
+            for (let f = 0; f < allMergedTris.length; f++) {
+                const tri = allMergedTris[f];
+                const [a, b, c] = tri;
+                const e1x = b[0]-a[0], e1y = b[1]-a[1], e1z = b[2]-a[2];
+                const e2x = c[0]-a[0], e2y = c[1]-a[1], e2z = c[2]-a[2];
+                const fnx = e1y*e2z - e1z*e2y;
+                const fny = e1z*e2x - e1x*e2z;
+                const fnz = e1x*e2y - e1y*e2x;
+                const fnLen = Math.sqrt(fnx*fnx + fny*fny + fnz*fnz);
+                if (fnLen === 0) continue;
+                // Keep only faces whose normal has a meaningful upward (+Y) component
+                if (fny / fnLen < MIN_UPWARD_NY) continue;
+
+                worldTris.push(tri);
+            }
+
+            showStatus(`Upward faces: ${worldTris.length} of ${allMergedTris.length} kept`);
+
+            // 3. Slice every triangle along grid lines
+            showStatus(`Slicing ${worldTris.length} triangles along ${gridSize}m grid...`);
+            await new Promise(r => setTimeout(r, 0));
+
+            const cells = new Map();
+            for (let ti = 0; ti < worldTris.length; ti++) {
+                const subTris = clipTriToGrid(worldTris[ti], gridSize);
+                for (const st of subTris) {
+                    const [a, b, c] = st;
+                    const cx = (a[0] + b[0] + c[0]) / 3;
+                    const cy = (a[1] + b[1] + c[1]) / 3;
+                    const cz = (a[2] + b[2] + c[2]) / 3;
+
+                    if (bboxFilter) {
+                        const ifcX = cx, ifcY = -cz;
+                        if (ifcX < bboxFilter.minX || ifcX > bboxFilter.maxX ||
+                            ifcY < bboxFilter.minY || ifcY > bboxFilter.maxY) continue;
+                    }
+
+                    const col = Math.floor(cx / gridSize);
+                    const row = Math.floor(cz / gridSize);
+                    const key = col + ',' + row;
+
+                    const e1x = b[0]-a[0], e1y = b[1]-a[1], e1z = b[2]-a[2];
+                    const e2x = c[0]-a[0], e2y = c[1]-a[1], e2z = c[2]-a[2];
+                    const nx = e1y*e2z - e1z*e2y;
+                    const ny = e1z*e2x - e1x*e2z;
+                    const nz = e1x*e2y - e1y*e2x;
+                    const len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+                    const area = len * 0.5;
+
+                    if (!cells.has(key)) {
+                        cells.set(key, { tris: [], area: 0,
+                            sumCx: 0, sumCy: 0, sumCz: 0,
+                            sumNx: 0, sumNy: 0, sumNz: 0 });
+                    }
+                    const cell = cells.get(key);
+                    cell.tris.push(st);
+                    cell.area += area;
+                    cell.sumCx += cx * area;
+                    cell.sumCy += cy * area;
+                    cell.sumCz += cz * area;
+                    if (len > 0) {
+                        const sign = ny >= 0 ? 1 : -1;
+                        cell.sumNx += sign * (nx / len) * area;
+                        cell.sumNy += sign * (ny / len) * area;
+                        cell.sumNz += sign * (nz / len) * area;
+                    }
+                }
+                if (ti % 500 === 0 && ti > 0) {
+                    showStatus(`Slicing triangles... ${Math.round(ti / worldTris.length * 100)}%`);
+                    await new Promise(r => setTimeout(r, 0));
+                }
+            }
+
+            if (cells.size === 0) {
+                throw new Error('No grid cells found on the selected ground meshes');
+            }
+
+            const cellKeys = Array.from(cells.keys());
+            const cellData = cellKeys.map(k => {
+                const c = cells.get(k);
+                const a = c.area || 1;
+                const nLen = Math.sqrt(c.sumNx*c.sumNx + c.sumNy*c.sumNy + c.sumNz*c.sumNz);
+                return {
+                    key: k,
+                    tris: c.tris,
+                    area: c.area,
+                    centroid: { x: c.sumCx / a, y: c.sumCy / a, z: c.sumCz / a },
+                    normal: (nLen > 0 && c.sumNy > 0)
+                        ? { x: c.sumNx / nLen, y: c.sumNy / nLen, z: c.sumNz / nLen }
+                        : { x: 0, y: 1, z: 0 },
+                };
+            });
+
+            cachedCellData = cellData;
+            cachedGridSize = gridSize;
+            showStatus(`Grid prepared: ${cellData.length} cells at ${gridSize}m resolution`);
+            return cellData;
+        }
+
+        // ─── RAY CAST SUN HOURS (uses cached cell data) ───
+        async function runTerrainAnalysis(latitude, longitude, timeStep, dateStr, cellData) {
+            if (!shadowBVH) {
+                throw new Error('Shadow casters must be set');
+            }
+
+            const sunPositions = getSunPositions(latitude, longitude, dateStr, timeStep);
+            if (sunPositions.length === 0) {
+                throw new Error('No sun positions above horizon for given date/location');
+            }
+
+            const gridSize = cachedGridSize;
+
+            // Ray-cast sun hours per grid cell
+            const totalRays = cellData.length * sunPositions.length;
+            showStatus(`Casting ${totalRays.toLocaleString()} rays (${cellData.length} cells x ${sunPositions.length} sun positions)...`);
+
+            const sunDirs = sunPositions.map(sp => {
+                const v = sunDirection(sp.azimuth, sp.altitude);
+                return [v.x, v.y, v.z];
+            });
+
+            const cellSunHours = new Float32Array(cellData.length);
+            let raysProcessed = 0;
+            const BATCH_SIZE = 2000;
+
+            for (let sunIdx = 0; sunIdx < sunDirs.length; sunIdx++) {
+                const [dx, dy, dz] = sunDirs[sunIdx];
+
+                for (let i = 0; i < cellData.length; i += BATCH_SIZE) {
+                    const end = Math.min(i + BATCH_SIZE, cellData.length);
+
+                    for (let j = i; j < end; j++) {
+                        const cd = cellData[j];
+                        const ox = cd.centroid.x + cd.normal.x * 0.01;
+                        const oy = cd.centroid.y + cd.normal.y * 0.01;
+                        const oz = cd.centroid.z + cd.normal.z * 0.01;
+
+                        if (!shadowBVH.intersectsAny(ox, oy, oz, dx, dy, dz)) {
+                            cellSunHours[j] += timeStep;
+                        }
+                    }
+
+                    raysProcessed += (end - i);
+                    if (raysProcessed % (BATCH_SIZE * 4) === 0) {
+                        const pct = Math.round(raysProcessed / totalRays * 100);
+                        showStatus(`Ray casting... ${pct}%`);
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+            }
+
+            // Compute summary statistics
+            let totalArea = 0;
+            let minHours = Infinity, maxHours = -Infinity;
+            let sumHoursWeighted = 0;
+            for (let i = 0; i < cellData.length; i++) {
+                const a = cellData[i].area;
+                const h = cellSunHours[i];
+                totalArea += a;
+                sumHoursWeighted += h * a;
+                if (h < minHours) minHours = h;
+                if (h > maxHours) maxHours = h;
+            }
+            const avgHours = totalArea > 0 ? sumHoursWeighted / totalArea : 0;
+
+            return {
+                cellData,
+                cellSunHours,
+                gridSize,
+                sunPositions,
+                summary: {
+                    area_total: totalArea.toFixed(1),
+                    cells_total: cellData.length,
+                    min_hours: Math.round(minHours * 10) / 10,
+                    max_hours: Math.round(maxHours * 10) / 10,
+                    avg_hours: Math.round(avgHours * 10) / 10,
+                },
+            };
+        }
+
+        // ─── HEAT MAP COLOUR GRADIENT ───
+        const HEAT_COLOURS = [
+            [0, 0.15, 0.0, 0.25],
+            [1, 0.8, 0.1, 0.1],
+            [2, 1.0, 0.5, 0.0],
+            [3, 1.0, 0.85, 0.0],
+            [4, 1.0, 1.0, 0.2],
+            [6, 1.0, 1.0, 0.8],
+        ];
+
+        function lerpColour(hours) {
+            if (hours <= HEAT_COLOURS[0][0]) return [HEAT_COLOURS[0][1], HEAT_COLOURS[0][2], HEAT_COLOURS[0][3]];
+            if (hours >= HEAT_COLOURS[HEAT_COLOURS.length-1][0]) {
+                const c = HEAT_COLOURS[HEAT_COLOURS.length-1];
+                return [c[1], c[2], c[3]];
+            }
+            for (let i = 0; i < HEAT_COLOURS.length - 1; i++) {
+                const [h0, r0, g0, b0] = HEAT_COLOURS[i];
+                const [h1, r1, g1, b1] = HEAT_COLOURS[i + 1];
+                if (hours >= h0 && hours <= h1) {
+                    const t = (hours - h0) / (h1 - h0);
+                    return [r0 + t * (r1 - r0), g0 + t * (g1 - g0), b0 + t * (b1 - b0)];
+                }
+            }
+            const c = HEAT_COLOURS[HEAT_COLOURS.length-1];
+            return [c[1], c[2], c[3]];
+        }
+
+        // ─── CREATE HEATMAP GROUP (20mm OFFSET) ───
+        function createHeatmapGroup(results) {
+            const group = new THREE.Group();
+            group.name = 'heatmap_' + (results.season || 'default');
+            if (!results.cellData || results.cellData.length === 0) return group;
+
+            const off = 0.02; // 20mm offset above surface
+
+            const tilePositions = [];
+            const tileColors = [];
+
+            for (let i = 0; i < results.cellData.length; i++) {
+                const cd = results.cellData[i];
+                const hours = results.cellSunHours[i];
+                const [r, g, b] = lerpColour(hours);
+                const n = cd.normal;
+
+                for (const tri of cd.tris) {
+                    for (const v of tri) {
+                        tilePositions.push(
+                            v[0] + n.x * off,
+                            v[1] + n.y * off,
+                            v[2] + n.z * off
+                        );
+                        tileColors.push(r, g, b);
+                    }
+                }
+            }
+
+            if (tilePositions.length > 0) {
+                const tileGeo = new THREE.BufferGeometry();
+                tileGeo.setAttribute('position', new THREE.Float32BufferAttribute(tilePositions, 3));
+                tileGeo.setAttribute('color', new THREE.Float32BufferAttribute(tileColors, 3));
+
+                const tileMat = new THREE.MeshBasicMaterial({
+                    vertexColors: true,
+                    side: THREE.DoubleSide,
+                });
+
+                const tileMesh = new THREE.Mesh(tileGeo, tileMat);
+                tileMesh.name = 'heatmap_mesh';
+                group.add(tileMesh);
+            }
+
+            return group;
+        }
+
+        // ─── RUN ANALYSIS (multi-season) ───
+        async function runAnalysis() {
+            const btn = document.getElementById('run-btn');
+            if (!ifcLoaded || selectedGroundMeshes.length === 0) {
+                alert('Please complete previous steps first.');
+                return;
+            }
+
+            const seasons = getActiveSeasonKeys();
+            if (seasons.length === 0) {
+                alert('Please select at least one season.');
+                return;
+            }
+
+            btn.textContent = 'Analysing...';
+            btn.disabled = true;
+
+            // Clear previous season heatmaps
+            for (const [key, group] of Object.entries(seasonHeatmaps)) {
+                scene.remove(group);
+                group.traverse(c => {
+                    if (c.geometry) c.geometry.dispose();
+                    if (c.material) c.material.dispose();
+                });
+            }
+            seasonHeatmaps = {};
+            seasonResults = {};
+
+            try {
+                const lat = parseFloat(document.getElementById('latitude').value);
+                const lng = parseFloat(document.getElementById('longitude').value);
+                const timeStep = parseFloat(document.getElementById('time_step').value);
+
+                // Prepare grid cells ONCE (merge + slice + top-surface extraction)
+                const cellData = await prepareGridCells();
+
+                for (let si = 0; si < seasons.length; si++) {
+                    const season = seasons[si];
+                    const dateStr = SEASON_DATES[season];
+                    showStatus(`Ray casting ${SEASON_LABELS[season]} (${si + 1}/${seasons.length})...`);
+
+                    const results = await runTerrainAnalysis(lat, lng, timeStep, dateStr, cellData);
+                    results.season = season;
+                    results.seasonLabel = SEASON_LABELS[season];
+                    seasonResults[season] = results;
+
+                    // Paint heatmap for this season
+                    const hm = createHeatmapGroup(results);
+                    seasonHeatmaps[season] = hm;
+                    scene.add(hm);
+                    hm.visible = false; // hide initially
+                }
+
+                // Show first analysed season
+                visibleSeason = seasons[0];
+                seasonHeatmaps[visibleSeason].visible = true;
+                lastAnalysisResults = seasonResults[visibleSeason];
+
+                // Show results
+                showResults(seasonResults[visibleSeason].summary, visibleSeason);
+
+                // Show season switcher if > 1 season
+                const switcher = document.getElementById('season-switcher');
+                if (seasons.length > 1) {
+                    switcher.classList.add('visible');
+                    document.querySelectorAll('.season-sw-btn').forEach(btn => {
+                        const key = btn.id.replace('sw-', '');
+                        btn.style.display = seasonResults[key] ? '' : 'none';
+                        btn.classList.toggle('active', key === visibleSeason);
+                    });
+                } else {
+                    switcher.classList.remove('visible');
+                }
+
+                // Show colour legend
+                document.getElementById('colour-legend').classList.add('visible');
+
+                const totalCells = seasonResults[visibleSeason].cellData.length;
+                showStatus(`Analysis complete \u2014 ${seasons.length} season(s), ${totalCells} grid cells`);
+                setTimeout(hideStatus, 5000);
+
+                // Build summary for step completion
+                const avgList = seasons.map(s => {
+                    const label = s === 'spring' ? 'Spr' : s === 'winter' ? 'Win' : 'Sum';
+                    return label + ' ' + seasonResults[s].summary.avg_hours + 'h';
+                });
+                completeStep(4, avgList.join(' | '));
+
+                // Hide the IFC meshes so only heatmap is visible
+                hideCalculationMeshes();
+
+                updateBugReportLink();
+
+            } catch (err) {
+                alert('Analysis failed: ' + err.message);
+                console.error(err);
+                hideStatus();
+            } finally {
+                btn.textContent = 'Run Analysis';
+                btn.disabled = false;
+            }
+        }
+
+        // ─── RESULTS DISPLAY ───
+        function showResults(summary, seasonKey) {
+            const label = seasonKey ? SEASON_LABELS[seasonKey] : 'Sun Hours Summary';
+            document.getElementById('results-title').textContent = label;
+
+            // Build per-season summary lines (hours omitted — heatmap only)
+            let html = '';
+            const keys = getActiveSeasonKeys();
+            for (const k of keys) {
+                if (!seasonResults[k]) continue;
+                const bold = k === seasonKey ? 'color:#e0e0e0; font-weight:600;' : '';
+                html += `<div style="${bold}">${SEASON_LABELS[k]}: analysis complete</div>`;
+            }
+            html += `<div style="margin-top:4px;">Total area: ${summary.area_total} m\u00b2 &nbsp;|&nbsp; Grid cells: ${summary.cells_total}</div>`;
+            document.getElementById('results-detail').innerHTML = html;
+        }
+
+        // ─── EXPORT GLB (coloured ground + grey buildings) ───
+        function downloadGLB() {
+            const btn = document.getElementById('glb-btn');
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+
+            const exportScene = new THREE.Scene();
+
+            // Add currently visible season heatmap
+            const activeHeatmap = seasonHeatmaps[visibleSeason];
+            if (activeHeatmap) {
+                const hmClone = activeHeatmap.clone();
+                // Convert vertex-color MeshBasicMaterial to MeshStandardMaterial for GLB compat
+                hmClone.traverse(c => {
+                    if (c.isMesh && c.material) {
+                        const newMat = new THREE.MeshStandardMaterial({
+                            vertexColors: c.material.vertexColors,
+                            side: THREE.DoubleSide,
+                            roughness: 1.0,
+                            metalness: 0.0,
+                        });
+                        c.material.dispose();
+                        c.material = newMat;
+                    }
+                });
+                exportScene.add(hmClone);
+            }
+
+            // Add all meshes as grey context geometry
+            for (const mesh of allMeshes) {
+                mesh.updateWorldMatrix(true, false);
+                const clone = mesh.clone();
+                clone.applyMatrix4(mesh.matrixWorld);
+                clone.material = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+                exportScene.add(clone);
+            }
+
+            try {
+                const exporter = new THREE.GLTFExporter();
+                exporter.parse(exportScene, (result) => {
+                    const blob = new Blob(
+                        [result],
+                        { type: 'application/octet-stream' }
+                    );
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const d = new Date();
+                    a.download = `SunForm_${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}.glb`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    btn.textContent = 'Download GLB';
+                    btn.disabled = false;
+                }, { binary: true });
+            } catch (err) {
+                alert('GLB export error: ' + err.message);
+                btn.textContent = 'Download GLB';
+                btn.disabled = false;
+            }
+        }
+
+        // ─── EXPORT PDF (plan view: raster heatmap + vector mesh edges) ───
+        function downloadPDF() {
+            const analysedSeasons = Object.keys(seasonResults);
+            if (analysedSeasons.length === 0) return;
+            const btn = document.getElementById('pdf-btn');
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'landscape' });
+                const lat = document.getElementById('latitude').value;
+                const lng = document.getElementById('longitude').value;
+                const firstSummary = seasonResults[analysedSeasons[0]].summary;
+                const pageW = doc.internal.pageSize.width;
+                const pageH = doc.internal.pageSize.height;
+
+                // Save current camera state
+                const savedCamera = camera;
+                const savedRotateEnabled = controls.enableRotate;
+
+                // Set up ortho camera for true plan view
+                updateOrthoCamera();
+                // Compute tight bounds around heatmap/building
+                const targetGroup = buildingGroup || scene;
+                const bb = new THREE.Box3().setFromObject(targetGroup);
+                const cx = (bb.min.x + bb.max.x) / 2;
+                const cz = (bb.min.z + bb.max.z) / 2;
+                const extX = (bb.max.x - bb.min.x) / 2 + 2;
+                const extZ = (bb.max.z - bb.min.z) / 2 + 2;
+
+                // Fit ortho camera to bounds
+                const planAspect = (pageW - 40) / (pageH - 60);
+                const orthoExtent = Math.max(extX, extZ / planAspect, extZ, extX / planAspect);
+                orthoCamera.left = cx - orthoExtent * planAspect;
+                orthoCamera.right = cx + orthoExtent * planAspect;
+                orthoCamera.top = cz + orthoExtent;
+                orthoCamera.bottom = cz - orthoExtent;
+                orthoCamera.position.set(cx, 500, cz);
+                orthoCamera.lookAt(cx, 0, cz);
+                orthoCamera.updateProjectionMatrix();
+
+                // Helper: project 3D point to PDF page coords
+                function projectToPDF(x, y, z) {
+                    const v = new THREE.Vector3(x, y, z);
+                    v.project(orthoCamera);
+                    // v.x, v.y are now in [-1, 1] NDC
+                    const px = 20 + ((v.x + 1) / 2) * (pageW - 40);
+                    const py = 25 + ((1 - v.y) / 2) * (pageH - 55);
+                    return { x: px, y: py };
+                }
+
+                // Collect non-ground mesh edges for vector overlay
+                const groundSet = new Set(selectedGroundMeshes);
+                const edgeLines = []; // [{x1,y1,x2,y2}, ...]
+                for (const mesh of allMeshes) {
+                    if (groundSet.has(mesh)) continue;
+                    mesh.updateWorldMatrix(true, false);
+                    const wm = mesh.matrixWorld;
+                    const edges = new THREE.EdgesGeometry(mesh.geometry, 15);
+                    const pos = edges.attributes.position.array;
+                    for (let i = 0; i < pos.length; i += 6) {
+                        const p1 = new THREE.Vector3(pos[i], pos[i+1], pos[i+2]).applyMatrix4(wm);
+                        const p2 = new THREE.Vector3(pos[i+3], pos[i+4], pos[i+5]).applyMatrix4(wm);
+                        const a = projectToPDF(p1.x, p1.y, p1.z);
+                        const b = projectToPDF(p2.x, p2.y, p2.z);
+                        edgeLines.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+                    }
+                    edges.dispose();
+                }
+
+                for (let si = 0; si < analysedSeasons.length; si++) {
+                    const season = analysedSeasons[si];
+                    const s = seasonResults[season].summary;
+
+                    if (si > 0) doc.addPage();
+
+                    // ── Render heatmap-only plan view as PNG ──
+                    // Hide ALL meshes, show only this season's heatmap
+                    for (const mesh of allMeshes) mesh.visible = false;
+                    for (const hl of groundHighlights) hl.visible = false;
+                    for (const [k, group] of Object.entries(seasonHeatmaps)) {
+                        group.visible = (k === season);
+                    }
+                    // Set scene background to white for print
+                    const savedBg = scene.background;
+                    scene.background = new THREE.Color(0xffffff);
+
+                    renderer.render(scene, orthoCamera);
+                    const imgData = renderer.domElement.toDataURL('image/png');
+
+                    // Restore background
+                    scene.background = savedBg;
+
+                    // Place raster image (heatmap plan view)
+                    doc.addImage(imgData, 'PNG', 20, 25, pageW - 40, pageH - 55);
+
+                    // ── Draw vector edge overlay ──
+                    doc.setDrawColor(80, 80, 80);
+                    doc.setLineWidth(0.15);
+                    for (const line of edgeLines) {
+                        doc.line(line.x1, line.y1, line.x2, line.y2);
+                    }
+
+                    // ── Title bar at top ──
+                    doc.setFillColor(22, 33, 62);
+                    doc.rect(0, 0, pageW, 22, 'F');
+                    doc.setFontSize(14);
+                    doc.setTextColor(212, 136, 15);
+                    doc.text('SunForm', 10, 14);
+                    doc.setFontSize(10);
+                    doc.setTextColor(200, 200, 200);
+                    doc.text(SEASON_LABELS[season], 60, 14);
+                    doc.setFontSize(9);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(`Lat: ${lat}  Lng: ${lng}`, pageW - 10, 14, { align: 'right' });
+
+                    // ── Disclaimer footer ──
+                    doc.setFontSize(7);
+                    doc.setTextColor(120);
+                    doc.text('SunForm is beta software. There is no warranty. The Software provided under the author is incomplete and may contain errors or inaccuracies and therefore cannot be relied upon for design decision making.', 20, pageH - 5);
+                    doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), pageW - 20, pageH - 5, { align: 'right' });
+                }
+
+                // Restore scene state — show non-ground meshes, hide ground (step 5)
+                const pdfGroundSet = new Set(selectedGroundMeshes);
+                for (const mesh of allMeshes) {
+                    mesh.visible = !pdfGroundSet.has(mesh);
+                }
+                for (const hl of groundHighlights) hl.visible = false;
+                for (const [k, group] of Object.entries(seasonHeatmaps)) {
+                    group.visible = (k === visibleSeason);
+                }
+                camera = savedCamera;
+                controls.object = camera;
+                controls.enableRotate = savedRotateEnabled;
+                controls.update();
+
+                doc.save('SunForm_Report.pdf');
+
+            } catch (err) {
+                alert('PDF export error: ' + err.message);
+                console.error(err);
+            } finally {
+                btn.textContent = 'Download PDF';
+                btn.disabled = false;
+            }
+        }
+
+        // ─── BOUNDING BOX DRAWING TOOL ───
+        let bboxMode = false;
+        let bboxCorner1 = null;
+        let bboxTempHelper = null;
+
+        function toggleBboxMode() {
+            bboxMode = !bboxMode;
+            useEntireGroundMesh = false;
+            const overlay = document.getElementById('bbox-overlay');
+            const viewport = document.getElementById('viewport');
+            const btn = document.getElementById('bbox-btn');
+
+            overlay.classList.toggle('visible', bboxMode);
+            viewport.classList.toggle('drawing-bbox', bboxMode);
+
+            document.getElementById('use-entire-btn').style.background = '';
+            document.getElementById('use-entire-btn').style.color = '';
+            document.getElementById('bbox-btn').style.background = bboxMode ? '#D4880F' : '';
+            document.getElementById('bbox-btn').style.color = bboxMode ? '#fff' : '';
+            document.getElementById('bbox-fields').style.display = 'flex';
+            document.getElementById('bbox-fields2').style.display = 'flex';
+
+            if (bboxMode) {
+                bboxCorner1 = null;
+                document.getElementById('bbox-hint').textContent = 'Click first corner on the ground plane';
+                document.getElementById('bbox-coords').textContent = '';
+                controls.enabled = false;
+            } else {
+                controls.enabled = true;
+                removeTempBbox();
+            }
+        }
+
+        function removeTempBbox() {
+            if (bboxTempHelper) {
+                scene.remove(bboxTempHelper);
+                bboxTempHelper.traverse(c => {
+                    if (c.geometry) c.geometry.dispose();
+                    if (c.material) c.material.dispose();
+                });
+                bboxTempHelper = null;
+            }
+        }
+
+        function drawBboxRect(x1, y1, x2, y2, color) {
+            removeTempBbox();
+            removeBboxHelper();
+            const group = new THREE.Group();
+            const points = [
+                new THREE.Vector3(x1, 0.05, -y1),
+                new THREE.Vector3(x2, 0.05, -y1),
+                new THREE.Vector3(x2, 0.05, -y2),
+                new THREE.Vector3(x1, 0.05, -y2),
+                new THREE.Vector3(x1, 0.05, -y1),
+            ];
+            group.add(new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints(points),
+                new THREE.LineBasicMaterial({ color })
+            ));
+            const fillGeo = new THREE.PlaneGeometry(Math.abs(x2 - x1), Math.abs(y2 - y1));
+            const fill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({
+                color, transparent: true, opacity: 0.15, side: THREE.DoubleSide
+            }));
+            fill.rotation.x = -Math.PI / 2;
+            fill.position.set((x1 + x2) / 2, 0.04, -(y1 + y2) / 2);
+            group.add(fill);
+            scene.add(group);
+            return group;
+        }
+
+        function removeBboxHelper() {
+            if (bboxHelper) {
+                scene.remove(bboxHelper);
+                bboxHelper.traverse(c => {
+                    if (c.geometry) c.geometry.dispose();
+                    if (c.material) c.material.dispose();
+                });
+                bboxHelper = null;
+            }
+        }
+
+        function getGroundIntersection(event) {
+            const container = document.getElementById('viewport');
+            const rect = container.getBoundingClientRect();
+            const mouse = new THREE.Vector2(
+                ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                -((event.clientY - rect.top) / rect.height) * 2 + 1
+            );
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObject(groundPlane);
+            return hits.length > 0 ? hits[0].point : null;
+        }
+
+        function handleBboxClick(event) {
+            const pt = getGroundIntersection(event);
+            if (!pt) return;
+            const ifcX = pt.x, ifcY = -pt.z;
+
+            if (!bboxCorner1) {
+                bboxCorner1 = { x: ifcX, y: ifcY };
+                document.getElementById('bbox-hint').textContent = 'Click second corner';
+                document.getElementById('bbox-coords').textContent =
+                    `Corner 1: (${ifcX.toFixed(1)}, ${ifcY.toFixed(1)})`;
+                const markerGeo = new THREE.SphereGeometry(0.3, 8, 8);
+                bboxTempHelper = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: 0xD4880F }));
+                bboxTempHelper.position.set(pt.x, 0.2, pt.z);
+                scene.add(bboxTempHelper);
+            } else {
+                const x1 = Math.min(bboxCorner1.x, ifcX);
+                const y1 = Math.min(bboxCorner1.y, ifcY);
+                const x2 = Math.max(bboxCorner1.x, ifcX);
+                const y2 = Math.max(bboxCorner1.y, ifcY);
+                document.getElementById('bbox_min_x').value = x1.toFixed(1);
+                document.getElementById('bbox_min_y').value = y1.toFixed(1);
+                document.getElementById('bbox_max_x').value = x2.toFixed(1);
+                document.getElementById('bbox_max_y').value = y2.toFixed(1);
+                bboxHelper = drawBboxRect(x1, y1, x2, y2, 0x00CFC8);
+                // Exit bbox mode
+                bboxMode = false;
+                document.getElementById('bbox-overlay').classList.remove('visible');
+                document.getElementById('viewport').classList.remove('drawing-bbox');
+                document.getElementById('bbox-btn').style.background = '';
+                document.getElementById('bbox-btn').style.color = '';
+                controls.enabled = true;
+            }
+        }
+
+        document.getElementById('viewport').addEventListener('mousemove', (event) => {
+            if (!bboxMode || !bboxCorner1) return;
+            const pt = getGroundIntersection(event);
+            if (!pt) return;
+            const ifcX = pt.x, ifcY = -pt.z;
+            document.getElementById('bbox-coords').textContent =
+                `Corner 1: (${bboxCorner1.x.toFixed(1)}, ${bboxCorner1.y.toFixed(1)})` +
+                `  \u2192  (${ifcX.toFixed(1)}, ${ifcY.toFixed(1)})`;
+            removeTempBbox();
+            bboxTempHelper = drawBboxRect(bboxCorner1.x, bboxCorner1.y, ifcX, ifcY, 0xD4880F);
+        });
+
+        // ─── STATUS HELPERS ───
+        function showStatus(msg) {
+            const el = document.getElementById('status-overlay');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('status-overlay').style.display = 'none';
+        }
+
+        // ─── FLY / ORBIT MODE ───
+        function enableFlyMode() {
+            flyMode = true;
+            controls.enabled = false;
+            const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+            flyYaw = flyYawTarget = euler.y;
+            flyPitch = flyPitchTarget = euler.x;
+            renderer.domElement.requestPointerLock();
+            document.getElementById('fly-crosshair').style.display = 'block';
+            updateViewportInfo();
+        }
+
+        function enableOrbitMode() {
+            flyMode = false;
+            for (const k in flyKeys) flyKeys[k] = false;
+            if (document.pointerLockElement) document.exitPointerLock();
+            controls.enabled = true;
+            document.getElementById('fly-crosshair').style.display = 'none';
+            // Raycast along look direction to find a sensible orbit target
+            const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const rc = new THREE.Raycaster(camera.position, lookDir);
+            const hits = rc.intersectObjects(allMeshes, false);
+            if (hits.length > 0) {
+                controls.target.copy(hits[0].point);
+            } else if (buildingGroup) {
+                // No hit — fall back to building centre
+                const bb = new THREE.Box3().setFromObject(buildingGroup);
+                bb.getCenter(controls.target);
+            }
+            controls.update();
+            updateViewportInfo();
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (!flyMode || !document.pointerLockElement) return;
+            const sensitivity = 0.002;
+            flyYawTarget -= e.movementX * sensitivity;
+            flyPitchTarget -= e.movementY * sensitivity;
+            flyPitchTarget = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, flyPitchTarget));
+        });
+
+        function updateViewportInfo() {
+            const el = document.getElementById('viewport-info');
+            if (flyMode) {
+                el.textContent = 'FLY MODE — W/S: forward/back | A/D: strafe | Q/E: up/down | Mouse: look | O: orbit mode';
+            } else {
+                el.textContent = 'ORBIT MODE — Drag: orbit | Scroll: zoom | Right-drag: pan | F: fly mode';
+            }
+        }
+
+        // Fly mode animation loop (runs inside main animate)
+        function updateFlyMovement() {
+            if (!flyMode) return;
+            // Smooth interpolation of look direction
+            flyYaw += (flyYawTarget - flyYaw) * FLY_LOOK_SMOOTHING;
+            flyPitch += (flyPitchTarget - flyPitch) * FLY_LOOK_SMOOTHING;
+            const euler = new THREE.Euler(flyPitch, flyYaw, 0, 'YXZ');
+            camera.quaternion.setFromEuler(euler);
+
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+            const up = new THREE.Vector3(0, 1, 0);
+
+            const move = new THREE.Vector3();
+            if (flyKeys.w) move.add(forward);
+            if (flyKeys.s) move.sub(forward);
+            if (flyKeys.a) move.sub(right);
+            if (flyKeys.d) move.add(right);
+            if (flyKeys.q) move.sub(up);
+            if (flyKeys.e) move.add(up);
+
+            if (move.length() > 0) {
+                move.normalize().multiplyScalar(FLY_SPEED);
+                camera.position.add(move);
+            }
+        }
+
+        // ─── KEYBOARD SHORTCUTS ───
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+            const key = e.key.toLowerCase();
+
+            if (key === 'escape') {
+                if (flyMode) { enableOrbitMode(); return; }
+                if (bboxMode) toggleBboxMode();
+                if (pickMode) setPickMode(false);
+                return;
+            }
+
+            if (key === 'f') {
+                enableFlyMode();
+                return;
+            }
+            if (key === 'o') {
+                enableOrbitMode();
+                return;
+            }
+
+            // Left/Right arrows to cycle seasons when results are visible
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                const seasonOrder = ['winter', 'spring', 'summer'];
+                const active = seasonOrder.filter(s => seasonResults[s]);
+                if (active.length > 1) {
+                    const idx = active.indexOf(visibleSeason);
+                    if (idx !== -1) {
+                        const next = e.key === 'ArrowRight'
+                            ? active[(idx + 1) % active.length]
+                            : active[(idx - 1 + active.length) % active.length];
+                        switchVisibleSeason(next);
+                        e.preventDefault();
+                    }
+                }
+                return;
+            }
+
+            // WASD + Q/E for fly mode
+            if (key in flyKeys) {
+                flyKeys[key] = true;
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in flyKeys) {
+                flyKeys[key] = false;
+            }
+        });
+
+        // ─── LOCATION PICKER (Leaflet) ───
+        function initLocationMap() {
+            locationMap = L.map('location-map', {
+                zoomControl: true,
+                attributionControl: false,
+            }).setView([54.0, -2.0], 6); // UK overview
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+            }).addTo(locationMap);
+
+            locationMarker = L.marker([51.5074, -0.1278]).addTo(locationMap);
+
+            locationMap.on('click', (e) => {
+                const { lat, lng } = e.latlng;
+                locationMarker.setLatLng([lat, lng]);
+                document.getElementById('latitude').value = lat.toFixed(4);
+                document.getElementById('longitude').value = lng.toFixed(4);
+            });
+
+            // Sync: when lat/lng fields change, update map
+            ['latitude', 'longitude'].forEach(id => {
+                document.getElementById(id).addEventListener('change', () => {
+                    const lat = parseFloat(document.getElementById('latitude').value) || 51.5074;
+                    const lng = parseFloat(document.getElementById('longitude').value) || -0.1278;
+                    locationMarker.setLatLng([lat, lng]);
+                    locationMap.setView([lat, lng], Math.max(locationMap.getZoom(), 10));
+                });
+            });
+
+            // Search box (Nominatim)
+            let searchTimeout = null;
+            document.getElementById('location-search').addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                const query = e.target.value.trim();
+                if (query.length < 3) return;
+                searchTimeout = setTimeout(() => {
+                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`, {
+                        headers: { 'Accept': 'application/json' }
+                    })
+                    .then(r => r.json())
+                    .then(results => {
+                        if (results.length > 0) {
+                            const lat = parseFloat(results[0].lat);
+                            const lng = parseFloat(results[0].lon);
+                            document.getElementById('latitude').value = lat.toFixed(4);
+                            document.getElementById('longitude').value = lng.toFixed(4);
+                            locationMarker.setLatLng([lat, lng]);
+                            locationMap.setView([lat, lng], 14);
+                        }
+                    })
+                    .catch(() => {});
+                }, 600);
+            });
+
+            document.getElementById('location-search').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') e.preventDefault();
+            });
+        }
+
+        // ─── SEASON TOGGLES ───
+        function toggleSeason(season) {
+            // Count currently active
+            const count = Object.values(activeSeasons).filter(Boolean).length;
+            if (activeSeasons[season] && count <= 1) return; // must keep at least one
+            activeSeasons[season] = !activeSeasons[season];
+            document.getElementById('season-' + season).classList.toggle('active', activeSeasons[season]);
+        }
+
+        function getActiveSeasonKeys() {
+            return Object.keys(activeSeasons).filter(k => activeSeasons[k]);
+        }
+
+        // ─── SEASON SWITCHER ───
+        function switchVisibleSeason(season) {
+            if (!seasonResults[season]) return;
+            visibleSeason = season;
+            // Hide all heatmaps, show selected
+            for (const [key, group] of Object.entries(seasonHeatmaps)) {
+                group.visible = (key === season);
+            }
+            // Update switcher buttons
+            document.querySelectorAll('.season-sw-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('sw-' + season).classList.add('active');
+            // Update results panel for this season
+            showResults(seasonResults[season].summary, season);
+        }
+
+        // ─── BUG REPORT ───
+        function updateBugReportLink() {
+            const lat = document.getElementById('latitude').value;
+            const lng = document.getElementById('longitude').value;
+            const seasons = getActiveSeasonKeys().join(', ');
+            const grid = document.getElementById('grid_resolution').value;
+            const ua = navigator.userAgent;
+            const ts = new Date().toISOString();
+            const body = [
+                'SunForm Bug Report',
+                '---',
+                'Latitude: ' + lat,
+                'Longitude: ' + lng,
+                'Seasons analysed: ' + seasons,
+                'Grid resolution: ' + grid + 'm',
+                'Browser: ' + ua,
+                'Timestamp: ' + ts,
+                '',
+                'Description of issue:',
+                '',
+            ].join('\n');
+            const link = document.getElementById('bug-report-link');
+            link.href = 'mailto:jake@jakewhitearchitecture.com?subject=' +
+                encodeURIComponent('SunForm Bug Report') +
+                '&body=' + encodeURIComponent(body);
+        }
+
+        // ─── DISCLAIMER MODAL ───
+        function updateDisclaimerAccept() {
+            const c1 = document.getElementById('disclaimer-check1').checked;
+            const c2 = document.getElementById('disclaimer-check2').checked;
+            const c3 = document.getElementById('disclaimer-check3').checked;
+            const allChecked = c1 && c2 && c3;
+            document.getElementById('disclaimer-accept-btn').disabled = !allChecked;
+        }
+
+        function acceptDisclaimer() {
+            document.getElementById('disclaimer-modal').classList.add('hidden');
+        }
+
+        // ─── DOWNLOAD CONFIRMATION ───
+        let pendingDownloadType = null;
+
+        function showDownloadConfirm(type) {
+            pendingDownloadType = type;
+            document.getElementById('download-confirm-check').checked = false;
+            document.getElementById('download-confirm-btn').disabled = true;
+            document.getElementById('download-confirm-overlay').classList.add('visible');
+        }
+
+        function hideDownloadConfirm() {
+            document.getElementById('download-confirm-overlay').classList.remove('visible');
+            pendingDownloadType = null;
+        }
+
+        function updateDownloadConfirm() {
+            document.getElementById('download-confirm-btn').disabled =
+                !document.getElementById('download-confirm-check').checked;
+        }
+
+        function proceedDownload() {
+            const type = pendingDownloadType;
+            hideDownloadConfirm();
+            if (type === 'glb') downloadGLB();
+            else if (type === 'pdf') downloadPDF();
+        }
+
+        // ─── MESH VISIBILITY MANAGEMENT ───
+        function hideCalculationMeshes() {
+            // Hide only the ground meshes used for calculation (to avoid aliasing)
+            // Keep all non-ground building meshes visible
+            const groundSet = new Set(selectedGroundMeshes);
+            for (const mesh of allMeshes) {
+                if (groundSet.has(mesh)) {
+                    mesh.visible = false;
+                }
+            }
+            for (const hl of groundHighlights) {
+                hl.visible = false;
+            }
+        }
+
+        function showCalculationMeshes() {
+            // Reinstate ground mesh visibility (e.g. when going back to select mesh)
+            const groundSet = new Set(selectedGroundMeshes);
+            for (const mesh of allMeshes) {
+                if (groundSet.has(mesh)) {
+                    mesh.visible = true;
+                }
+            }
+            for (const hl of groundHighlights) {
+                hl.visible = true;
+            }
+        }
+
+        function grayOutResults() {
+            // Reduce opacity of all season heatmaps when going back to select mesh
+            for (const [key, group] of Object.entries(seasonHeatmaps)) {
+                group.traverse(c => {
+                    if (c.material && !c.material._grayedOut) {
+                        c.material = c.material.clone();
+                        c.material.opacity = 0.25;
+                        c.material.transparent = true;
+                        c.material._grayedOut = true;
+                    }
+                });
+                group.visible = true;
+            }
+        }
+
+        function restoreResults() {
+            // Restore full opacity when leaving select mesh
+            for (const [key, group] of Object.entries(seasonHeatmaps)) {
+                group.traverse(c => {
+                    if (c.material && c.material._grayedOut) {
+                        c.material.opacity = 1.0;
+                        c.material.transparent = false;
+                        c.material._grayedOut = false;
+                    }
+                });
+                group.visible = (key === visibleSeason);
+            }
+        }
+
+        // ─── INIT ───
+        initThree();
+        initWebIfc();
+        // Leaflet must init after DOM is ready and step-4 is visible at least once
+        // We defer map init to when step 4 opens
+        let mapInitialized = false;
+    </script>
+</body>
+</html>
