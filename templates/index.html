@@ -2901,11 +2901,10 @@
             if (document.pointerLockElement) document.exitPointerLock();
             controls.enabled = true;
             document.getElementById('fly-crosshair').style.display = 'none';
-            // Restore orbit target to model centre
-            if (buildingGroup) {
-                const bb = new THREE.Box3().setFromObject(buildingGroup);
-                bb.getCenter(controls.target);
-            }
+            // Set orbit target along current look direction to preserve camera angle
+            const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const dist = camera.position.distanceTo(controls.target);
+            controls.target.copy(camera.position).addScaledVector(lookDir, dist);
             controls.update();
             updateViewportInfo();
         }
