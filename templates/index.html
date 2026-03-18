@@ -2901,10 +2901,17 @@
             if (document.pointerLockElement) document.exitPointerLock();
             controls.enabled = true;
             document.getElementById('fly-crosshair').style.display = 'none';
-            // Set orbit target along current look direction to preserve camera angle
+            // Raycast along look direction to find a sensible orbit target
             const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-            const dist = camera.position.distanceTo(controls.target);
-            controls.target.copy(camera.position).addScaledVector(lookDir, dist);
+            const rc = new THREE.Raycaster(camera.position, lookDir);
+            const hits = rc.intersectObjects(allMeshes, false);
+            if (hits.length > 0) {
+                controls.target.copy(hits[0].point);
+            } else if (buildingGroup) {
+                // No hit — fall back to building centre
+                const bb = new THREE.Box3().setFromObject(buildingGroup);
+                bb.getCenter(controls.target);
+            }
             controls.update();
             updateViewportInfo();
         }
