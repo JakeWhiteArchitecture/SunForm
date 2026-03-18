@@ -1068,6 +1068,8 @@
         let flyMode = false;
         const flyKeys = { w: false, a: false, s: false, d: false, q: false, e: false };
         const FLY_SPEED = 0.5;
+        let flyYaw = 0;
+        let flyPitch = 0;
 
         // Leaflet map state
         let locationMap = null;
@@ -2863,19 +2865,35 @@
         // ─── FLY / ORBIT MODE ───
         function enableFlyMode() {
             flyMode = true;
-            controls.enableRotate = true;
-            controls.enablePan = true;
-            controls.enableZoom = true;
-            // In fly mode we use the orbit controls for looking, WASD for moving
+            controls.enabled = false;
+            const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+            flyYaw = euler.y;
+            flyPitch = euler.x;
+            renderer.domElement.requestPointerLock();
             updateViewportInfo();
         }
 
         function enableOrbitMode() {
             flyMode = false;
-            // Reset all fly keys
             for (const k in flyKeys) flyKeys[k] = false;
+            if (document.pointerLockElement) document.exitPointerLock();
+            controls.enabled = true;
+            controls.target.copy(camera.position).add(
+                new THREE.Vector3(0, 0, -10).applyQuaternion(camera.quaternion)
+            );
+            controls.update();
             updateViewportInfo();
         }
+
+        document.addEventListener('mousemove', (e) => {
+            if (!flyMode || !document.pointerLockElement) return;
+            const sensitivity = 0.002;
+            flyYaw -= e.movementX * sensitivity;
+            flyPitch -= e.movementY * sensitivity;
+            flyPitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, flyPitch));
+            const euler = new THREE.Euler(flyPitch, flyYaw, 0, 'YXZ');
+            camera.quaternion.setFromEuler(euler);
+        });
 
         function updateViewportInfo() {
             const el = document.getElementById('viewport-info');
@@ -2889,14 +2907,13 @@
         // Fly mode animation loop (runs inside main animate)
         function updateFlyMovement() {
             if (!flyMode) return;
-            const dir = new THREE.Vector3();
-            camera.getWorldDirection(dir);
-            const right = new THREE.Vector3().crossVectors(dir, camera.up).normalize();
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
             const up = new THREE.Vector3(0, 1, 0);
 
             const move = new THREE.Vector3();
-            if (flyKeys.w) move.add(dir);
-            if (flyKeys.s) move.sub(dir);
+            if (flyKeys.w) move.add(forward);
+            if (flyKeys.s) move.sub(forward);
             if (flyKeys.a) move.sub(right);
             if (flyKeys.d) move.add(right);
             if (flyKeys.q) move.sub(up);
@@ -2905,8 +2922,6 @@
             if (move.length() > 0) {
                 move.normalize().multiplyScalar(FLY_SPEED);
                 camera.position.add(move);
-                controls.target.add(move);
-                controls.update();
             }
         }
 
