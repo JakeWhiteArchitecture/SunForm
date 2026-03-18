@@ -1145,7 +1145,7 @@
         function animate() {
             requestAnimationFrame(animate);
             updateFlyMovement();
-            controls.update();
+            if (!flyMode) controls.update();
             renderer.render(scene, camera);
         }
 
@@ -2878,9 +2878,11 @@
             for (const k in flyKeys) flyKeys[k] = false;
             if (document.pointerLockElement) document.exitPointerLock();
             controls.enabled = true;
-            controls.target.copy(camera.position).add(
-                new THREE.Vector3(0, 0, -10).applyQuaternion(camera.quaternion)
-            );
+            // Restore orbit target to model centre
+            if (buildingGroup) {
+                const bb = new THREE.Box3().setFromObject(buildingGroup);
+                bb.getCenter(controls.target);
+            }
             controls.update();
             updateViewportInfo();
         }
