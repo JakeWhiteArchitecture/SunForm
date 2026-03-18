@@ -1040,6 +1040,7 @@
         let pickMode = false;
         let useEntireGroundMesh = true;
         let northRotationDeg = 0;
+        let rotationAnimFrame = null;
         let modelRotationGroup = null;
 
         // Season analysis state
@@ -1550,6 +1551,7 @@
         }
 
         function animateRotation(targetDeg, duration) {
+            if (rotationAnimFrame) cancelAnimationFrame(rotationAnimFrame);
             duration = duration || 400;
             const startDeg = northRotationDeg;
             let delta = targetDeg - startDeg;
@@ -1568,16 +1570,17 @@
                 const arrow = document.getElementById('north-arrow');
                 arrow.querySelector('svg').style.transform = 'rotate(' + (-northRotationDeg) + 'deg)';
                 if (t < 1) {
-                    requestAnimationFrame(tick);
+                    rotationAnimFrame = requestAnimationFrame(tick);
                 } else {
                     northRotationDeg = Math.round(endDeg * 10) / 10;
                     document.getElementById('north-rotation').value = 0;
                     if (modelRotationGroup) {
                         modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
                     }
+                    rotationAnimFrame = null;
                 }
             }
-            requestAnimationFrame(tick);
+            rotationAnimFrame = requestAnimationFrame(tick);
         }
 
         // ─── STEP 3: GROUND MESH PICKING ───
