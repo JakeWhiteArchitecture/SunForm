@@ -1030,12 +1030,12 @@
         <div class="step upcoming" id="step-3" onclick="openStep(3)">
             <div class="step-header">
                 <div class="step-number">3</div>
-                <div class="step-title">Select Ground Mesh</div>
+                <div class="step-title">Select Analysis Surfaces</div>
                 <span class="step-check">&#10003;</span>
                 <span class="step-summary" id="step3-summary"></span>
             </div>
             <div class="step-body">
-                <p class="hint">Click on ground/terrain surfaces in the 3D view. Click again to deselect.</p>
+                <p class="hint">Click ground or roof surfaces to select the whole mesh. Click vertical walls to select coplanar faces. Double-click a vertical surface to select or deselect all faces on that mesh.</p>
                 <div class="selected-mesh-name" id="selected-mesh-name">No meshes selected</div>
                 <div id="ground-suggestions" style="margin-bottom:8px;"></div>
                 <button class="btn btn-primary" id="confirm-ground-btn" onclick="event.stopPropagation(); confirmGroundMesh();" disabled>Confirm Selection</button>
@@ -1205,8 +1205,8 @@
             </div>
         </div>
         <div class="pick-overlay" id="pick-overlay">
-            <div style="color:#00CFC8; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Ground Mesh</div>
-            <div style="color:#aaa; font-size:12px;">Click on a mesh in the 3D view</div>
+            <div style="color:#00CFC8; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Analysis Surfaces</div>
+            <div style="color:#aaa; font-size:12px;">Click surfaces in the 3D view. Double-click vertical walls to select all faces.</div>
         </div>
         <div class="bbox-overlay" id="bbox-overlay">
             <div class="bbox-title">Bounding Box Tool</div>
@@ -1256,6 +1256,7 @@
         let allMeshes = [];         // individual THREE.Mesh objects from IFC
         let allMeshMeta = [];       // { mesh, expressID, ifcType, name } per mesh
         let selectedGroundMeshes = [];  // array of selected ground THREE.Mesh objects
+        let selectedVerticalFaces = []; // Each entry: { mesh, faceIndices, normal, highlight: THREE.Mesh }
         let groundHighlights = [];      // cyan wireframe overlays
         let excludedEmitters = [];      // meshes excluded from shadow casting
         let emitterHighlights = [];     // red wireframe overlays for excluded emitters
@@ -1538,6 +1539,12 @@
             allMeshes = [];
             allMeshMeta = [];
             selectedGroundMeshes = [];
+            for (const vf of selectedVerticalFaces) {
+                scene.remove(vf.highlight);
+                vf.highlight.geometry.dispose();
+                vf.highlight.material.dispose();
+            }
+            selectedVerticalFaces = [];
             excludedEmitters = [];
             clearEmitterHighlights();
             shadowBVH = null;
@@ -1912,17 +1919,131 @@
             groundHighlights.splice(idx, 1);
         }
 
+        // ─── VERTICAL SURFACE SELECTION HELPERS ───
+
+        function isVerticalFace(normal) {
+            return Math.abs(normal.y) < Math.sin(Math.PI / 180);
+        }
+
+        function getCoplanarFaces(mesh, hitFaceIndex) {
+            const geo = mesh.geometry;
+            const pos = geo.attributes.position.array;
+            const idx = geo.index ? geo.index.array : null;
+            const TOLERANCE = Math.sin(Math.PI / 180); // 1 degree
+
+            // Compute face normals for all triangles
+            const faceCount = idx ? idx.length / 3 : pos.length / 9;
+            const faceNormals = [];
+
+            for (let f = 0; f < faceCount; f++) {
+                const i0 = idx ? idx[f*3]*3 : f*9;
+                const i1 = idx ? idx[f*3+1]*3 : f*9+3;
+                const i2 = idx ? idx[f*3+2]*3 : f*9+6;
+
+                const ax = pos[i0], ay = pos[i0+1], az = pos[i0+2];
+                const bx = pos[i1], by = pos[i1+1], bz = pos[i1+2];
+                const cx = pos[i2], cy = pos[i2+1], cz = pos[i2+2];
+
+                const e1x = bx-ax, e1y = by-ay, e1z = bz-az;
+                const e2x = cx-ax, e2y = cy-ay, e2z = cz-az;
+                const nx = e1y*e2z - e1z*e2y;
+                const ny = e1z*e2x - e1x*e2z;
+                const nz = e1x*e2y - e1y*e2x;
+                const len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+
+                faceNormals.push(len > 0 ? [nx/len, ny/len, nz/len] : [0,1,0]);
+            }
+
+            const hitNormal = faceNormals[hitFaceIndex];
+
+            // Only proceed if hit face is vertical
+            if (Math.abs(hitNormal[1]) >= TOLERANCE) return null;
+
+            // Build vertex-to-face adjacency map
+            const vertToFaces = new Map();
+            for (let f = 0; f < faceCount; f++) {
+                for (let v = 0; v < 3; v++) {
+                    const vi = idx ? idx[f*3+v] : f*3+v;
+                    if (!vertToFaces.has(vi)) vertToFaces.set(vi, []);
+                    vertToFaces.get(vi).push(f);
+                }
+            }
+
+            // Flood fill — collect faces within 1 degree of hit normal, connected by shared vertices
+            const collected = new Set();
+            const queue = [hitFaceIndex];
+            collected.add(hitFaceIndex);
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+
+                // Get all vertex indices for this face
+                for (let v = 0; v < 3; v++) {
+                    const vi = idx ? idx[current*3+v] : current*3+v;
+                    const neighbours = vertToFaces.get(vi) || [];
+                    for (const neighbour of neighbours) {
+                        if (collected.has(neighbour)) continue;
+                        const nn = faceNormals[neighbour];
+                        // Check within 1 degree of the ORIGINAL hit normal
+                        const dot = hitNormal[0]*nn[0] + hitNormal[1]*nn[1] + hitNormal[2]*nn[2];
+                        if (dot >= 1 - TOLERANCE && Math.abs(nn[1]) < TOLERANCE) {
+                            collected.add(neighbour);
+                            queue.push(neighbour);
+                        }
+                    }
+                }
+            }
+
+            return {
+                faceIndices: Array.from(collected),
+                normal: hitNormal,
+                mesh: mesh,
+            };
+        }
+
+        function addVerticalFaceHighlight(mesh, faceIndices) {
+            const geo = mesh.geometry;
+            const pos = geo.attributes.position.array;
+            const idx = geo.index ? geo.index.array : null;
+            const positions = [];
+
+            mesh.updateWorldMatrix(true, false);
+            const wm = mesh.matrixWorld;
+
+            for (const f of faceIndices) {
+                for (let v = 0; v < 3; v++) {
+                    const vi = idx ? idx[f*3+v]*3 : f*9+v*3;
+                    const p = new THREE.Vector3(pos[vi], pos[vi+1], pos[vi+2]).applyMatrix4(wm);
+                    positions.push(p.x, p.y, p.z);
+                }
+            }
+
+            const hlGeo = new THREE.BufferGeometry();
+            hlGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            const hlMat = new THREE.MeshBasicMaterial({
+                color: 0x00CFC8,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide,
+                depthTest: false,
+            });
+            const hlMesh = new THREE.Mesh(hlGeo, hlMat);
+            scene.add(hlMesh);
+            return hlMesh;
+        }
+
         function updateSelectedMeshLabel() {
-            if (selectedGroundMeshes.length === 0) {
-                document.getElementById('selected-mesh-name').textContent = 'No meshes selected';
+            const total = selectedGroundMeshes.length + selectedVerticalFaces.length;
+            if (total === 0) {
+                document.getElementById('selected-mesh-name').textContent = 'No surfaces selected';
                 document.getElementById('confirm-ground-btn').disabled = true;
             } else {
-                const names = selectedGroundMeshes.map(m => {
-                    const meta = allMeshMeta.find(mm => mm.mesh === m);
-                    return meta ? meta.name : m.name;
-                });
-                document.getElementById('selected-mesh-name').textContent =
-                    names.length + ' mesh' + (names.length > 1 ? 'es' : '') + ': ' + names.join(', ');
+                const parts = [];
+                if (selectedGroundMeshes.length > 0)
+                    parts.push(selectedGroundMeshes.length + ' ground mesh' + (selectedGroundMeshes.length > 1 ? 'es' : ''));
+                if (selectedVerticalFaces.length > 0)
+                    parts.push(selectedVerticalFaces.length + ' vertical face' + (selectedVerticalFaces.length > 1 ? 's' : ''));
+                document.getElementById('selected-mesh-name').textContent = parts.join(', ');
                 document.getElementById('confirm-ground-btn').disabled = false;
             }
         }
@@ -1947,6 +2068,74 @@
             }
         });
 
+        document.getElementById('viewport').addEventListener('dblclick', (event) => {
+            if (!pickMode) return;
+            if (event.target !== renderer.domElement) return;
+
+            const container = document.getElementById('viewport');
+            const rect = container.getBoundingClientRect();
+            const mouse = new THREE.Vector2(
+                ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                -((event.clientY - rect.top) / rect.height) * 2 + 1
+            );
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(allMeshes, false);
+            if (hits.length === 0) return;
+
+            const hitMesh = hits[0].object;
+            const faceIndex = hits[0].faceIndex;
+
+            // Only applicable for vertical surfaces
+            const geo = hitMesh.geometry;
+            const pos = geo.attributes.position.array;
+            const idx = geo.index ? geo.index.array : null;
+            const i0 = idx ? idx[faceIndex*3]*3 : faceIndex*9;
+            const i1 = idx ? idx[faceIndex*3+1]*3 : faceIndex*9+3;
+            const i2 = idx ? idx[faceIndex*3+2]*3 : faceIndex*9+6;
+            const e1 = new THREE.Vector3(pos[i1]-pos[i0], pos[i1+1]-pos[i0+1], pos[i1+2]-pos[i0+2]);
+            const e2 = new THREE.Vector3(pos[i2]-pos[i0], pos[i2+1]-pos[i0+1], pos[i2+2]-pos[i0+2]);
+            const faceNormal = new THREE.Vector3().crossVectors(e1, e2).normalize();
+            const normalMatrix = new THREE.Matrix3().getNormalMatrix(hitMesh.matrixWorld);
+            faceNormal.applyMatrix3(normalMatrix).normalize();
+
+            if (!isVerticalFace(faceNormal)) return;
+
+            // Check if any faces from this mesh are already selected
+            const meshFaces = selectedVerticalFaces.filter(s => s.mesh === hitMesh);
+
+            if (meshFaces.length > 0) {
+                // Deselect all vertical faces from this mesh
+                for (const s of meshFaces) {
+                    scene.remove(s.highlight);
+                    s.highlight.geometry.dispose();
+                    s.highlight.material.dispose();
+                }
+                selectedVerticalFaces = selectedVerticalFaces.filter(s => s.mesh !== hitMesh);
+            } else {
+                // Select all vertical faces from this mesh using flood fill per unique normal
+                const faceCount = idx ? idx.length / 3 : pos.length / 9;
+                const visited = new Set();
+
+                for (let f = 0; f < faceCount; f++) {
+                    if (visited.has(f)) continue;
+                    const result = getCoplanarFaces(hitMesh, f);
+                    if (!result) { visited.add(f); continue; }
+                    // Only add if vertical
+                    const n = result.normal;
+                    if (Math.abs(n[1]) >= Math.sin(Math.PI / 180)) {
+                        result.faceIndices.forEach(fi => visited.add(fi));
+                        continue;
+                    }
+                    result.faceIndices.forEach(fi => visited.add(fi));
+                    const highlight = addVerticalFaceHighlight(hitMesh, result.faceIndices);
+                    selectedVerticalFaces.push({ ...result, highlight });
+                }
+            }
+
+            updateSelectedMeshLabel();
+        });
+
         function handleMeshPick(event) {
             const container = document.getElementById('viewport');
             const rect = container.getBoundingClientRect();
@@ -1961,29 +2150,66 @@
             const hits = raycaster.intersectObjects(allMeshes, false);
             if (hits.length === 0) return;
 
-            const hitMesh = hits[0].object;
-            const existingIdx = selectedGroundMeshes.indexOf(hitMesh);
+            const hit = hits[0];
+            const hitMesh = hit.object;
+            const faceIndex = hit.faceIndex;
 
-            if (existingIdx !== -1) {
-                // Deselect — toggle off
-                selectedGroundMeshes.splice(existingIdx, 1);
-                removeHighlight(hitMesh);
+            // Compute hit face normal in world space
+            const geo = hitMesh.geometry;
+            const pos = geo.attributes.position.array;
+            const idx = geo.index ? geo.index.array : null;
+            const i0 = idx ? idx[faceIndex*3]*3 : faceIndex*9;
+            const i1 = idx ? idx[faceIndex*3+1]*3 : faceIndex*9+3;
+            const i2 = idx ? idx[faceIndex*3+2]*3 : faceIndex*9+6;
+            const e1 = new THREE.Vector3(pos[i1]-pos[i0], pos[i1+1]-pos[i0+1], pos[i1+2]-pos[i0+2]);
+            const e2 = new THREE.Vector3(pos[i2]-pos[i0], pos[i2+1]-pos[i0+1], pos[i2+2]-pos[i0+2]);
+            const faceNormal = new THREE.Vector3().crossVectors(e1, e2).normalize();
+
+            // Transform normal to world space
+            const normalMatrix = new THREE.Matrix3().getNormalMatrix(hitMesh.matrixWorld);
+            faceNormal.applyMatrix3(normalMatrix).normalize();
+
+            if (isVerticalFace(faceNormal)) {
+                // Vertical — coplanar flood fill selection
+                const result = getCoplanarFaces(hitMesh, faceIndex);
+                if (!result) return;
+
+                // Check if already selected — toggle off
+                const existingIdx = selectedVerticalFaces.findIndex(
+                    s => s.mesh === hitMesh && s.faceIndices[0] === result.faceIndices[0]
+                );
+
+                if (existingIdx !== -1) {
+                    const removed = selectedVerticalFaces.splice(existingIdx, 1)[0];
+                    scene.remove(removed.highlight);
+                    removed.highlight.geometry.dispose();
+                    removed.highlight.material.dispose();
+                } else {
+                    const highlight = addVerticalFaceHighlight(hitMesh, result.faceIndices);
+                    selectedVerticalFaces.push({ ...result, highlight });
+                }
             } else {
-                // Select — toggle on
-                selectedGroundMeshes.push(hitMesh);
-                addHighlight(hitMesh);
+                // Non-vertical — existing whole-mesh toggle behaviour unchanged
+                const existingIdx = selectedGroundMeshes.indexOf(hitMesh);
+                if (existingIdx !== -1) {
+                    selectedGroundMeshes.splice(existingIdx, 1);
+                    removeHighlight(hitMesh);
+                } else {
+                    selectedGroundMeshes.push(hitMesh);
+                    addHighlight(hitMesh);
+                }
             }
 
             updateSelectedMeshLabel();
         }
 
         function confirmGroundMesh() {
-            if (selectedGroundMeshes.length === 0) return;
+            if (selectedGroundMeshes.length === 0 && selectedVerticalFaces.length === 0) return;
             setPickMode(false);
+            buildShadowBVH();
 
-            const count = selectedGroundMeshes.length;
-            const summary = 'Ground: ' + count + ' mesh' + (count > 1 ? 'es' : '');
-            completeStep(3, summary);
+            const totalSurfaces = selectedGroundMeshes.length + selectedVerticalFaces.length;
+            completeStep(3, totalSurfaces + ' surface' + (totalSurfaces > 1 ? 's' : '') + ' selected');
         }
 
         // ─── STEP 4: EXCLUDE SHADE EMITTERS ───
@@ -2528,6 +2754,35 @@
             }
 
             showStatus(`Upward faces: ${worldTris.length} of ${allMergedTris.length} kept`);
+
+            // 2b. Append vertical face triangles without normal filtering
+            for (const vf of selectedVerticalFaces) {
+                vf.mesh.updateWorldMatrix(true, false);
+                const wm = vf.mesh.matrixWorld;
+                const vGeo = vf.mesh.geometry;
+                const vPos = vGeo.attributes.position.array;
+                const vIdx = vGeo.index ? vGeo.index.array : null;
+
+                for (const f of vf.faceIndices) {
+                    const vi0 = vIdx ? vIdx[f*3]*3 : f*9;
+                    const vi1 = vIdx ? vIdx[f*3+1]*3 : f*9+3;
+                    const vi2 = vIdx ? vIdx[f*3+2]*3 : f*9+6;
+
+                    const a = new THREE.Vector3(vPos[vi0], vPos[vi0+1], vPos[vi0+2]).applyMatrix4(wm);
+                    const b = new THREE.Vector3(vPos[vi1], vPos[vi1+1], vPos[vi1+2]).applyMatrix4(wm);
+                    const c = new THREE.Vector3(vPos[vi2], vPos[vi2+1], vPos[vi2+2]).applyMatrix4(wm);
+
+                    worldTris.push([
+                        [a.x, a.y, a.z],
+                        [b.x, b.y, b.z],
+                        [c.x, c.y, c.z],
+                    ]);
+                }
+            }
+
+            if (selectedVerticalFaces.length > 0) {
+                showStatus(`Total analysis triangles (incl. vertical): ${worldTris.length}`);
+            }
 
             // 3. Slice every triangle along grid lines
             showStatus(`Slicing ${worldTris.length} triangles along ${gridSize}m grid...`);
