@@ -274,7 +274,7 @@
 
         /* ─── NORTH ARROW OVERLAY ─── */
         .north-arrow {
-            display: block;
+            display: none;
             position: absolute;
             top: 50px;
             right: 20px;
@@ -724,9 +724,9 @@
 
         /* ─── LOGO ─── */
         .logo-img {
-            height: 240px;
-            margin-top: 0;
-            margin-bottom: 2px;
+            display: block;
+            height: 200px;
+            margin: 0 auto 2px auto;
         }
         .modal-logo {
             display: block;
@@ -782,8 +782,7 @@
     <div class="panel">
       <div class="panel-scroll">
         <img src="/sunform-logo.png" alt="SunForm" class="logo-img">
-        <h1 style="display:flex; align-items:center; gap:6px;">SunForm (Beta)</h1>
-        <p class="subtitle">Indicative Sun Hours Analysis</p>
+        <p class="subtitle" style="text-align:center;">A free sun hours web tool (Beta)</p>
 
         <!-- STEP 1: IMPORT -->
         <div class="step active" id="step-1" onclick="openStep(1)">
@@ -980,11 +979,13 @@
     <div class="viewport" id="viewport">
         <div class="viewport-info" id="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag &nbsp;|&nbsp; F: fly mode &nbsp; O: orbit mode</div>
         <div class="north-arrow" id="north-arrow">
-            <div>N</div>
-            <svg viewBox="0 0 50 50">
-                <polygon points="25,5 30,20 25,15 20,20" fill="#E5A50A"/>
-                <polygon points="25,45 20,30 25,35 30,30" fill="#666"/>
-            </svg>
+            <div id="north-arrow-rotator" style="display:inline-block;">
+                <div>N</div>
+                <svg viewBox="0 0 50 50">
+                    <polygon points="25,5 30,20 25,15 20,20" fill="#E5A50A"/>
+                    <polygon points="25,45 20,30 25,35 30,30" fill="#666"/>
+                </svg>
+            </div>
         </div>
         <div class="pick-overlay" id="pick-overlay">
             <div style="color:#00CFC8; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Ground Mesh</div>
@@ -1217,6 +1218,9 @@
             if (n === 2) { switchToOrtho(); }
             else switchToPersp();
             setPickMode(n === 3);
+
+            // Show compass only during orientation step
+            document.getElementById('north-arrow').style.display = (n === 2) ? 'block' : 'none';
 
             // Mesh visibility: when going back to step 3 (select mesh), show meshes
             // and gray out previous results. On step 5 (results), hide meshes.
@@ -1585,8 +1589,7 @@
                 if (modelRotationGroup) {
                     modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
                 }
-                const arrow = document.getElementById('north-arrow');
-                arrow.querySelector('svg').style.transform = 'rotate(' + (-northRotationDeg) + 'deg)';
+                document.getElementById('north-arrow-rotator').style.transform = 'rotate(' + (-northRotationDeg) + 'deg)';
                 if (t < 1) {
                     rotationAnimFrame = requestAnimationFrame(tick);
                 } else {
