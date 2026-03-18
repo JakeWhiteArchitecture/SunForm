@@ -9,7 +9,8 @@ import os
 
 from flask import Flask, make_response, render_template, send_from_directory
 
-app = Flask(__name__)
+ROOT = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, template_folder=ROOT)
 
 
 @app.route("/sunform-logo.png")
