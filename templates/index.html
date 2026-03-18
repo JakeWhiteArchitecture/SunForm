@@ -827,6 +827,10 @@
                         <span class="unit" style="margin-left:2px;">&deg;</span>
                     </div>
                 </div>
+                <div id="orient-post-rotation" style="display:none; margin-top:8px;">
+                    <button class="btn btn-primary" onclick="event.stopPropagation(); confirmOrientation();" style="margin-bottom:8px;">Confirm Orientation</button>
+                    <button class="btn btn-secondary" onclick="event.stopPropagation(); resetOrientation();">Reset</button>
+                </div>
             </div>
         </div>
 
@@ -1547,10 +1551,26 @@
             while (targetDeg > 180) targetDeg -= 360;
             while (targetDeg <= -180) targetDeg += 360;
             targetDeg = Math.round(targetDeg * 10) / 10;
-            animateRotation(targetDeg);
+            animateRotation(targetDeg, 400, function() {
+                document.getElementById('orient-manual-panel').style.display = 'none';
+                document.getElementById('orient-manual-btn').style.display = 'none';
+                document.querySelector('#step-2 .step-body > .btn-primary').style.display = 'none';
+                document.getElementById('orient-post-rotation').style.display = '';
+            });
         }
 
-        function animateRotation(targetDeg, duration) {
+        function resetOrientation() {
+            animateRotation(0, 400, function() {
+                document.getElementById('orient-post-rotation').style.display = 'none';
+                document.getElementById('orient-manual-btn').style.display = '';
+                document.getElementById('orient-manual-btn').textContent = 'Set Orientation Manually';
+                document.getElementById('orient-manual-panel').style.display = 'none';
+                document.getElementById('north-rotation').value = '0';
+                document.querySelector('#step-2 .step-body > .btn-primary').style.display = '';
+            });
+        }
+
+        function animateRotation(targetDeg, duration, onComplete) {
             if (rotationAnimFrame) cancelAnimationFrame(rotationAnimFrame);
             duration = duration || 400;
             const startDeg = northRotationDeg;
@@ -1578,6 +1598,7 @@
                         modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
                     }
                     rotationAnimFrame = null;
+                    if (onComplete) onComplete();
                 }
             }
             rotationAnimFrame = requestAnimationFrame(tick);
