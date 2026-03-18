@@ -2981,6 +2981,23 @@
                 return;
             }
 
+            // Left/Right arrows to cycle seasons when results are visible
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                const seasonOrder = ['winter', 'spring', 'summer'];
+                const active = seasonOrder.filter(s => seasonResults[s]);
+                if (active.length > 1) {
+                    const idx = active.indexOf(visibleSeason);
+                    if (idx !== -1) {
+                        const next = e.key === 'ArrowRight'
+                            ? active[(idx + 1) % active.length]
+                            : active[(idx - 1 + active.length) % active.length];
+                        switchVisibleSeason(next);
+                        e.preventDefault();
+                    }
+                }
+                return;
+            }
+
             // WASD + Q/E for fly mode
             if (key in flyKeys) {
                 flyKeys[key] = true;
