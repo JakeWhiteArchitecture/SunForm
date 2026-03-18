@@ -827,6 +827,93 @@
             height: auto;
             margin: -20px auto -40px auto;
         }
+        /* ─── COFFEE BUTTON ─── */
+        .coffee-wrap {
+            position: absolute;
+            top: 32px;
+            right: 20px;
+            z-index: 10;
+            text-align: center;
+        }
+        .coffee-btn {
+            display: inline-block;
+            background: rgba(212,136,15,0.85);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 4px;
+            text-decoration: none;
+            letter-spacing: 0.3px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 900px) {
+            .panel {
+                width: 300px;
+                min-width: 300px;
+            }
+            .panel-scroll {
+                padding: 6px 12px 16px 12px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .panel {
+                width: 260px;
+                min-width: 260px;
+            }
+            .viewport-info {
+                font-size: 9px;
+                right: 6px;
+            }
+            .coffee-wrap {
+                right: 6px;
+                top: 28px;
+            }
+            .coffee-btn {
+                font-size: 10px;
+                padding: 4px 10px;
+            }
+            .season-switcher {
+                font-size: 10px;
+            }
+            .colour-legend {
+                right: 8px;
+                bottom: 40px;
+            }
+        }
+
+        @media (max-width: 550px) {
+            body {
+                flex-direction: column;
+            }
+            .panel {
+                width: 100%;
+                min-width: unset;
+                max-height: 40vh;
+                border-right: none;
+                border-bottom: 1px solid #0f3460;
+            }
+            .viewport {
+                flex: 1;
+                min-height: 0;
+            }
+            .viewport-info {
+                font-size: 8px;
+                right: 4px;
+                top: 6px;
+            }
+            .coffee-wrap {
+                right: 4px;
+                top: 22px;
+            }
+            .season-switcher {
+                top: 6px;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -1101,9 +1188,8 @@
     <div class="viewport" id="viewport">
         <div class="fly-crosshair" id="fly-crosshair">+</div>
         <div class="viewport-info" id="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag &nbsp;|&nbsp; F: fly mode &nbsp; O: orbit mode</div>
-        <div style="position:absolute; top:32px; right:20px; z-index:10; text-align:center;">
-            <a href="https://buymeacoffee.com/jakewhite" target="_blank" rel="noopener noreferrer"
-               style="display:inline-block; background:rgba(212,136,15,0.85); color:#fff; font-size:11px; font-weight:600; padding:6px 14px; border-radius:4px; text-decoration:none; letter-spacing:0.3px; backdrop-filter:blur(4px);">
+        <div class="coffee-wrap">
+            <a class="coffee-btn" href="https://buymeacoffee.com/jakewhite" target="_blank" rel="noopener noreferrer">
                 ☕ Buy me a coffee
             </a>
         </div>
