@@ -1086,6 +1086,9 @@
         const FLY_SPEED = 0.5;
         let flyYaw = 0;
         let flyPitch = 0;
+        let flyYawTarget = 0;
+        let flyPitchTarget = 0;
+        const FLY_LOOK_SMOOTHING = 0.15;
 
         // Leaflet map state
         let locationMap = null;
@@ -2885,8 +2888,8 @@
             flyMode = true;
             controls.enabled = false;
             const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-            flyYaw = euler.y;
-            flyPitch = euler.x;
+            flyYaw = flyYawTarget = euler.y;
+            flyPitch = flyPitchTarget = euler.x;
             renderer.domElement.requestPointerLock();
             document.getElementById('fly-crosshair').style.display = 'block';
             updateViewportInfo();
@@ -2910,11 +2913,9 @@
         document.addEventListener('mousemove', (e) => {
             if (!flyMode || !document.pointerLockElement) return;
             const sensitivity = 0.002;
-            flyYaw -= e.movementX * sensitivity;
-            flyPitch -= e.movementY * sensitivity;
-            flyPitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, flyPitch));
-            const euler = new THREE.Euler(flyPitch, flyYaw, 0, 'YXZ');
-            camera.quaternion.setFromEuler(euler);
+            flyYawTarget -= e.movementX * sensitivity;
+            flyPitchTarget -= e.movementY * sensitivity;
+            flyPitchTarget = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, flyPitchTarget));
         });
 
         function updateViewportInfo() {
@@ -2929,6 +2930,12 @@
         // Fly mode animation loop (runs inside main animate)
         function updateFlyMovement() {
             if (!flyMode) return;
+            // Smooth interpolation of look direction
+            flyYaw += (flyYawTarget - flyYaw) * FLY_LOOK_SMOOTHING;
+            flyPitch += (flyPitchTarget - flyPitch) * FLY_LOOK_SMOOTHING;
+            const euler = new THREE.Euler(flyPitch, flyYaw, 0, 'YXZ');
+            camera.quaternion.setFromEuler(euler);
+
             const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
             const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
             const up = new THREE.Vector3(0, 1, 0);
