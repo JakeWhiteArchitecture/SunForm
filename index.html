@@ -399,6 +399,76 @@
             position: relative;
         }
 
+        /* ─── RAY PROBE PANEL ─── */
+        .ray-probe-panel {
+            display: none;
+            position: absolute;
+            left: 20px;
+            bottom: 60px;
+            z-index: 12;
+            background: rgba(10, 10, 30, 0.92);
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            padding: 10px 14px;
+            min-width: 260px;
+            max-width: 340px;
+            max-height: 320px;
+            backdrop-filter: blur(6px);
+            font-size: 11px;
+            color: #ccc;
+        }
+        .ray-probe-panel.visible { display: block; }
+        .ray-probe-panel .probe-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .ray-probe-panel .probe-clear-btn {
+            background: #D4880F;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            padding: 2px 10px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .ray-probe-panel .probe-summary {
+            margin-bottom: 6px;
+            color: #aaa;
+            font-size: 10px;
+        }
+        .ray-probe-panel .probe-table {
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .ray-probe-panel .probe-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .ray-probe-panel .probe-table th {
+            text-align: left;
+            padding: 2px 6px;
+            border-bottom: 1px solid #0f3460;
+            color: #888;
+            font-weight: 600;
+            font-size: 10px;
+            position: sticky;
+            top: 0;
+            background: rgba(10, 10, 30, 0.98);
+        }
+        .ray-probe-panel .probe-table td {
+            padding: 2px 6px;
+            font-size: 10px;
+            border-bottom: 1px solid rgba(15, 52, 96, 0.4);
+        }
+        .ray-probe-panel .probe-table tr.ray-hit td { color: #FFD700; }
+        .ray-probe-panel .probe-table tr.ray-blocked td { color: #FF6666; }
+
 
         /* ─── PROGRESS BAR ─── */
         .progress-bar {
@@ -1059,6 +1129,14 @@
             <button class="season-sw-btn" id="sw-summer" onclick="switchVisibleSeason('summer')">Summer</button>
         </div>
         <div class="status-overlay" id="status-overlay" style="display:none;"></div>
+        <div class="ray-probe-panel" id="ray-probe-panel">
+            <div class="probe-title">
+                <span>Sun Ray Probe</span>
+                <button class="probe-clear-btn" onclick="clearRayProbe()">Clear</button>
+            </div>
+            <div class="probe-summary" id="probe-summary"></div>
+            <div class="probe-table" id="probe-table"></div>
+        </div>
     </div>
 
     <!-- Leaflet.js for location picker -->
@@ -1115,6 +1193,10 @@
         let seasonResults = {};         // { winter: {results}, spring: {results}, ... }
         let seasonHeatmaps = {};        // { winter: THREE.Group, ... }
         let visibleSeason = 'spring';   // currently displayed season
+
+        // Ray probe state
+        let rayProbeGroup = null;       // THREE.Group holding probe ray lines + marker
+        let rayProbeActive = false;     // whether a probe is currently displayed
 
         // Fly mode state
         let flyMode = false;
@@ -1278,6 +1360,7 @@
             else switchToPersp();
             setPickMode(n === 3);
             setEmitterPickMode(n === 4);
+            if (n !== 6) clearRayProbe();
 
             // Show compass only during orientation step
             document.getElementById('north-arrow').style.display = (n === 2) ? 'block' : 'none';
@@ -1326,6 +1409,7 @@
         function resetWorkflow() {
             // Restore mesh visibility before cleanup
             showCalculationMeshes();
+            clearRayProbe();
             // Reset all state
             if (buildingGroup) {
                 scene.remove(buildingGroup);
@@ -1759,6 +1843,10 @@
             }
             if (bboxMode) {
                 handleBboxClick(event);
+                return;
+            }
+            if (currentStep === 6 && Object.keys(seasonHeatmaps).length > 0) {
+                handleRayProbeClick(event);
                 return;
             }
         });
@@ -3271,6 +3359,7 @@
         // ─── SEASON SWITCHER ───
         function switchVisibleSeason(season) {
             if (!seasonResults[season]) return;
+            clearRayProbe();
             visibleSeason = season;
             // Hide all heatmaps, show selected
             for (const [key, group] of Object.entries(seasonHeatmaps)) {
@@ -3405,6 +3494,155 @@
                 });
                 group.visible = (key === visibleSeason);
             }
+        }
+
+        // ─── RAY PROBE (click-to-interrogate heatmap) ───
+        function clearRayProbe() {
+            if (rayProbeGroup) {
+                scene.remove(rayProbeGroup);
+                rayProbeGroup.traverse(c => {
+                    if (c.geometry) c.geometry.dispose();
+                    if (c.material) c.material.dispose();
+                });
+                rayProbeGroup = null;
+            }
+            rayProbeActive = false;
+            document.getElementById('ray-probe-panel').classList.remove('visible');
+        }
+
+        function handleRayProbeClick(event) {
+            // Only works when results are showing
+            if (currentStep !== 6) return;
+            if (!seasonResults[visibleSeason]) return;
+
+            const container = document.getElementById('viewport');
+            const rect = container.getBoundingClientRect();
+            const mouse = flyMode
+                ? new THREE.Vector2(0, 0)
+                : new THREE.Vector2(
+                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                    -((event.clientY - rect.top) / rect.height) * 2 + 1
+                );
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            // Raycast against the active heatmap mesh
+            const heatGroup = seasonHeatmaps[visibleSeason];
+            if (!heatGroup) return;
+            const heatMeshes = [];
+            heatGroup.traverse(c => { if (c.isMesh) heatMeshes.push(c); });
+            const hits = raycaster.intersectObjects(heatMeshes, false);
+            if (hits.length === 0) return;
+
+            const hitPoint = hits[0].point;
+
+            // Find the closest cellData centroid to the hit point
+            const results = seasonResults[visibleSeason];
+            let bestIdx = -1;
+            let bestDist = Infinity;
+            for (let i = 0; i < results.cellData.length; i++) {
+                const cd = results.cellData[i];
+                const dx = cd.centroid.x - hitPoint.x;
+                const dy = cd.centroid.y - hitPoint.y;
+                const dz = cd.centroid.z - hitPoint.z;
+                const d2 = dx * dx + dy * dy + dz * dz;
+                if (d2 < bestDist) {
+                    bestDist = d2;
+                    bestIdx = i;
+                }
+            }
+            if (bestIdx === -1) return;
+
+            const cell = results.cellData[bestIdx];
+            const sunHours = results.cellSunHours[bestIdx];
+            const sunPositions = results.sunPositions;
+
+            // Clear previous probe
+            clearRayProbe();
+
+            // Build ray visualisation
+            rayProbeGroup = new THREE.Group();
+            rayProbeGroup.name = 'ray_probe';
+
+            const origin = new THREE.Vector3(
+                cell.centroid.x + cell.normal.x * 0.01,
+                cell.centroid.y + cell.normal.y * 0.01,
+                cell.centroid.z + cell.normal.z * 0.01
+            );
+
+            // Add a small sphere marker at the probe point
+            const markerGeo = new THREE.SphereGeometry(0.08, 12, 8);
+            const markerMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+            const marker = new THREE.Mesh(markerGeo, markerMat);
+            marker.position.copy(origin);
+            rayProbeGroup.add(marker);
+
+            const RAY_LEN = 8; // visual length of ray lines in metres
+            const tableRows = [];
+
+            for (let si = 0; si < sunPositions.length; si++) {
+                const sp = sunPositions[si];
+                const dir = sunDirection(sp.azimuth, sp.altitude);
+
+                const ox = origin.x, oy = origin.y, oz = origin.z;
+                const blocked = shadowBVH
+                    ? shadowBVH.intersectsAny(ox, oy, oz, dir.x, dir.y, dir.z)
+                    : false;
+
+                // Draw ray line
+                const endPt = new THREE.Vector3(
+                    ox + dir.x * RAY_LEN,
+                    oy + dir.y * RAY_LEN,
+                    oz + dir.z * RAY_LEN
+                );
+
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([origin, endPt]);
+                const lineMat = new THREE.LineBasicMaterial({
+                    color: blocked ? 0xFF4444 : 0xFFD700,
+                    linewidth: 1,
+                    transparent: true,
+                    opacity: blocked ? 0.4 : 0.8,
+                });
+                const line = new THREE.Line(lineGeo, lineMat);
+                rayProbeGroup.add(line);
+
+                // Format time as HH:MM
+                const h = Math.floor(sp.hour);
+                const m = Math.round((sp.hour - h) * 60);
+                const timeStr = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+
+                tableRows.push({
+                    time: timeStr,
+                    azimuth: sp.azimuth.toFixed(1),
+                    altitude: sp.altitude.toFixed(1),
+                    blocked,
+                });
+            }
+
+            scene.add(rayProbeGroup);
+            rayProbeActive = true;
+
+            // Populate info panel
+            const hitCount = tableRows.filter(r => !r.blocked).length;
+            const panel = document.getElementById('ray-probe-panel');
+            document.getElementById('probe-summary').textContent =
+                SEASON_LABELS[visibleSeason] + ' — ' +
+                sunHours.toFixed(1) + 'h sun (' + hitCount + '/' + tableRows.length + ' rays unblocked)';
+
+            let html = '<table><tr><th>Time</th><th>Azimuth</th><th>Altitude</th><th>Status</th></tr>';
+            for (const row of tableRows) {
+                const cls = row.blocked ? 'ray-blocked' : 'ray-hit';
+                const status = row.blocked ? 'Blocked' : 'Sun';
+                html += '<tr class="' + cls + '">' +
+                    '<td>' + row.time + '</td>' +
+                    '<td>' + row.azimuth + '°</td>' +
+                    '<td>' + row.altitude + '°</td>' +
+                    '<td>' + status + '</td></tr>';
+            }
+            html += '</table>';
+            document.getElementById('probe-table').innerHTML = html;
+            panel.classList.add('visible');
         }
 
         // ─── INIT ───
