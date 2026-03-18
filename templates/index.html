@@ -274,7 +274,7 @@
 
         /* ─── NORTH ARROW OVERLAY ─── */
         .north-arrow {
-            display: none;
+            display: block;
             position: absolute;
             top: 50px;
             right: 20px;
@@ -284,8 +284,6 @@
             font-size: 12px;
             font-weight: 700;
         }
-
-        .north-arrow.visible { display: block; }
 
         .north-arrow svg {
             width: 50px;
@@ -823,9 +821,9 @@
                 <button class="btn btn-secondary" id="orient-manual-btn" onclick="event.stopPropagation(); toggleManualOrient();">Set Orientation Manually</button>
                 <div id="orient-manual-panel" style="display:none; margin-top:10px;">
                     <div style="display:flex; align-items:center; gap:4px;">
-                        <button class="btn btn-secondary" onclick="event.stopPropagation(); applyManualRotation(-1);" style="margin-top:0; padding:4px 10px; font-size:16px;">&#x2190;</button>
+                        <button class="btn btn-secondary" onclick="event.stopPropagation(); applyManualRotation(1);" style="margin-top:0; padding:4px 10px; font-size:16px;">&#x2190;</button>
                         <input type="number" id="north-rotation" value="0" step="5" style="width:70px; text-align:center;">
-                        <button class="btn btn-secondary" onclick="event.stopPropagation(); applyManualRotation(1);" style="margin-top:0; padding:4px 10px; font-size:16px;">&#x2192;</button>
+                        <button class="btn btn-secondary" onclick="event.stopPropagation(); applyManualRotation(-1);" style="margin-top:0; padding:4px 10px; font-size:16px;">&#x2192;</button>
                         <span class="unit" style="margin-left:2px;">&deg;</span>
                     </div>
                 </div>
@@ -980,11 +978,11 @@
     <div class="viewport" id="viewport">
         <div class="viewport-info" id="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag &nbsp;|&nbsp; F: fly mode &nbsp; O: orbit mode</div>
         <div class="north-arrow" id="north-arrow">
+            <div>N</div>
             <svg viewBox="0 0 50 50">
                 <polygon points="25,5 30,20 25,15 20,20" fill="#E5A50A"/>
                 <polygon points="25,45 20,30 25,35 30,30" fill="#666"/>
             </svg>
-            <div>N</div>
         </div>
         <div class="pick-overlay" id="pick-overlay">
             <div style="color:#00CFC8; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Ground Mesh</div>
@@ -1164,7 +1162,6 @@
             controls.object = camera;
             controls.enableRotate = false;
             controls.update();
-            document.getElementById('north-arrow').classList.add('visible');
         }
 
         function switchToPersp() {
@@ -1172,7 +1169,6 @@
             controls.object = camera;
             controls.enableRotate = true;
             controls.update();
-            document.getElementById('north-arrow').classList.remove('visible');
         }
 
         // ─── INIT WEB-IFC ───
@@ -1571,7 +1567,7 @@
                     requestAnimationFrame(tick);
                 } else {
                     northRotationDeg = Math.round(endDeg * 10) / 10;
-                    document.getElementById('north-rotation').value = northRotationDeg;
+                    document.getElementById('north-rotation').value = 0;
                     if (modelRotationGroup) {
                         modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
                     }
