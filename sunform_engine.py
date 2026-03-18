@@ -68,7 +68,10 @@ def get_sun_positions(
 
 
 def sun_direction(azimuth_deg: float, altitude_deg: float) -> Vec3:
-    """Convert azimuth/altitude to a Three.js direction vector (X, Y, Z)."""
+    """Convert azimuth/altitude to a Three.js direction vector (X, Y, Z).
+
+    Azimuth convention: 0°=North, 90°=East, 180°=South, 270°=West (CW from North).
+    """
     az = math.radians(azimuth_deg)
     alt = math.radians(altitude_deg)
     ifc_x = math.sin(az) * math.cos(alt)

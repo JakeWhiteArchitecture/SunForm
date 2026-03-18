@@ -386,7 +386,7 @@ class TestRayTriangle:
         """Ray at 1° altitude — nearly parallel to ground. Must still detect hits."""
         # Large vertical wall at z=5, spanning x=-10..10, y=0..20
         wall = make_box_triangles(0, 10, 5, 10, 10, 0.3)
-        d = sun_direction(180.0, 1.0)  # 1° altitude, from south
+        d = sun_direction(180.0, 1.0)  # 1° altitude, from south (geographic convention)
 
         # Origin at z=0 — ray should hit the wall at z≈4.7
         assert ray_hits_any_triangle((0, 0.01, 0), d, wall), \
@@ -424,7 +424,7 @@ class TestSunPositions:
         assert len(noon_pos) >= 1, "Should have a position near solar noon"
 
         p = noon_pos[0]
-        # Azimuth should be near 180° (due south), within ±5°
+        # Azimuth should be near 180° (due south in geographic convention), within ±5°
         assert 172 <= p['azimuth'] <= 188, \
             f"Noon azimuth should be ~180° (south), got {p['azimuth']:.1f}°"
         # Altitude should be ~38.7° (90° - 51.5° + small correction)
@@ -432,7 +432,7 @@ class TestSunPositions:
             f"Noon altitude should be ~38.7°, got {p['altitude']:.1f}°"
 
     def test_london_equinox_morning_rises_in_east(self):
-        """Morning sun should have azimuth < 180° (eastern half of sky)."""
+        """Morning sun should have azimuth < 180° (eastern half in geographic convention)."""
         positions = get_sun_positions(51.5, -0.1, 2024, 3, 21, time_step=1.0)
         morning = [p for p in positions if p['hour'] < 12]
         assert len(morning) >= 3, "Should have multiple morning hours"
@@ -441,7 +441,7 @@ class TestSunPositions:
                 f"Morning sun at hour {p['hour']} should have azimuth < 180° (east), got {p['azimuth']:.1f}°"
 
     def test_london_equinox_afternoon_sets_in_west(self):
-        """Afternoon sun should have azimuth > 180° (western half of sky)."""
+        """Afternoon sun should have azimuth > 180° (western half in geographic convention)."""
         positions = get_sun_positions(51.5, -0.1, 2024, 3, 21, time_step=1.0)
         afternoon = [p for p in positions if p['hour'] > 13]
         assert len(afternoon) >= 3, "Should have multiple afternoon hours"
@@ -466,7 +466,7 @@ class TestSunPositions:
             f"Equator on equinox should have ~12h daylight, got {len(positions)}"
 
     def test_sun_direction_south_at_noon(self):
-        """Sun due south (azimuth 180°) at 45° altitude — verify all 3 components."""
+        """Sun due south (azimuth 180° in geographic convention) at 45° altitude."""
         dx, dy, dz = sun_direction(180.0, 45.0)
         # Y = sin(alt) = 0.707
         assert abs(dy - 0.7071) < 0.01, f"Y component should be ~0.707, got {dy}"
@@ -476,7 +476,7 @@ class TestSunPositions:
         assert dz > 0.5, f"Z component should be positive for south sun, got {dz}"
 
     def test_sun_direction_east_west_symmetry(self):
-        """Azimuth 90° (east) and 270° (west) should mirror in X."""
+        """Azimuth 90° (east) and 270° (west) should mirror in X (geographic convention)."""
         dx_e, dy_e, dz_e = sun_direction(90.0, 45.0)
         dx_w, dy_w, dz_w = sun_direction(270.0, 45.0)
         assert abs(dx_e + dx_w) < 0.01, "East/west X components should be opposite"
@@ -498,7 +498,7 @@ class TestAccumulation:
         """Return n sun positions with genuinely different directions."""
         # Vary azimuth (120°–240°) and altitude (25°–65°) so each produces
         # a different shadow direction — catches caching / repeat bugs.
-        azimuths = [120, 150, 180, 210, 240]
+        azimuths = [120, 150, 180, 210, 240]  # Geographic convention (0°=North CW)
         altitudes = [25, 35, 45, 55, 65]
         return [
             {'azimuth': azimuths[i % 5], 'altitude': altitudes[i % 5], 'hour': 8 + i}
@@ -649,10 +649,10 @@ class TestAccumulation:
         wall_west = make_box_triangles(3, 5, 0, 0.5, 5, 5)
         obstacles = wall_east + wall_west
 
-        # Sun position 1: from the east (azimuth ~90°)
-        # Sun position 2: from the west (azimuth ~270°)
+        # Sun position 1: from the east (azimuth 90° in geographic convention)
+        # Sun position 2: from the west (azimuth 270° in geographic convention)
         sun_pos = [
-            {'azimuth': 90.0, 'altitude': 30.0, 'hour': 8},   # from east
+            {'azimuth': 90.0, 'altitude': 30.0, 'hour': 8},    # from east
             {'azimuth': 270.0, 'altitude': 30.0, 'hour': 16},  # from west
         ]
 
@@ -692,8 +692,8 @@ class TestAccumulation:
         origin = (0.0, 0.01, 0.0)
 
         sun_pos = [
-            {'azimuth': 180.0, 'altitude': 20.0, 'hour': 9},   # south, low
-            {'azimuth': 90.0, 'altitude': 45.0, 'hour': 12},    # east, mid
+            {'azimuth': 180.0, 'altitude': 20.0, 'hour': 9},    # south, low
+            {'azimuth': 90.0, 'altitude': 45.0, 'hour': 12},     # east, mid
             {'azimuth': 270.0, 'altitude': 45.0, 'hour': 15},   # west, mid
         ]
 

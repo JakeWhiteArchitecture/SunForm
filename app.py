@@ -5,9 +5,17 @@ Minimal Flask server — just serves the frontend.
 All analysis runs client-side in the browser.
 """
 
-from flask import Flask, make_response, render_template
+import os
 
-app = Flask(__name__)
+from flask import Flask, make_response, render_template, send_from_directory
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, template_folder=ROOT)
+
+
+@app.route("/sunform-logo.png")
+def logo():
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), "sunform-logo.png")
 
 
 @app.route("/")
@@ -22,4 +30,4 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=True)

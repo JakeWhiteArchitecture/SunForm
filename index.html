@@ -29,7 +29,7 @@
         .panel-scroll {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 6px 20px 20px 20px;
         }
 
         .panel h1 {
@@ -41,7 +41,7 @@
         .panel .subtitle {
             font-size: 12px;
             color: #888;
-            margin-bottom: 20px;
+            margin-bottom: 4px;
         }
 
         /* ─── ACCORDION STEPS ─── */
@@ -253,7 +253,9 @@
         /* ─── 3D VIEWPORT ─── */
         .viewport {
             flex: 1;
+            min-width: 0;
             position: relative;
+            overflow: hidden;
             background: #0a0a1a;
         }
 
@@ -272,6 +274,21 @@
             z-index: 5;
         }
 
+        /* ─── FLY MODE CROSSHAIR ─── */
+        .fly-crosshair {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 24px;
+            font-weight: 300;
+            pointer-events: none;
+            line-height: 1;
+        }
+
         /* ─── NORTH ARROW OVERLAY ─── */
         .north-arrow {
             display: none;
@@ -284,8 +301,6 @@
             font-size: 12px;
             font-weight: 700;
         }
-
-        .north-arrow.visible { display: block; }
 
         .north-arrow svg {
             width: 50px;
@@ -385,6 +400,82 @@
             );
             position: relative;
         }
+
+        /* ─── RAY PROBE PANEL ─── */
+        .ray-probe-panel {
+            display: none;
+            position: absolute;
+            left: 20px;
+            top: auto;
+            bottom: 60px;
+            z-index: 12;
+            background: rgba(10, 10, 30, 0.92);
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            padding: 10px 14px;
+            min-width: 260px;
+            max-width: 340px;
+            max-height: 320px;
+            backdrop-filter: blur(6px);
+            font-size: 11px;
+            color: #ccc;
+        }
+        .ray-probe-panel.visible { display: block; }
+        .ray-probe-panel .probe-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: grab;
+            user-select: none;
+        }
+        .ray-probe-panel .probe-title:active {
+            cursor: grabbing;
+        }
+        .ray-probe-panel .probe-clear-btn {
+            background: #D4880F;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            padding: 2px 10px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .ray-probe-panel .probe-summary {
+            margin-bottom: 6px;
+            color: #aaa;
+            font-size: 10px;
+        }
+        .ray-probe-panel .probe-table {
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .ray-probe-panel .probe-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .ray-probe-panel .probe-table th {
+            text-align: left;
+            padding: 2px 6px;
+            border-bottom: 1px solid #0f3460;
+            color: #888;
+            font-weight: 600;
+            font-size: 10px;
+            position: sticky;
+            top: 0;
+            background: rgba(10, 10, 30, 0.98);
+        }
+        .ray-probe-panel .probe-table td {
+            padding: 2px 6px;
+            font-size: 10px;
+            border-bottom: 1px solid rgba(15, 52, 96, 0.4);
+        }
+        .ray-probe-panel .probe-table tr.ray-hit td { color: #FFD700; }
+        .ray-probe-panel .probe-table tr.ray-blocked td { color: #FF6666; }
 
 
         /* ─── PROGRESS BAR ─── */
@@ -726,91 +817,154 @@
 
         /* ─── LOGO ─── */
         .logo-img {
-            height: 40px;
-            margin-bottom: 4px;
+            display: block;
+            width: 100%;
+            max-height: 260px;
+            object-fit: contain;
+            margin: -20px auto -50px auto;
         }
         .modal-logo {
             display: block;
-            max-width: 220px;
+            max-width: 400px;
             height: auto;
-            margin-bottom: 12px;
+            margin: -20px auto -40px auto;
         }
+        /* ─── COFFEE BUTTON ─── */
+        .coffee-wrap {
+            position: absolute;
+            top: 32px;
+            right: 20px;
+            z-index: 10;
+            text-align: center;
+        }
+        .coffee-btn {
+            display: inline-block;
+            background: rgba(212,136,15,0.85);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 4px;
+            text-decoration: none;
+            letter-spacing: 0.3px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 900px) {
+            .panel {
+                width: 300px;
+                min-width: 300px;
+            }
+            .panel-scroll {
+                padding: 6px 12px 16px 12px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .panel {
+                width: 260px;
+                min-width: 260px;
+            }
+            .viewport-info {
+                font-size: 9px;
+                right: 6px;
+            }
+            .coffee-wrap {
+                right: 6px;
+                top: 28px;
+            }
+            .coffee-btn {
+                font-size: 10px;
+                padding: 4px 10px;
+            }
+            .season-switcher {
+                font-size: 10px;
+            }
+            .colour-legend {
+                right: 8px;
+                bottom: 40px;
+            }
+        }
+
+        @media (max-width: 550px) {
+            body {
+                flex-direction: column;
+            }
+            .panel {
+                width: 100%;
+                min-width: unset;
+                max-height: 40vh;
+                border-right: none;
+                border-bottom: 1px solid #0f3460;
+            }
+            .viewport {
+                flex: 1;
+                min-height: 0;
+            }
+            .viewport-info {
+                font-size: 8px;
+                right: 4px;
+                top: 6px;
+            }
+            .coffee-wrap {
+                right: 4px;
+                top: 22px;
+            }
+            .season-switcher {
+                top: 6px;
+            }
+        }
+
     </style>
 </head>
 <body>
     <!-- ─── DISCLAIMER MODAL ─── -->
     <div class="modal-overlay" id="disclaimer-modal">
         <div class="modal-box">
-            <img src="/static/img/sunform-logo.png" alt="SunForm" class="modal-logo">
-            <h2>SunForm <span class="beta-badge">Beta</span></h2>
-            <div class="modal-subtitle">Indicative Sun Hours Analysis Tool</div>
-
-            <!-- ─── PROFESSIONAL ROLE GATE ─── -->
-            <div class="role-gate">
-                <label for="role-select">I am a:</label>
-                <select id="role-select" onchange="updateRoleGate()">
-                    <option value="">— Please select —</option>
-                    <option value="architect">Architect</option>
-                    <option value="arch_tech">Architectural Technologist</option>
-                    <option value="arch_designer">Architectural Designer</option>
-                    <option value="daylight">Daylighting Consultant</option>
-                    <option value="struct_civil">Structural or Civil Engineer</option>
-                    <option value="planning">Planning Consultant</option>
-                    <option value="urban">Urban Designer</option>
-                    <option value="other_pro">Other design or construction professional</option>
-                    <option value="not_professional">I am not a design professional</option>
-                </select>
-                <div class="role-message" id="role-message" style="display:none;"></div>
-            </div>
+            <img src="/sunform-logo.png" alt="SunForm" class="modal-logo">
+            <h2>SunForm &mdash; Terms of Use</h2>
 
             <div id="disclaimer-terms">
-                <h3>1. Beta Software</h3>
-                <p>SunForm is currently in <strong>beta</strong>. All outputs are <strong>indicative only</strong> and intended for early-stage design exploration. They must not be treated as definitive or relied upon for final design decisions without independent verification.</p>
+                <p>SunForm is currently in active beta development. You are using unfinished software. Outputs may be incomplete, inaccurate, or incorrect &mdash; this is expected at this stage and is part of why your testing matters.</p>
 
-                <h3>2. Not a Replacement for Professional Advice</h3>
-                <p>The provision of this free software is <strong>not intended to be a replacement for expert daylighting consulting professionals</strong> and the specialist software that they use. Critical design decisions regarding daylight, sunlight, and overshadowing must be made in the context of a qualified daylighting consultant.</p>
+                <p>All outputs are indicative only. They have not been validated against any building regulation, standard, or code of practice &mdash; including BRE 209, BS EN 17037, or the Building Regulations 2010. Do not use them for any formal purpose.</p>
 
-                <h3>3. No Compliance Warranty</h3>
-                <p>Outputs have not been verified against any building regulations, standards, or codes of practice &mdash; including BRE 209, BS EN 17037, the Building Regulations 2010, associated Approved Documents, or any international equivalent. No representation or warranty is made that any output complies with any regulatory requirement.</p>
+                <p>As a beta tester you are asked to use SunForm critically. If something looks wrong, it may well be. Please report anything unexpected so the tool can be improved.</p>
 
-                <h3>4. User Responsibility</h3>
-                <ul>
-                    <li>You are solely responsible for verifying the accuracy, suitability, and regulatory compliance of all outputs.</li>
-                    <li>You will not rely on any output as a final design assessment or instruction without independent professional verification.</li>
-                    <li>Any use of exported files (PDF, GLB) is entirely at your own risk.</li>
-                    <li>SunForm is intended for use by persons with sufficient technical knowledge and professional competence to understand the nature, limitations, and appropriate application of solar analysis outputs. It is not intended for use by members of the public without relevant design or construction experience. You confirm that you have the necessary competence to interpret the outputs in context, and that you will not use SunForm for third-party impact assessment, planning evidence, or any purpose where its outputs may be relied upon by others without independent professional verification.</li>
+                <p>SunForm is provided free of charge and entirely at your own risk. To the fullest extent permitted by law, Jake White Architecture accepts no liability for any loss or damage arising from use of or reliance upon its outputs.</p>
+
+                <p>The tool and its source code remain the intellectual property of Jake White Architecture.</p>
+
+                <p style="margin-top:14px; font-weight:600; color:#ccc; font-size:12px;">Third-Party Software Credits</p>
+                <p style="font-size:11px; color:#999; margin-top:4px;">SunForm incorporates the following open-source libraries. These are independent projects maintained by their respective authors; Jake White Architecture does not claim ownership of, nor accept liability for, any third-party component.</p>
+                <ul style="font-size:11px; color:#999; margin:6px 0 0 16px; padding:0; line-height:1.7;">
+                    <li><strong style="color:#bbb;">Three.js</strong> (r128) &mdash; 3D rendering &mdash; MIT License &mdash; &copy; Three.js Authors</li>
+                    <li><strong style="color:#bbb;">web-ifc</strong> (0.0.57) &mdash; IFC file parsing &mdash; Mozilla Public License 2.0 &mdash; &copy; IFC.js Contributors</li>
+                    <li><strong style="color:#bbb;">Leaflet</strong> (1.9.4) &mdash; Interactive maps &mdash; BSD-2-Clause License &mdash; &copy; Volodymyr Agafonkin</li>
+                    <li><strong style="color:#bbb;">jsPDF</strong> (2.5.2) &mdash; PDF generation &mdash; MIT License &mdash; &copy; jsPDF Contributors</li>
+                    <li><strong style="color:#bbb;">Flask</strong> (3.x) &mdash; Python web framework &mdash; BSD-3-Clause License &mdash; &copy; Pallets Projects</li>
                 </ul>
-
-                <h3>5. Limitation of Liability</h3>
-                <p>SunForm is provided <strong>&ldquo;as is&rdquo;</strong> without warranty of any kind, whether express or implied. To the fullest extent permitted by law, Jake White Architecture shall not be liable for any loss, damage, injury, cost, or expense (whether direct, indirect, or consequential) arising from the use of or reliance upon any output, any errors or omissions in the outputs, any decisions or actions taken based on the outputs, or any failure of the tool to produce accurate results.</p>
-
-                <h3>6. Intellectual Property</h3>
-                <p>SunForm is provided free of charge. Outputs may be used freely at your own discretion and risk. The tool itself, including source code and design, remains the intellectual property of Jake White Architecture.</p>
-
-                <h3>7. Changes to These Terms</h3>
-                <p>These terms may be updated from time to time. Continued use of SunForm following any changes constitutes acceptance of the revised terms.</p>
+                <p style="font-size:11px; color:#999; margin-top:8px;">Sun position calculations use the Spencer (1971) algorithm; shadow ray&ndash;triangle intersection uses the M&ouml;ller&ndash;Trumbore algorithm. Both are implemented from published academic sources and carry no third-party licence obligations.</p>
 
                 <p style="margin-top:14px; font-size:11px; color:#888;">SunForm is provided by Jake White Architecture. For professional Architectural Technology services, visit <a href="https://www.jakewhitearchitecture.com" target="_blank" style="color:#00CFC8;">jakewhitearchitecture.com</a></p>
             </div>
 
             <hr style="border-color:#0f3460; margin:16px 0 12px;">
 
+            <div style="font-size:12px; color:#aaa; margin-bottom:8px;">Confirmations:</div>
             <div id="disclaimer-checkboxes">
                 <label class="checkbox-row">
-                    <input type="checkbox" id="disclaimer-check1" onchange="updateDisclaimerAccept()" disabled>
-                    <span>I have read, understood, and accept the Terms of Use &amp; Disclaimer. I acknowledge that SunForm is beta software and all outputs are indicative only.</span>
+                    <input type="checkbox" id="disclaimer-check1" onchange="updateDisclaimerAccept()">
+                    <span>I understand that SunForm is beta software and outputs may be inaccurate. I will not use them for any formal purpose.</span>
                 </label>
                 <label class="checkbox-row">
-                    <input type="checkbox" id="disclaimer-check2" onchange="updateDisclaimerAccept()" disabled>
-                    <span>I understand that SunForm is not a replacement for professional daylighting consultants and their software. I will not use its outputs as a substitute for expert advice.</span>
+                    <input type="checkbox" id="disclaimer-check2" onchange="updateDisclaimerAccept()">
+                    <span>I confirm that I am competent to interpret solar analysis outputs and would be able to identify inconsistencies or errors in the results.</span>
                 </label>
                 <label class="checkbox-row">
-                    <input type="checkbox" id="disclaimer-check3" onchange="updateDisclaimerAccept()" disabled>
-                    <span>I confirm that I have sufficient professional or technical knowledge to understand the nature and limitations of solar analysis outputs, and that I am competent to apply them appropriately within a design process.</span>
-                </label>
-                <label class="checkbox-row">
-                    <input type="checkbox" id="disclaimer-check4" onchange="updateDisclaimerAccept()" disabled>
-                    <span>I confirm that I will not use SunForm outputs as planning evidence, in third-party impact assessments, or in any context where others may rely on them without independent professional verification.</span>
+                    <input type="checkbox" id="disclaimer-check3" onchange="updateDisclaimerAccept()">
+                    <span>I understand that SunForm is not a substitute for professional daylighting consultancy and I will not present its outputs to others as verified analysis.</span>
                 </label>
             </div>
 
@@ -820,9 +974,8 @@
 
     <div class="panel">
       <div class="panel-scroll">
-        <img src="/static/img/sunform-logo.png" alt="SunForm" class="logo-img">
-        <h1 style="display:flex; align-items:center; gap:6px;">SunForm <span style="font-size:9px; background:#D4880F; color:#000; padding:1px 5px; border-radius:3px; font-weight:700; letter-spacing:0.5px;">BETA</span></h1>
-        <p class="subtitle">Indicative Sun Hours Analysis</p>
+        <img src="/sunform-logo.png" alt="SunForm" class="logo-img">
+        <p class="subtitle" style="text-align:center;">A free sun hours web tool (Beta)</p>
 
         <!-- STEP 1: IMPORT -->
         <div class="step active" id="step-1" onclick="openStep(1)">
@@ -856,15 +1009,20 @@
                 <span class="step-summary" id="step2-summary"></span>
             </div>
             <div class="step-body">
-                <p class="hint">North should be pointing up the screen. If your model is rotated, adjust below.</p>
-                <div class="field">
-                    <label>Rotation <span class="unit">degrees</span></label>
-                    <input type="number" id="north-rotation" value="0" step="5">
+                <button class="btn btn-primary" onclick="event.stopPropagation(); confirmOrientation();" style="margin-bottom:8px;">Confirm Orientation</button>
+                <button class="btn btn-secondary" id="orient-manual-btn" onclick="event.stopPropagation(); toggleManualOrient();">Set Orientation Manually</button>
+                <div id="orient-manual-panel" style="display:none; margin-top:10px;">
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <button class="btn btn-secondary" onclick="event.stopPropagation(); applyManualRotation(1);" style="margin-top:0; padding:4px 10px; font-size:16px;">&#x2190;</button>
+                        <input type="number" id="north-rotation" value="0" step="5" style="width:70px; text-align:center;">
+                        <button class="btn btn-secondary" onclick="event.stopPropagation(); applyManualRotation(-1);" style="margin-top:0; padding:4px 10px; font-size:16px;">&#x2192;</button>
+                        <span class="unit" style="margin-left:2px;">&deg;</span>
+                    </div>
                 </div>
-                <div style="font-size:11px; color:#666; margin-bottom:8px;">
-                    Positive = counter-clockwise. The north arrow updates as you type.
+                <div id="orient-post-rotation" style="display:none; margin-top:8px;">
+                    <button class="btn btn-primary" onclick="event.stopPropagation(); confirmOrientation();" style="margin-bottom:8px;">Confirm Orientation</button>
+                    <button class="btn btn-secondary" onclick="event.stopPropagation(); resetOrientation();">Reset</button>
                 </div>
-                <button class="btn btn-primary" onclick="event.stopPropagation(); confirmOrientation();">Confirm Orientation</button>
             </div>
         </div>
 
@@ -872,25 +1030,41 @@
         <div class="step upcoming" id="step-3" onclick="openStep(3)">
             <div class="step-header">
                 <div class="step-number">3</div>
-                <div class="step-title">Select Ground Mesh</div>
+                <div class="step-title">Select Analysis Surfaces</div>
                 <span class="step-check">&#10003;</span>
                 <span class="step-summary" id="step3-summary"></span>
             </div>
             <div class="step-body">
-                <p class="hint">Click on ground/terrain surfaces in the 3D view. Click again to deselect.</p>
+                <p class="hint">Click ground or roof surfaces to select the whole mesh. Click vertical walls to select coplanar faces. Double-click a vertical surface to select or deselect all faces on that mesh.</p>
                 <div class="selected-mesh-name" id="selected-mesh-name">No meshes selected</div>
                 <div id="ground-suggestions" style="margin-bottom:8px;"></div>
                 <button class="btn btn-primary" id="confirm-ground-btn" onclick="event.stopPropagation(); confirmGroundMesh();" disabled>Confirm Selection</button>
             </div>
         </div>
 
-        <!-- STEP 4: DEFINE ANALYSIS AREA -->
+        <!-- STEP 4: EXCLUDE SHADE EMITTERS -->
         <div class="step upcoming" id="step-4" onclick="openStep(4)">
             <div class="step-header">
                 <div class="step-number">4</div>
-                <div class="step-title">Define Analysis Area</div>
+                <div class="step-title">Exclude Shade Emitters</div>
                 <span class="step-check">&#10003;</span>
                 <span class="step-summary" id="step4-summary"></span>
+            </div>
+            <div class="step-body">
+                <p class="hint">All non-ground meshes cast shadows by default. Click on any mesh in the 3D view to exclude it from shadow casting (e.g. space volumes). Click again to re-include.</p>
+                <div class="selected-mesh-name" id="excluded-emitters-label">0 meshes excluded</div>
+                <div id="shade-emitter-list" style="max-height:120px; overflow-y:auto; margin-bottom:8px; font-size:11px; color:#aaa;"></div>
+                <button class="btn btn-primary" id="confirm-emitters-btn" onclick="event.stopPropagation(); confirmShadeEmitters();">Confirm Shade Emitters</button>
+            </div>
+        </div>
+
+        <!-- STEP 5: DEFINE ANALYSIS AREA -->
+        <div class="step upcoming" id="step-5" onclick="openStep(5)">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <div class="step-title">Define Analysis Area</div>
+                <span class="step-check">&#10003;</span>
+                <span class="step-summary" id="step5-summary"></span>
             </div>
             <div class="step-body">
                 <div style="display:flex; gap:8px; margin-bottom:10px;">
@@ -955,6 +1129,8 @@
                     <div class="field">
                         <label>Time Step <span class="unit">hours</span></label>
                         <select id="time_step">
+                            <option value="0.0833">5 min</option>
+                            <option value="0.25">15 min</option>
                             <option value="0.5">30 min</option>
                             <option value="1" selected>1 hour</option>
                         </select>
@@ -964,13 +1140,13 @@
             </div>
         </div>
 
-        <!-- STEP 5: RESULTS -->
-        <div class="step upcoming" id="step-5" onclick="openStep(5)">
+        <!-- STEP 6: RESULTS -->
+        <div class="step upcoming" id="step-6" onclick="openStep(6)">
             <div class="step-header">
-                <div class="step-number">5</div>
+                <div class="step-number">6</div>
                 <div class="step-title">Results</div>
                 <span class="step-check">&#10003;</span>
-                <span class="step-summary" id="step5-summary"></span>
+                <span class="step-summary" id="step6-summary"></span>
             </div>
             <div class="step-body">
                 <div class="results-panel visible" id="results-panel">
@@ -989,11 +1165,7 @@
         </div>
 
         <div class="disclaimer">
-            SunForm (Beta) &mdash; Indicative sun hours analysis for early-stage design exploration only.
-            All outputs are approximate and must not be relied upon for planning submissions,
-            compliance assessments, or final design decisions. This tool is not a replacement for
-            professional daylighting consultants and their software. Jake White Architecture accepts
-            no liability for loss or damage arising from reliance on its outputs.
+            SunForm is beta software. There is no warranty. The Software provided under the author is incomplete and may contain errors or inaccuracies and therefore cannot be relied upon for design decision making.
         </div>
 
       </div>
@@ -1003,12 +1175,10 @@
     <div class="download-confirm-overlay" id="download-confirm-overlay">
         <div class="download-confirm-box">
             <h3>Confirm Download</h3>
-            <p>Before downloading, please confirm you understand the nature and limitations of this output:</p>
-            <p>SunForm outputs are <strong>indicative only</strong> and are provided for early-stage design exploration. They must not be used as planning evidence, for compliance assessment, or relied upon without independent professional verification.</p>
-            <p>Jake White Architecture accepts no liability for any loss, damage, or decisions arising from reliance on these outputs.</p>
+            <p>SunForm is beta software. There is no warranty. The Software provided under the author is incomplete and may contain errors or inaccuracies and therefore cannot be relied upon for design decision making.</p>
             <label class="checkbox-row">
                 <input type="checkbox" id="download-confirm-check" onchange="updateDownloadConfirm()">
-                <span>I understand that this output is indicative only and I accept full responsibility for its use.</span>
+                <span>I understand this is a beta output for testing only and I will not use it for any formal purpose.</span>
             </label>
             <div class="btn-row">
                 <button class="btn-cancel" onclick="hideDownloadConfirm()">Cancel</button>
@@ -1018,17 +1188,25 @@
     </div>
 
     <div class="viewport" id="viewport">
+        <div class="fly-crosshair" id="fly-crosshair">+</div>
         <div class="viewport-info" id="viewport-info">Orbit: drag | Zoom: scroll | Pan: right-drag &nbsp;|&nbsp; F: fly mode &nbsp; O: orbit mode</div>
+        <div class="coffee-wrap">
+            <a class="coffee-btn" href="https://buymeacoffee.com/jakewhite" target="_blank" rel="noopener noreferrer">
+                ☕ Buy me a coffee
+            </a>
+        </div>
         <div class="north-arrow" id="north-arrow">
-            <svg viewBox="0 0 50 50">
-                <polygon points="25,5 30,20 25,15 20,20" fill="#E5A50A"/>
-                <polygon points="25,45 20,30 25,35 30,30" fill="#666"/>
-            </svg>
-            <div>N</div>
+            <div id="north-arrow-rotator" style="display:inline-block;">
+                <div>N</div>
+                <svg viewBox="0 0 50 50">
+                    <polygon points="25,5 30,20 25,15 20,20" fill="#E5A50A"/>
+                    <polygon points="25,45 20,30 25,35 30,30" fill="#666"/>
+                </svg>
+            </div>
         </div>
         <div class="pick-overlay" id="pick-overlay">
-            <div style="color:#00CFC8; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Ground Mesh</div>
-            <div style="color:#aaa; font-size:12px;">Click on a mesh in the 3D view</div>
+            <div style="color:#00CFC8; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Select Analysis Surfaces</div>
+            <div style="color:#aaa; font-size:12px;">Click surfaces in the 3D view. Double-click vertical walls to select all faces.</div>
         </div>
         <div class="bbox-overlay" id="bbox-overlay">
             <div class="bbox-title">Bounding Box Tool</div>
@@ -1047,6 +1225,14 @@
             <button class="season-sw-btn" id="sw-summer" onclick="switchVisibleSeason('summer')">Summer</button>
         </div>
         <div class="status-overlay" id="status-overlay" style="display:none;"></div>
+        <div class="ray-probe-panel" id="ray-probe-panel">
+            <div class="probe-title">
+                <span>Sun Ray Probe</span>
+                <button class="probe-clear-btn" onclick="clearRayProbe()">Clear</button>
+            </div>
+            <div class="probe-summary" id="probe-summary"></div>
+            <div class="probe-table" id="probe-table"></div>
+        </div>
     </div>
 
     <!-- Leaflet.js for location picker -->
@@ -1070,8 +1256,12 @@
         let allMeshes = [];         // individual THREE.Mesh objects from IFC
         let allMeshMeta = [];       // { mesh, expressID, ifcType, name } per mesh
         let selectedGroundMeshes = [];  // array of selected ground THREE.Mesh objects
+        let selectedVerticalFaces = []; // Each entry: { mesh, faceIndices, normal, highlight: THREE.Mesh }
         let groundHighlights = [];      // cyan wireframe overlays
-        let shadowBVH = null;       // BVH of all meshes EXCEPT ground
+        let excludedEmitters = [];      // meshes excluded from shadow casting
+        let emitterHighlights = [];     // red wireframe overlays for excluded emitters
+        let emitterPickMode = false;    // pick mode for step 4 emitter exclusion
+        let shadowBVH = null;       // BVH of all meshes EXCEPT ground & excluded
         let heatmapGroup = null;
         let bboxHelper = null;
         let groundPlane = null;
@@ -1082,6 +1272,7 @@
         let pickMode = false;
         let useEntireGroundMesh = true;
         let northRotationDeg = 0;
+        let rotationAnimFrame = null;
         let modelRotationGroup = null;
 
         // Season analysis state
@@ -1100,10 +1291,19 @@
         let seasonHeatmaps = {};        // { winter: THREE.Group, ... }
         let visibleSeason = 'spring';   // currently displayed season
 
+        // Ray probe state
+        let rayProbeGroup = null;       // THREE.Group holding probe ray lines + marker
+        let rayProbeActive = false;     // whether a probe is currently displayed
+
         // Fly mode state
         let flyMode = false;
         const flyKeys = { w: false, a: false, s: false, d: false, q: false, e: false };
         const FLY_SPEED = 0.5;
+        let flyYaw = 0;
+        let flyPitch = 0;
+        let flyYawTarget = 0;
+        let flyPitchTarget = 0;
+        const FLY_LOOK_SMOOTHING = 0.15;
 
         // Leaflet map state
         let locationMap = null;
@@ -1160,6 +1360,10 @@
             groundPlane.position.y = 0;
             scene.add(groundPlane);
 
+            document.querySelector('.panel').addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+
             window.addEventListener('resize', () => {
                 const w = container.clientWidth;
                 const h = container.clientHeight;
@@ -1175,7 +1379,7 @@
         function animate() {
             requestAnimationFrame(animate);
             updateFlyMovement();
-            controls.update();
+            if (!flyMode) controls.update();
             renderer.render(scene, camera);
         }
 
@@ -1204,7 +1408,6 @@
             controls.object = camera;
             controls.enableRotate = false;
             controls.update();
-            document.getElementById('north-arrow').classList.add('visible');
         }
 
         function switchToPersp() {
@@ -1212,7 +1415,6 @@
             controls.object = camera;
             controls.enableRotate = true;
             controls.update();
-            document.getElementById('north-arrow').classList.remove('visible');
         }
 
         // ─── INIT WEB-IFC ───
@@ -1232,7 +1434,7 @@
             const step = document.getElementById('step-' + n);
             if (step.classList.contains('upcoming')) return;
             // Only allow opening completed steps or current step
-            for (let i = 1; i <= 5; i++) {
+            for (let i = 1; i <= 6; i++) {
                 const s = document.getElementById('step-' + i);
                 if (i === n) {
                     s.classList.add('active');
@@ -1251,19 +1453,24 @@
             currentStep = n;
 
             // Step-specific modes
-            if (n === 2) switchToOrtho();
+            if (n === 2) { switchToOrtho(); }
             else switchToPersp();
             setPickMode(n === 3);
+            setEmitterPickMode(n === 4);
+            if (n !== 6) clearRayProbe();
 
-            // Mesh visibility: when going back to step 3 (select mesh), show meshes
-            // and gray out previous results. On step 5 (results), hide meshes.
-            if (n === 3 && Object.keys(seasonHeatmaps).length > 0) {
+            // Show compass only during orientation step
+            document.getElementById('north-arrow').style.display = (n === 2) ? 'block' : 'none';
+
+            // Mesh visibility: when going back to step 3 or 4 (select/exclude mesh), show meshes
+            // and gray out previous results. On step 6 (results), hide meshes.
+            if ((n === 3 || n === 4) && Object.keys(seasonHeatmaps).length > 0) {
                 showCalculationMeshes();
                 grayOutResults();
-            } else if (n === 5) {
+            } else if (n === 6) {
                 hideCalculationMeshes();
                 restoreResults();
-            } else if (n !== 3) {
+            } else if (n !== 3 && n !== 4) {
                 // For other steps, ensure meshes are visible and results normal
                 showCalculationMeshes();
                 if (Object.keys(seasonHeatmaps).length > 0) {
@@ -1271,8 +1478,8 @@
                 }
             }
 
-            // Lazy-init Leaflet map when step 4 first opens
-            if (n === 4 && !mapInitialized) {
+            // Lazy-init Leaflet map when step 5 first opens
+            if (n === 5 && !mapInitialized) {
                 mapInitialized = true;
                 setTimeout(() => {
                     initLocationMap();
@@ -1289,7 +1496,7 @@
             if (sumEl) sumEl.textContent = summary;
             // Advance to next
             const next = n + 1;
-            if (next <= 5) {
+            if (next <= 6) {
                 const ns = document.getElementById('step-' + next);
                 ns.classList.remove('upcoming');
                 openStep(next);
@@ -1299,6 +1506,7 @@
         function resetWorkflow() {
             // Restore mesh visibility before cleanup
             showCalculationMeshes();
+            clearRayProbe();
             // Reset all state
             if (buildingGroup) {
                 scene.remove(buildingGroup);
@@ -1331,6 +1539,14 @@
             allMeshes = [];
             allMeshMeta = [];
             selectedGroundMeshes = [];
+            for (const vf of selectedVerticalFaces) {
+                scene.remove(vf.highlight);
+                vf.highlight.geometry.dispose();
+                vf.highlight.material.dispose();
+            }
+            selectedVerticalFaces = [];
+            excludedEmitters = [];
+            clearEmitterHighlights();
             shadowBVH = null;
             ifcLoaded = false;
             lastAnalysisResults = null;
@@ -1342,11 +1558,13 @@
             document.getElementById('upload-zone').classList.remove('loaded');
             document.getElementById('north-rotation').value = '0';
             document.getElementById('selected-mesh-name').textContent = 'No meshes selected';
+            document.getElementById('excluded-emitters-label').textContent = '0 meshes excluded';
+            document.getElementById('shade-emitter-list').innerHTML = '';
             document.getElementById('ground-suggestions').innerHTML = '';
             document.getElementById('bbox-fields').style.display = 'none';
             document.getElementById('bbox-fields2').style.display = 'none';
 
-            for (let i = 1; i <= 5; i++) {
+            for (let i = 1; i <= 6; i++) {
                 const s = document.getElementById('step-' + i);
                 s.classList.remove('completed', 'active', 'upcoming');
                 if (i === 1) s.classList.add('active');
@@ -1559,23 +1777,83 @@
         }
 
         // ─── STEP 2: ORIENTATION ───
-        document.getElementById('north-rotation').addEventListener('input', () => {
-            northRotationDeg = parseFloat(document.getElementById('north-rotation').value) || 0;
-            if (modelRotationGroup) {
-                modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
-            }
-            // Rotate north arrow
-            const arrow = document.getElementById('north-arrow');
-            arrow.querySelector('svg').style.transform = 'rotate(' + (-northRotationDeg) + 'deg)';
-        });
 
         function confirmOrientation() {
-            northRotationDeg = parseFloat(document.getElementById('north-rotation').value) || 0;
-            if (modelRotationGroup) {
-                modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
-            }
             const summary = northRotationDeg === 0 ? 'North: confirmed' : 'North: rotated ' + (northRotationDeg > 0 ? '+' : '') + northRotationDeg + '\u00b0';
             completeStep(2, summary);
+        }
+
+        // ─── MANUAL ORIENTATION ───
+
+        function toggleManualOrient() {
+            var panel = document.getElementById('orient-manual-panel');
+            var btn = document.getElementById('orient-manual-btn');
+            if (panel.style.display === 'none') {
+                panel.style.display = '';
+                btn.textContent = 'Hide Manual Controls';
+            } else {
+                panel.style.display = 'none';
+                btn.textContent = 'Set Orientation Manually';
+            }
+        }
+
+        function applyManualRotation(sign) {
+            var degrees = parseFloat(document.getElementById('north-rotation').value) || 0;
+            if (degrees === 0) return;
+            var targetDeg = northRotationDeg + sign * Math.abs(degrees);
+            while (targetDeg > 180) targetDeg -= 360;
+            while (targetDeg <= -180) targetDeg += 360;
+            targetDeg = Math.round(targetDeg * 10) / 10;
+            animateRotation(targetDeg, 400, function() {
+                document.getElementById('orient-manual-panel').style.display = 'none';
+                document.getElementById('orient-manual-btn').style.display = 'none';
+                document.querySelector('#step-2 .step-body > .btn-primary').style.display = 'none';
+                document.getElementById('orient-post-rotation').style.display = '';
+            });
+        }
+
+        function resetOrientation() {
+            animateRotation(0, 400, function() {
+                document.getElementById('orient-post-rotation').style.display = 'none';
+                document.getElementById('orient-manual-btn').style.display = '';
+                document.getElementById('orient-manual-btn').textContent = 'Set Orientation Manually';
+                document.getElementById('orient-manual-panel').style.display = 'none';
+                document.getElementById('north-rotation').value = '0';
+                document.querySelector('#step-2 .step-body > .btn-primary').style.display = '';
+            });
+        }
+
+        function animateRotation(targetDeg, duration, onComplete) {
+            if (rotationAnimFrame) cancelAnimationFrame(rotationAnimFrame);
+            duration = duration || 400;
+            const startDeg = northRotationDeg;
+            let delta = targetDeg - startDeg;
+            while (delta > 180) delta -= 360;
+            while (delta <= -180) delta += 360;
+            const endDeg = startDeg + delta;
+            const startTime = performance.now();
+
+            function tick(now) {
+                const t = Math.min((now - startTime) / duration, 1);
+                const eased = t * (2 - t); // ease-out
+                northRotationDeg = startDeg + delta * eased;
+                if (modelRotationGroup) {
+                    modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
+                }
+                document.getElementById('north-arrow-rotator').style.transform = 'rotate(' + (-northRotationDeg) + 'deg)';
+                if (t < 1) {
+                    rotationAnimFrame = requestAnimationFrame(tick);
+                } else {
+                    northRotationDeg = Math.round(endDeg * 10) / 10;
+                    document.getElementById('north-rotation').value = 0;
+                    if (modelRotationGroup) {
+                        modelRotationGroup.rotation.y = northRotationDeg * Math.PI / 180;
+                    }
+                    rotationAnimFrame = null;
+                    if (onComplete) onComplete();
+                }
+            }
+            rotationAnimFrame = requestAnimationFrame(tick);
         }
 
         // ─── STEP 3: GROUND MESH PICKING ───
@@ -1641,33 +1919,159 @@
             groundHighlights.splice(idx, 1);
         }
 
+        // ─── VERTICAL SURFACE SELECTION HELPERS ───
+
+        function isVerticalFace(normal) {
+            return Math.abs(normal.y) < Math.sin(Math.PI / 180);
+        }
+
+        function getCoplanarFaces(mesh, hitFaceIndex) {
+            const geo = mesh.geometry;
+            const pos = geo.attributes.position.array;
+            const idx = geo.index ? geo.index.array : null;
+            const TOLERANCE = Math.sin(Math.PI / 180); // 1 degree
+
+            // Compute face normals for all triangles
+            const faceCount = idx ? idx.length / 3 : pos.length / 9;
+            const faceNormals = [];
+
+            for (let f = 0; f < faceCount; f++) {
+                const i0 = idx ? idx[f*3]*3 : f*9;
+                const i1 = idx ? idx[f*3+1]*3 : f*9+3;
+                const i2 = idx ? idx[f*3+2]*3 : f*9+6;
+
+                const ax = pos[i0], ay = pos[i0+1], az = pos[i0+2];
+                const bx = pos[i1], by = pos[i1+1], bz = pos[i1+2];
+                const cx = pos[i2], cy = pos[i2+1], cz = pos[i2+2];
+
+                const e1x = bx-ax, e1y = by-ay, e1z = bz-az;
+                const e2x = cx-ax, e2y = cy-ay, e2z = cz-az;
+                const nx = e1y*e2z - e1z*e2y;
+                const ny = e1z*e2x - e1x*e2z;
+                const nz = e1x*e2y - e1y*e2x;
+                const len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+
+                faceNormals.push(len > 0 ? [nx/len, ny/len, nz/len] : [0,1,0]);
+            }
+
+            const hitNormal = faceNormals[hitFaceIndex];
+
+            // Only proceed if hit face is vertical
+            if (Math.abs(hitNormal[1]) >= TOLERANCE) return null;
+
+            // Build vertex-to-face adjacency map
+            const vertToFaces = new Map();
+            for (let f = 0; f < faceCount; f++) {
+                for (let v = 0; v < 3; v++) {
+                    const vi = idx ? idx[f*3+v] : f*3+v;
+                    if (!vertToFaces.has(vi)) vertToFaces.set(vi, []);
+                    vertToFaces.get(vi).push(f);
+                }
+            }
+
+            // Flood fill — collect faces within 1 degree of hit normal, connected by shared vertices
+            const collected = new Set();
+            const queue = [hitFaceIndex];
+            collected.add(hitFaceIndex);
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+
+                // Get all vertex indices for this face
+                for (let v = 0; v < 3; v++) {
+                    const vi = idx ? idx[current*3+v] : current*3+v;
+                    const neighbours = vertToFaces.get(vi) || [];
+                    for (const neighbour of neighbours) {
+                        if (collected.has(neighbour)) continue;
+                        const nn = faceNormals[neighbour];
+                        // Check within 1 degree of the ORIGINAL hit normal
+                        const dot = hitNormal[0]*nn[0] + hitNormal[1]*nn[1] + hitNormal[2]*nn[2];
+                        if (dot >= 1 - TOLERANCE && Math.abs(nn[1]) < TOLERANCE) {
+                            collected.add(neighbour);
+                            queue.push(neighbour);
+                        }
+                    }
+                }
+            }
+
+            return {
+                faceIndices: Array.from(collected),
+                normal: hitNormal,
+                mesh: mesh,
+            };
+        }
+
+        function addVerticalFaceHighlight(mesh, faceIndices) {
+            const geo = mesh.geometry;
+            const pos = geo.attributes.position.array;
+            const idx = geo.index ? geo.index.array : null;
+            const positions = [];
+
+            mesh.updateWorldMatrix(true, false);
+            const wm = mesh.matrixWorld;
+
+            for (const f of faceIndices) {
+                for (let v = 0; v < 3; v++) {
+                    const vi = idx ? idx[f*3+v]*3 : f*9+v*3;
+                    const p = new THREE.Vector3(pos[vi], pos[vi+1], pos[vi+2]).applyMatrix4(wm);
+                    positions.push(p.x, p.y, p.z);
+                }
+            }
+
+            const hlGeo = new THREE.BufferGeometry();
+            hlGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            const hlMat = new THREE.MeshBasicMaterial({
+                color: 0x00CFC8,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide,
+                depthTest: false,
+            });
+            const hlMesh = new THREE.Mesh(hlGeo, hlMat);
+            scene.add(hlMesh);
+            return hlMesh;
+        }
+
         function updateSelectedMeshLabel() {
-            if (selectedGroundMeshes.length === 0) {
-                document.getElementById('selected-mesh-name').textContent = 'No meshes selected';
+            const total = selectedGroundMeshes.length + selectedVerticalFaces.length;
+            if (total === 0) {
+                document.getElementById('selected-mesh-name').textContent = 'No surfaces selected';
                 document.getElementById('confirm-ground-btn').disabled = true;
             } else {
-                const names = selectedGroundMeshes.map(m => {
-                    const meta = allMeshMeta.find(mm => mm.mesh === m);
-                    return meta ? meta.name : m.name;
-                });
-                document.getElementById('selected-mesh-name').textContent =
-                    names.length + ' mesh' + (names.length > 1 ? 'es' : '') + ': ' + names.join(', ');
+                const parts = [];
+                if (selectedGroundMeshes.length > 0)
+                    parts.push(selectedGroundMeshes.length + ' ground mesh' + (selectedGroundMeshes.length > 1 ? 'es' : ''));
+                if (selectedVerticalFaces.length > 0)
+                    parts.push(selectedVerticalFaces.length + ' vertical face' + (selectedVerticalFaces.length > 1 ? 's' : ''));
+                document.getElementById('selected-mesh-name').textContent = parts.join(', ');
                 document.getElementById('confirm-ground-btn').disabled = false;
             }
         }
 
         document.getElementById('viewport').addEventListener('click', (event) => {
+            if (event.target !== renderer.domElement) return;
             if (pickMode) {
                 handleMeshPick(event);
+                return;
+            }
+            if (emitterPickMode) {
+                handleEmitterPick(event);
                 return;
             }
             if (bboxMode) {
                 handleBboxClick(event);
                 return;
             }
+            if (currentStep === 6 && Object.keys(seasonHeatmaps).length > 0) {
+                handleRayProbeClick(event);
+                return;
+            }
         });
 
-        function handleMeshPick(event) {
+        document.getElementById('viewport').addEventListener('dblclick', (event) => {
+            if (!pickMode) return;
+            if (event.target !== renderer.domElement) return;
+
             const container = document.getElementById('viewport');
             const rect = container.getBoundingClientRect();
             const mouse = new THREE.Vector2(
@@ -1680,33 +2084,274 @@
             if (hits.length === 0) return;
 
             const hitMesh = hits[0].object;
-            const existingIdx = selectedGroundMeshes.indexOf(hitMesh);
+            const faceIndex = hits[0].faceIndex;
 
-            if (existingIdx !== -1) {
-                // Deselect — toggle off
-                selectedGroundMeshes.splice(existingIdx, 1);
-                removeHighlight(hitMesh);
+            // Only applicable for vertical surfaces
+            const geo = hitMesh.geometry;
+            const pos = geo.attributes.position.array;
+            const idx = geo.index ? geo.index.array : null;
+            const i0 = idx ? idx[faceIndex*3]*3 : faceIndex*9;
+            const i1 = idx ? idx[faceIndex*3+1]*3 : faceIndex*9+3;
+            const i2 = idx ? idx[faceIndex*3+2]*3 : faceIndex*9+6;
+            const e1 = new THREE.Vector3(pos[i1]-pos[i0], pos[i1+1]-pos[i0+1], pos[i1+2]-pos[i0+2]);
+            const e2 = new THREE.Vector3(pos[i2]-pos[i0], pos[i2+1]-pos[i0+1], pos[i2+2]-pos[i0+2]);
+            const faceNormal = new THREE.Vector3().crossVectors(e1, e2).normalize();
+            const normalMatrix = new THREE.Matrix3().getNormalMatrix(hitMesh.matrixWorld);
+            faceNormal.applyMatrix3(normalMatrix).normalize();
+
+            if (!isVerticalFace(faceNormal)) return;
+
+            // Check if any faces from this mesh are already selected
+            const meshFaces = selectedVerticalFaces.filter(s => s.mesh === hitMesh);
+
+            if (meshFaces.length > 0) {
+                // Deselect all vertical faces from this mesh
+                for (const s of meshFaces) {
+                    scene.remove(s.highlight);
+                    s.highlight.geometry.dispose();
+                    s.highlight.material.dispose();
+                }
+                selectedVerticalFaces = selectedVerticalFaces.filter(s => s.mesh !== hitMesh);
             } else {
-                // Select — toggle on
-                selectedGroundMeshes.push(hitMesh);
-                addHighlight(hitMesh);
+                // Select all vertical faces from this mesh using flood fill per unique normal
+                const faceCount = idx ? idx.length / 3 : pos.length / 9;
+                const visited = new Set();
+
+                for (let f = 0; f < faceCount; f++) {
+                    if (visited.has(f)) continue;
+                    const result = getCoplanarFaces(hitMesh, f);
+                    if (!result) { visited.add(f); continue; }
+                    // Only add if vertical
+                    const n = result.normal;
+                    if (Math.abs(n[1]) >= Math.sin(Math.PI / 180)) {
+                        result.faceIndices.forEach(fi => visited.add(fi));
+                        continue;
+                    }
+                    result.faceIndices.forEach(fi => visited.add(fi));
+                    const highlight = addVerticalFaceHighlight(hitMesh, result.faceIndices);
+                    selectedVerticalFaces.push({ ...result, highlight });
+                }
+            }
+
+            updateSelectedMeshLabel();
+        });
+
+        function handleMeshPick(event) {
+            const container = document.getElementById('viewport');
+            const rect = container.getBoundingClientRect();
+            const mouse = flyMode
+                ? new THREE.Vector2(0, 0)
+                : new THREE.Vector2(
+                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                    -((event.clientY - rect.top) / rect.height) * 2 + 1
+                );
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(allMeshes, false);
+            if (hits.length === 0) return;
+
+            const hit = hits[0];
+            const hitMesh = hit.object;
+            const faceIndex = hit.faceIndex;
+
+            // Compute hit face normal in world space
+            const geo = hitMesh.geometry;
+            const pos = geo.attributes.position.array;
+            const idx = geo.index ? geo.index.array : null;
+            const i0 = idx ? idx[faceIndex*3]*3 : faceIndex*9;
+            const i1 = idx ? idx[faceIndex*3+1]*3 : faceIndex*9+3;
+            const i2 = idx ? idx[faceIndex*3+2]*3 : faceIndex*9+6;
+            const e1 = new THREE.Vector3(pos[i1]-pos[i0], pos[i1+1]-pos[i0+1], pos[i1+2]-pos[i0+2]);
+            const e2 = new THREE.Vector3(pos[i2]-pos[i0], pos[i2+1]-pos[i0+1], pos[i2+2]-pos[i0+2]);
+            const faceNormal = new THREE.Vector3().crossVectors(e1, e2).normalize();
+
+            // Transform normal to world space
+            const normalMatrix = new THREE.Matrix3().getNormalMatrix(hitMesh.matrixWorld);
+            faceNormal.applyMatrix3(normalMatrix).normalize();
+
+            if (isVerticalFace(faceNormal)) {
+                // Vertical — coplanar flood fill selection
+                const result = getCoplanarFaces(hitMesh, faceIndex);
+                if (!result) return;
+
+                // Check if already selected — toggle off
+                const existingIdx = selectedVerticalFaces.findIndex(
+                    s => s.mesh === hitMesh && s.faceIndices[0] === result.faceIndices[0]
+                );
+
+                if (existingIdx !== -1) {
+                    const removed = selectedVerticalFaces.splice(existingIdx, 1)[0];
+                    scene.remove(removed.highlight);
+                    removed.highlight.geometry.dispose();
+                    removed.highlight.material.dispose();
+                } else {
+                    const highlight = addVerticalFaceHighlight(hitMesh, result.faceIndices);
+                    selectedVerticalFaces.push({ ...result, highlight });
+                }
+            } else {
+                // Non-vertical — existing whole-mesh toggle behaviour unchanged
+                const existingIdx = selectedGroundMeshes.indexOf(hitMesh);
+                if (existingIdx !== -1) {
+                    selectedGroundMeshes.splice(existingIdx, 1);
+                    removeHighlight(hitMesh);
+                } else {
+                    selectedGroundMeshes.push(hitMesh);
+                    addHighlight(hitMesh);
+                }
             }
 
             updateSelectedMeshLabel();
         }
 
         function confirmGroundMesh() {
-            if (selectedGroundMeshes.length === 0) return;
+            if (selectedGroundMeshes.length === 0 && selectedVerticalFaces.length === 0) return;
             setPickMode(false);
+            buildShadowBVH();
+
+            const totalSurfaces = selectedGroundMeshes.length + selectedVerticalFaces.length;
+            completeStep(3, totalSurfaces + ' surface' + (totalSurfaces > 1 ? 's' : '') + ' selected');
+        }
+
+        // ─── STEP 4: EXCLUDE SHADE EMITTERS ───
+        function setEmitterPickMode(on) {
+            emitterPickMode = on;
+            const viewport = document.getElementById('viewport');
+            const overlay = document.getElementById('pick-overlay');
+            viewport.classList.toggle('picking-mesh', on);
+            overlay.classList.toggle('visible', on);
+        }
+
+        function addEmitterHighlight(mesh) {
+            if (!mesh.userData._origColorEmitter) {
+                mesh.userData._origColorEmitter = mesh.material.color.getHex();
+                mesh.userData._origOpacityEmitter = mesh.material.opacity;
+                mesh.userData._origTransparentEmitter = mesh.material.transparent;
+            }
+            mesh.material = mesh.material.clone();
+            mesh.material.color.setHex(0xFF4444);
+            mesh.material.opacity = 0.45;
+            mesh.material.transparent = true;
+
+            const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
+            const hl = new THREE.LineSegments(edges,
+                new THREE.LineBasicMaterial({ color: 0xFF2222, linewidth: 2 }));
+            hl.position.copy(mesh.position);
+            hl.rotation.copy(mesh.rotation);
+            hl.scale.copy(mesh.scale);
+            hl.userData._emitterRef = mesh;
+            if (mesh.parent) {
+                mesh.parent.add(hl);
+            } else {
+                scene.add(hl);
+            }
+            emitterHighlights.push(hl);
+        }
+
+        function removeEmitterHighlight(mesh) {
+            if (mesh.userData._origColorEmitter !== undefined) {
+                mesh.material = mesh.material.clone();
+                mesh.material.color.setHex(mesh.userData._origColorEmitter);
+                mesh.material.opacity = mesh.userData._origOpacityEmitter;
+                mesh.material.transparent = mesh.userData._origTransparentEmitter;
+            }
+
+            const idx = emitterHighlights.findIndex(hl => hl.userData._emitterRef === mesh);
+            if (idx === -1) return;
+            const hl = emitterHighlights[idx];
+            if (hl.parent) hl.parent.remove(hl);
+            else scene.remove(hl);
+            hl.geometry.dispose();
+            hl.material.dispose();
+            emitterHighlights.splice(idx, 1);
+        }
+
+        function clearEmitterHighlights() {
+            for (const hl of emitterHighlights) {
+                if (hl.parent) hl.parent.remove(hl);
+                else scene.remove(hl);
+                hl.geometry.dispose();
+                hl.material.dispose();
+            }
+            emitterHighlights = [];
+            // Restore original materials
+            for (const mesh of excludedEmitters) {
+                if (mesh.userData._origColorEmitter !== undefined) {
+                    mesh.material = mesh.material.clone();
+                    mesh.material.color.setHex(mesh.userData._origColorEmitter);
+                    mesh.material.opacity = mesh.userData._origOpacityEmitter;
+                    mesh.material.transparent = mesh.userData._origTransparentEmitter;
+                }
+            }
+        }
+
+        function updateExcludedEmittersLabel() {
+            const count = excludedEmitters.length;
+            document.getElementById('excluded-emitters-label').textContent =
+                count + ' mesh' + (count !== 1 ? 'es' : '') + ' excluded';
+
+            const listEl = document.getElementById('shade-emitter-list');
+            if (count === 0) {
+                listEl.innerHTML = '';
+            } else {
+                const names = excludedEmitters.map(m => {
+                    const meta = allMeshMeta.find(mm => mm.mesh === m);
+                    return meta ? meta.name : m.name;
+                });
+                listEl.innerHTML = names.map(n =>
+                    '<div style="padding:2px 0; border-bottom:1px solid #1a1a2e;">' + n + '</div>'
+                ).join('');
+            }
+        }
+
+        function handleEmitterPick(event) {
+            const container = document.getElementById('viewport');
+            const rect = container.getBoundingClientRect();
+            const mouse = flyMode
+                ? new THREE.Vector2(0, 0)
+                : new THREE.Vector2(
+                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                    -((event.clientY - rect.top) / rect.height) * 2 + 1
+                );
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            // Only allow picking non-ground meshes
+            const groundSet = new Set(selectedGroundMeshes);
+            const pickable = allMeshes.filter(m => !groundSet.has(m));
+            const hits = raycaster.intersectObjects(pickable, false);
+            if (hits.length === 0) return;
+
+            const hitMesh = hits[0].object;
+            const existingIdx = excludedEmitters.indexOf(hitMesh);
+
+            if (existingIdx !== -1) {
+                // Re-include — toggle off exclusion
+                excludedEmitters.splice(existingIdx, 1);
+                removeEmitterHighlight(hitMesh);
+            } else {
+                // Exclude — toggle on
+                excludedEmitters.push(hitMesh);
+                addEmitterHighlight(hitMesh);
+            }
+
+            updateExcludedEmittersLabel();
+        }
+
+        function confirmShadeEmitters() {
+            setEmitterPickMode(false);
+            clearEmitterHighlights();
 
             buildShadowBVH();
 
-            const count = selectedGroundMeshes.length;
-            const summary = 'Ground: ' + count + ' mesh' + (count > 1 ? 'es' : '');
-            completeStep(3, summary);
+            const excluded = excludedEmitters.length;
+            const total = allMeshes.length - selectedGroundMeshes.length;
+            const active = total - excluded;
+            const summary = active + ' caster' + (active !== 1 ? 's' : '') +
+                (excluded > 0 ? ' (' + excluded + ' excluded)' : '');
+            completeStep(4, summary);
         }
 
-        // ─── BUILD SHADOW BVH (all meshes except ground) ───
+        // ─── BUILD SHADOW BVH (all meshes except ground & excluded) ───
         function buildShadowBVH() {
             showStatus('Building BVH for shadow casters...');
             // Concatenate all non-ground mesh triangles into one set of arrays
@@ -1714,9 +2359,9 @@
             const allIdx = [];
             let offset = 0;
 
-            const groundSet = new Set(selectedGroundMeshes);
+            const skipSet = new Set([...selectedGroundMeshes, ...excludedEmitters]);
             for (const mesh of allMeshes) {
-                if (groundSet.has(mesh)) continue;
+                if (skipSet.has(mesh)) continue;
                 const geo = mesh.geometry;
                 const pos = geo.attributes.position.array;
                 const idx = geo.index ? geo.index.array : null;
@@ -1936,6 +2581,7 @@
         }
 
         function sunDirection(azimuthDeg, altitudeDeg) {
+            // Azimuth: 0°=North, 90°=East, 180°=South, 270°=West (CW from North)
             const az = azimuthDeg * Math.PI / 180;
             const alt = altitudeDeg * Math.PI / 180;
             const ifcX = Math.sin(az) * Math.cos(alt);
@@ -2025,115 +2671,6 @@
             return tris;
         }
 
-        // ─── MESH HOLE HEALING ───
-        // Finds boundary edges (edges belonging to only one triangle) in the
-        // top-surface mesh, chains them into closed loops, and fills each loop
-        // with a fan of new triangles from the loop centroid.
-        function healMeshHoles(tris) {
-            // Build edge -> count map using a canonical key
-            function edgeKey(a, b) {
-                // Round to avoid float precision mismatches
-                const ax = a[0].toFixed(4), ay = a[1].toFixed(4), az = a[2].toFixed(4);
-                const bx = b[0].toFixed(4), by = b[1].toFixed(4), bz = b[2].toFixed(4);
-                const ka = `${ax},${ay},${az}`;
-                const kb = `${bx},${by},${bz}`;
-                return ka < kb ? ka + '|' + kb : kb + '|' + ka;
-            }
-
-            function vertKey(v) {
-                return `${v[0].toFixed(4)},${v[1].toFixed(4)},${v[2].toFixed(4)}`;
-            }
-
-            // Count how many triangles each edge belongs to
-            const edgeCounts = new Map();
-            const edgeVerts = new Map(); // key -> [vertA, vertB]
-            for (const tri of tris) {
-                const [a, b, c] = tri;
-                const edges = [[a, b], [b, c], [c, a]];
-                for (const [ea, eb] of edges) {
-                    const key = edgeKey(ea, eb);
-                    edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1);
-                    if (!edgeVerts.has(key)) edgeVerts.set(key, [ea, eb]);
-                }
-            }
-
-            // Boundary edges: count === 1
-            const boundaryEdges = [];
-            for (const [key, count] of edgeCounts) {
-                if (count === 1) {
-                    boundaryEdges.push(edgeVerts.get(key));
-                }
-            }
-
-            if (boundaryEdges.length === 0) return; // no holes
-
-            // Build adjacency: vertex -> list of connected boundary vertices
-            const adj = new Map();
-            for (const [a, b] of boundaryEdges) {
-                const ka = vertKey(a), kb = vertKey(b);
-                if (!adj.has(ka)) adj.set(ka, []);
-                if (!adj.has(kb)) adj.set(kb, []);
-                adj.get(ka).push({ key: kb, vert: b });
-                adj.get(kb).push({ key: ka, vert: a });
-            }
-
-            // Walk boundary edges into closed loops
-            const visited = new Set();
-            const loops = [];
-            for (const [startKey] of adj) {
-                if (visited.has(startKey)) continue;
-                const loop = [];
-                let currentKey = startKey;
-                let stuck = false;
-                while (!visited.has(currentKey)) {
-                    visited.add(currentKey);
-                    const neighbours = adj.get(currentKey);
-                    if (!neighbours || neighbours.length === 0) { stuck = true; break; }
-                    loop.push(neighbours[0].vert); // store the vertex coords
-                    // Pick the next unvisited neighbour
-                    let found = false;
-                    for (const nb of neighbours) {
-                        if (!visited.has(nb.key)) {
-                            currentKey = nb.key;
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) break;
-                }
-                if (loop.length >= 3 && !stuck) {
-                    loops.push(loop);
-                }
-            }
-
-            // Fill each loop with fan triangles from the centroid
-            let filled = 0;
-            for (const loop of loops) {
-                // Skip very large loops (likely outer boundary, not a hole)
-                if (loop.length > 500) continue;
-
-                // Compute centroid
-                let cx = 0, cy = 0, cz = 0;
-                for (const v of loop) {
-                    cx += v[0]; cy += v[1]; cz += v[2];
-                }
-                cx /= loop.length; cy /= loop.length; cz /= loop.length;
-                const center = [cx, cy, cz];
-
-                // Fan triangulate
-                for (let i = 0; i < loop.length; i++) {
-                    const a = loop[i];
-                    const b = loop[(i + 1) % loop.length];
-                    tris.push([a, b, center]);
-                    filled++;
-                }
-            }
-
-            if (filled > 0) {
-                console.log(`Hole healing: found ${loops.length} loops, filled with ${filled} triangles`);
-            }
-        }
-
         // ─── PREPARE GRID CELLS (merge + slice — done ONCE, cached) ───
         let cachedCellData = null;  // reused across seasons
         let cachedGridSize = null;
@@ -2194,11 +2731,9 @@
                 ]);
             }
 
-            // 2. Extract top surface
-            showStatus(`Extracting top surface from ${allMergedTris.length} faces...`);
+            // 2. Filter to upward-facing surfaces only (reject walls, soffits, bottoms)
+            showStatus(`Filtering ${allMergedTris.length} faces to upward-facing surfaces...`);
             await new Promise(r => setTimeout(r, 0));
-
-            const terrainBVH = new BVH(new Float32Array(mergedVerts), new Uint32Array(mergedIdx));
 
             const worldTris = [];
             const MIN_UPWARD_NY = 0.1;
@@ -2212,31 +2747,44 @@
                 const fnz = e1x*e2y - e1y*e2x;
                 const fnLen = Math.sqrt(fnx*fnx + fny*fny + fnz*fnz);
                 if (fnLen === 0) continue;
-                const nyNorm = Math.abs(fny) / fnLen;
-                if (nyNorm < MIN_UPWARD_NY) continue;
+                // Keep only faces whose normal has a meaningful upward (+Y) component
+                if (fny / fnLen < MIN_UPWARD_NY) continue;
 
-                const cx = (a[0] + b[0] + c[0]) / 3;
-                const cy = (a[1] + b[1] + c[1]) / 3;
-                const cz = (a[2] + b[2] + c[2]) / 3;
-                const rayOriginY = cy + 0.005;
-                const hasAbove = terrainBVH.intersectsAny(cx, rayOriginY, cz, 0, 1, 0);
-                if (!hasAbove) worldTris.push(tri);
+                worldTris.push(tri);
+            }
 
-                if (f % 1000 === 0 && f > 0) {
-                    showStatus(`Extracting top surface... ${Math.round(f / allMergedTris.length * 100)}%`);
-                    await new Promise(r => setTimeout(r, 0));
+            showStatus(`Upward faces: ${worldTris.length} of ${allMergedTris.length} kept`);
+
+            // 2b. Append vertical face triangles without normal filtering
+            for (const vf of selectedVerticalFaces) {
+                vf.mesh.updateWorldMatrix(true, false);
+                const wm = vf.mesh.matrixWorld;
+                const vGeo = vf.mesh.geometry;
+                const vPos = vGeo.attributes.position.array;
+                const vIdx = vGeo.index ? vGeo.index.array : null;
+
+                for (const f of vf.faceIndices) {
+                    const vi0 = vIdx ? vIdx[f*3]*3 : f*9;
+                    const vi1 = vIdx ? vIdx[f*3+1]*3 : f*9+3;
+                    const vi2 = vIdx ? vIdx[f*3+2]*3 : f*9+6;
+
+                    const a = new THREE.Vector3(vPos[vi0], vPos[vi0+1], vPos[vi0+2]).applyMatrix4(wm);
+                    const b = new THREE.Vector3(vPos[vi1], vPos[vi1+1], vPos[vi1+2]).applyMatrix4(wm);
+                    const c = new THREE.Vector3(vPos[vi2], vPos[vi2+1], vPos[vi2+2]).applyMatrix4(wm);
+
+                    worldTris.push([
+                        [a.x, a.y, a.z],
+                        [b.x, b.y, b.z],
+                        [c.x, c.y, c.z],
+                    ]);
                 }
             }
 
-            showStatus(`Top surface: ${worldTris.length} of ${allMergedTris.length} faces kept`);
+            if (selectedVerticalFaces.length > 0) {
+                showStatus(`Total analysis triangles (incl. vertical): ${worldTris.length}`);
+            }
 
-            // 3. Heal holes in the top surface mesh
-            showStatus('Healing mesh holes...');
-            await new Promise(r => setTimeout(r, 0));
-            healMeshHoles(worldTris);
-            showStatus(`Healed mesh: ${worldTris.length} triangles`);
-
-            // 4. Slice every triangle along grid lines
+            // 3. Slice every triangle along grid lines
             showStatus(`Slicing ${worldTris.length} triangles along ${gridSize}m grid...`);
             await new Promise(r => setTimeout(r, 0));
 
@@ -2298,15 +2846,53 @@
             const cellKeys = Array.from(cells.keys());
             const cellData = cellKeys.map(k => {
                 const c = cells.get(k);
-                const a = c.area || 1;
-                const nLen = Math.sqrt(c.sumNx*c.sumNx + c.sumNy*c.sumNy + c.sumNz*c.sumNz);
+                // Find the highest triangle centroid Y in this cell
+                let maxY = -Infinity;
+                for (const tri of c.tris) {
+                    const [a, b, cc] = tri;
+                    const ty = (a[1] + b[1] + cc[1]) / 3;
+                    if (ty > maxY) maxY = ty;
+                }
+                // Recompute centroid & normal using only triangles near the highest surface
+                const HEIGHT_TOL = 0.5; // metres
+                let sumCx = 0, sumCy = 0, sumCz = 0, area = 0;
+                let sumNx = 0, sumNy = 0, sumNz = 0;
+                const topTris = [];
+                for (const tri of c.tris) {
+                    const [a, b, cc] = tri;
+                    const ty = (a[1] + b[1] + cc[1]) / 3;
+                    if (ty < maxY - HEIGHT_TOL) continue;
+                    topTris.push(tri);
+                    const cx = (a[0] + b[0] + cc[0]) / 3;
+                    const cy = ty;
+                    const cz = (a[2] + b[2] + cc[2]) / 3;
+                    const e1x = b[0]-a[0], e1y = b[1]-a[1], e1z = b[2]-a[2];
+                    const e2x = cc[0]-a[0], e2y = cc[1]-a[1], e2z = cc[2]-a[2];
+                    const nx = e1y*e2z - e1z*e2y;
+                    const ny = e1z*e2x - e1x*e2z;
+                    const nz = e1x*e2y - e1y*e2x;
+                    const len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+                    const ta = len * 0.5;
+                    area += ta;
+                    sumCx += cx * ta;
+                    sumCy += cy * ta;
+                    sumCz += cz * ta;
+                    if (len > 0) {
+                        const sign = ny >= 0 ? 1 : -1;
+                        sumNx += sign * (nx / len) * ta;
+                        sumNy += sign * (ny / len) * ta;
+                        sumNz += sign * (nz / len) * ta;
+                    }
+                }
+                const a2 = area || 1;
+                const nLen = Math.sqrt(sumNx*sumNx + sumNy*sumNy + sumNz*sumNz);
                 return {
                     key: k,
-                    tris: c.tris,
-                    area: c.area,
-                    centroid: { x: c.sumCx / a, y: c.sumCy / a, z: c.sumCz / a },
-                    normal: (nLen > 0 && c.sumNy > 0)
-                        ? { x: c.sumNx / nLen, y: c.sumNy / nLen, z: c.sumNz / nLen }
+                    tris: topTris,
+                    area: area,
+                    centroid: { x: sumCx / a2, y: sumCy / a2, z: sumCz / a2 },
+                    normal: (nLen > 0 && sumNy > 0)
+                        ? { x: sumNx / nLen, y: sumNy / nLen, z: sumNz / nLen }
                         : { x: 0, y: 1, z: 0 },
                 };
             });
@@ -2559,7 +3145,7 @@
                     const label = s === 'spring' ? 'Spr' : s === 'winter' ? 'Win' : 'Sum';
                     return label + ' ' + seasonResults[s].summary.avg_hours + 'h';
                 });
-                completeStep(4, avgList.join(' | '));
+                completeStep(5, avgList.join(' | '));
 
                 // Hide the IFC meshes so only heatmap is visible
                 hideCalculationMeshes();
@@ -2581,14 +3167,13 @@
             const label = seasonKey ? SEASON_LABELS[seasonKey] : 'Sun Hours Summary';
             document.getElementById('results-title').textContent = label;
 
-            // Build per-season summary lines
+            // Build per-season summary lines (hours omitted — heatmap only)
             let html = '';
             const keys = getActiveSeasonKeys();
             for (const k of keys) {
                 if (!seasonResults[k]) continue;
-                const s = seasonResults[k].summary;
                 const bold = k === seasonKey ? 'color:#e0e0e0; font-weight:600;' : '';
-                html += `<div style="${bold}">${SEASON_LABELS[k]}: avg ${s.avg_hours}h (min ${s.min_hours}h, max ${s.max_hours}h)</div>`;
+                html += `<div style="${bold}">${SEASON_LABELS[k]}: analysis complete</div>`;
             }
             html += `<div style="margin-top:4px;">Total area: ${summary.area_total} m\u00b2 &nbsp;|&nbsp; Grid cells: ${summary.cells_total}</div>`;
             document.getElementById('results-detail').innerHTML = html;
@@ -2772,12 +3357,12 @@
                     doc.text(SEASON_LABELS[season], 60, 14);
                     doc.setFontSize(9);
                     doc.setTextColor(150, 150, 150);
-                    doc.text(`Avg: ${s.avg_hours}h  |  Min: ${s.min_hours}h  |  Max: ${s.max_hours}h  |  Lat: ${lat}  Lng: ${lng}`, pageW - 10, 14, { align: 'right' });
+                    doc.text(`Lat: ${lat}  Lng: ${lng}`, pageW - 10, 14, { align: 'right' });
 
                     // ── Disclaimer footer ──
                     doc.setFontSize(7);
                     doc.setTextColor(120);
-                    doc.text('SunForm (Beta) \u2014 Indicative only. Not a substitute for professional daylighting assessment. Jake White Architecture accepts no liability.', 20, pageH - 5);
+                    doc.text('SunForm is beta software. There is no warranty. The Software provided under the author is incomplete and may contain errors or inaccuracies and therefore cannot be relied upon for design decision making.', 20, pageH - 5);
                     doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), pageW - 20, pageH - 5, { align: 'right' });
                 }
 
@@ -2960,19 +3545,43 @@
         // ─── FLY / ORBIT MODE ───
         function enableFlyMode() {
             flyMode = true;
-            controls.enableRotate = true;
-            controls.enablePan = true;
-            controls.enableZoom = true;
-            // In fly mode we use the orbit controls for looking, WASD for moving
+            controls.enabled = false;
+            const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+            flyYaw = flyYawTarget = euler.y;
+            flyPitch = flyPitchTarget = euler.x;
+            renderer.domElement.requestPointerLock();
+            document.getElementById('fly-crosshair').style.display = 'block';
             updateViewportInfo();
         }
 
         function enableOrbitMode() {
             flyMode = false;
-            // Reset all fly keys
             for (const k in flyKeys) flyKeys[k] = false;
+            if (document.pointerLockElement) document.exitPointerLock();
+            controls.enabled = true;
+            document.getElementById('fly-crosshair').style.display = 'none';
+            // Raycast along look direction to find a sensible orbit target
+            const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const rc = new THREE.Raycaster(camera.position, lookDir);
+            const hits = rc.intersectObjects(allMeshes, false);
+            if (hits.length > 0) {
+                controls.target.copy(hits[0].point);
+            } else if (buildingGroup) {
+                // No hit — fall back to building centre
+                const bb = new THREE.Box3().setFromObject(buildingGroup);
+                bb.getCenter(controls.target);
+            }
+            controls.update();
             updateViewportInfo();
         }
+
+        document.addEventListener('mousemove', (e) => {
+            if (!flyMode || !document.pointerLockElement) return;
+            const sensitivity = 0.002;
+            flyYawTarget -= e.movementX * sensitivity;
+            flyPitchTarget -= e.movementY * sensitivity;
+            flyPitchTarget = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, flyPitchTarget));
+        });
 
         function updateViewportInfo() {
             const el = document.getElementById('viewport-info');
@@ -2986,14 +3595,19 @@
         // Fly mode animation loop (runs inside main animate)
         function updateFlyMovement() {
             if (!flyMode) return;
-            const dir = new THREE.Vector3();
-            camera.getWorldDirection(dir);
-            const right = new THREE.Vector3().crossVectors(dir, camera.up).normalize();
+            // Smooth interpolation of look direction
+            flyYaw += (flyYawTarget - flyYaw) * FLY_LOOK_SMOOTHING;
+            flyPitch += (flyPitchTarget - flyPitch) * FLY_LOOK_SMOOTHING;
+            const euler = new THREE.Euler(flyPitch, flyYaw, 0, 'YXZ');
+            camera.quaternion.setFromEuler(euler);
+
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
             const up = new THREE.Vector3(0, 1, 0);
 
             const move = new THREE.Vector3();
-            if (flyKeys.w) move.add(dir);
-            if (flyKeys.s) move.sub(dir);
+            if (flyKeys.w) move.add(forward);
+            if (flyKeys.s) move.sub(forward);
             if (flyKeys.a) move.sub(right);
             if (flyKeys.d) move.add(right);
             if (flyKeys.q) move.sub(up);
@@ -3002,8 +3616,6 @@
             if (move.length() > 0) {
                 move.normalize().multiplyScalar(FLY_SPEED);
                 camera.position.add(move);
-                controls.target.add(move);
-                controls.update();
             }
         }
 
@@ -3013,6 +3625,7 @@
             const key = e.key.toLowerCase();
 
             if (key === 'escape') {
+                if (flyMode) { enableOrbitMode(); return; }
                 if (bboxMode) toggleBboxMode();
                 if (pickMode) setPickMode(false);
                 return;
@@ -3024,6 +3637,23 @@
             }
             if (key === 'o') {
                 enableOrbitMode();
+                return;
+            }
+
+            // Left/Right arrows to cycle seasons when results are visible
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                const seasonOrder = ['winter', 'spring', 'summer'];
+                const active = seasonOrder.filter(s => seasonResults[s]);
+                if (active.length > 1) {
+                    const idx = active.indexOf(visibleSeason);
+                    if (idx !== -1) {
+                        const next = e.key === 'ArrowRight'
+                            ? active[(idx + 1) % active.length]
+                            : active[(idx - 1 + active.length) % active.length];
+                        switchVisibleSeason(next);
+                        e.preventDefault();
+                    }
+                }
                 return;
             }
 
@@ -3046,6 +3676,7 @@
             locationMap = L.map('location-map', {
                 zoomControl: true,
                 attributionControl: false,
+                doubleClickZoom: false,
             }).setView([54.0, -2.0], 6); // UK overview
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -3117,6 +3748,7 @@
         // ─── SEASON SWITCHER ───
         function switchVisibleSeason(season) {
             if (!seasonResults[season]) return;
+            clearRayProbe();
             visibleSeason = season;
             // Hide all heatmaps, show selected
             for (const [key, group] of Object.entries(seasonHeatmaps)) {
@@ -3157,49 +3789,12 @@
         }
 
         // ─── DISCLAIMER MODAL ───
-        let roleGateAllowed = false;
-
-        function updateRoleGate() {
-            const sel = document.getElementById('role-select');
-            const val = sel.value;
-            const msgEl = document.getElementById('role-message');
-            const checkboxes = document.querySelectorAll('#disclaimer-checkboxes input[type="checkbox"]');
-
-            if (!val) {
-                // No selection
-                msgEl.style.display = 'none';
-                roleGateAllowed = false;
-                checkboxes.forEach(cb => { cb.disabled = true; cb.checked = false; });
-                updateDisclaimerAccept();
-                return;
-            }
-
-            if (val === 'not_professional') {
-                msgEl.style.display = 'block';
-                msgEl.className = 'role-message blocked';
-                msgEl.innerHTML = 'SunForm is not suitable for use without relevant design or construction experience. If you need daylight or sunlight analysis for a property matter, please consult a qualified daylighting consultant or architect.';
-                roleGateAllowed = false;
-                checkboxes.forEach(cb => { cb.disabled = true; cb.checked = false; });
-                updateDisclaimerAccept();
-                return;
-            }
-
-            // Valid professional role
-            msgEl.style.display = 'block';
-            msgEl.className = 'role-message allowed';
-            msgEl.innerHTML = 'By selecting your role above and accepting the terms below, you confirm that you have sufficient professional knowledge to understand and appropriately apply solar analysis outputs.';
-            roleGateAllowed = true;
-            checkboxes.forEach(cb => { cb.disabled = false; });
-            updateDisclaimerAccept();
-        }
-
         function updateDisclaimerAccept() {
             const c1 = document.getElementById('disclaimer-check1').checked;
             const c2 = document.getElementById('disclaimer-check2').checked;
             const c3 = document.getElementById('disclaimer-check3').checked;
-            const c4 = document.getElementById('disclaimer-check4').checked;
-            const allChecked = c1 && c2 && c3 && c4;
-            document.getElementById('disclaimer-accept-btn').disabled = !(roleGateAllowed && allChecked);
+            const allChecked = c1 && c2 && c3;
+            document.getElementById('disclaimer-accept-btn').disabled = !allChecked;
         }
 
         function acceptDisclaimer() {
@@ -3227,10 +3822,10 @@
         }
 
         function proceedDownload() {
+            const type = pendingDownloadType;
             hideDownloadConfirm();
-            if (pendingDownloadType === 'glb') downloadGLB();
-            else if (pendingDownloadType === 'pdf') downloadPDF();
-            pendingDownloadType = null;
+            if (type === 'glb') downloadGLB();
+            else if (type === 'pdf') downloadPDF();
         }
 
         // ─── MESH VISIBILITY MANAGEMENT ───
@@ -3290,10 +3885,209 @@
             }
         }
 
+        // ─── RAY PROBE (click-to-interrogate heatmap) ───
+        function clearRayProbe() {
+            if (rayProbeGroup) {
+                scene.remove(rayProbeGroup);
+                rayProbeGroup.traverse(c => {
+                    if (c.geometry) c.geometry.dispose();
+                    if (c.material) c.material.dispose();
+                });
+                rayProbeGroup = null;
+            }
+            rayProbeActive = false;
+            document.getElementById('ray-probe-panel').classList.remove('visible');
+        }
+
+        // ─── PROBE PANEL DRAG ───
+        let probeDragging = false;
+        let probeDragOffX = 0;
+        let probeDragOffY = 0;
+
+        function initProbeDrag() {
+            const panel = document.getElementById('ray-probe-panel');
+            const title = panel.querySelector('.probe-title');
+
+            title.addEventListener('mousedown', (e) => {
+                // Don't drag when clicking the Clear button
+                if (e.target.closest('.probe-clear-btn')) return;
+                e.preventDefault();
+                probeDragging = true;
+                const rect = panel.getBoundingClientRect();
+                probeDragOffX = e.clientX - rect.left;
+                probeDragOffY = e.clientY - rect.top;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!probeDragging) return;
+                const viewport = document.getElementById('viewport');
+                const vr = viewport.getBoundingClientRect();
+                const pw = panel.offsetWidth;
+                const ph = panel.offsetHeight;
+
+                let newLeft = e.clientX - vr.left - probeDragOffX;
+                let newTop = e.clientY - vr.top - probeDragOffY;
+
+                // Clamp to viewport bounds
+                newLeft = Math.max(0, Math.min(newLeft, vr.width - pw));
+                newTop = Math.max(0, Math.min(newTop, vr.height - ph));
+
+                panel.style.left = newLeft + 'px';
+                panel.style.top = newTop + 'px';
+                panel.style.bottom = 'auto';
+            });
+
+            document.addEventListener('mouseup', () => {
+                probeDragging = false;
+            });
+        }
+
+        function resetProbePosition() {
+            const panel = document.getElementById('ray-probe-panel');
+            panel.style.left = '20px';
+            panel.style.bottom = '60px';
+            panel.style.top = 'auto';
+        }
+
+        function handleRayProbeClick(event) {
+            // Only works when results are showing
+            if (currentStep !== 6) return;
+            if (!seasonResults[visibleSeason]) return;
+
+            const container = document.getElementById('viewport');
+            const rect = container.getBoundingClientRect();
+            const mouse = flyMode
+                ? new THREE.Vector2(0, 0)
+                : new THREE.Vector2(
+                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                    -((event.clientY - rect.top) / rect.height) * 2 + 1
+                );
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            // Raycast against the active heatmap mesh
+            const heatGroup = seasonHeatmaps[visibleSeason];
+            if (!heatGroup) return;
+            const heatMeshes = [];
+            heatGroup.traverse(c => { if (c.isMesh) heatMeshes.push(c); });
+            const hits = raycaster.intersectObjects(heatMeshes, false);
+            if (hits.length === 0) return;
+
+            const hitPoint = hits[0].point;
+
+            // Find the closest cellData centroid to the hit point
+            const results = seasonResults[visibleSeason];
+            let bestIdx = -1;
+            let bestDist = Infinity;
+            for (let i = 0; i < results.cellData.length; i++) {
+                const cd = results.cellData[i];
+                const dx = cd.centroid.x - hitPoint.x;
+                const dy = cd.centroid.y - hitPoint.y;
+                const dz = cd.centroid.z - hitPoint.z;
+                const d2 = dx * dx + dy * dy + dz * dz;
+                if (d2 < bestDist) {
+                    bestDist = d2;
+                    bestIdx = i;
+                }
+            }
+            if (bestIdx === -1) return;
+
+            const cell = results.cellData[bestIdx];
+            const sunHours = results.cellSunHours[bestIdx];
+            const sunPositions = results.sunPositions;
+
+            // Clear previous probe
+            clearRayProbe();
+
+            // Build ray visualisation
+            rayProbeGroup = new THREE.Group();
+            rayProbeGroup.name = 'ray_probe';
+
+            const origin = new THREE.Vector3(
+                cell.centroid.x + cell.normal.x * 0.01,
+                cell.centroid.y + cell.normal.y * 0.01,
+                cell.centroid.z + cell.normal.z * 0.01
+            );
+
+            // Add a small sphere marker at the probe point
+            const markerGeo = new THREE.SphereGeometry(0.08, 12, 8);
+            const markerMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+            const marker = new THREE.Mesh(markerGeo, markerMat);
+            marker.position.copy(origin);
+            rayProbeGroup.add(marker);
+
+            const RAY_LEN = 8; // visual length of ray lines in metres
+            const tableRows = [];
+
+            for (let si = 0; si < sunPositions.length; si++) {
+                const sp = sunPositions[si];
+                const dir = sunDirection(sp.azimuth, sp.altitude);
+
+                const ox = origin.x, oy = origin.y, oz = origin.z;
+                const blocked = shadowBVH
+                    ? shadowBVH.intersectsAny(ox, oy, oz, dir.x, dir.y, dir.z)
+                    : false;
+
+                // Draw ray line
+                const endPt = new THREE.Vector3(
+                    ox + dir.x * RAY_LEN,
+                    oy + dir.y * RAY_LEN,
+                    oz + dir.z * RAY_LEN
+                );
+
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([origin, endPt]);
+                const lineMat = new THREE.LineBasicMaterial({
+                    color: blocked ? 0xFF4444 : 0xFFD700,
+                    linewidth: 1,
+                });
+                const line = new THREE.Line(lineGeo, lineMat);
+                rayProbeGroup.add(line);
+
+                // Format time as HH:MM
+                const h = Math.floor(sp.hour);
+                const m = Math.round((sp.hour - h) * 60);
+                const timeStr = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+
+                tableRows.push({
+                    time: timeStr,
+                    azimuth: sp.azimuth.toFixed(1),
+                    altitude: sp.altitude.toFixed(1),
+                    blocked,
+                });
+            }
+
+            scene.add(rayProbeGroup);
+            rayProbeActive = true;
+
+            // Populate info panel
+            const hitCount = tableRows.filter(r => !r.blocked).length;
+            const panel = document.getElementById('ray-probe-panel');
+            document.getElementById('probe-summary').textContent =
+                SEASON_LABELS[visibleSeason] + ' — ' +
+                sunHours.toFixed(1) + 'h sun (' + hitCount + '/' + tableRows.length + ' rays unblocked)';
+
+            let html = '<table><tr><th>Time</th><th>Azimuth</th><th>Altitude</th><th>Status</th></tr>';
+            for (const row of tableRows) {
+                const cls = row.blocked ? 'ray-blocked' : 'ray-hit';
+                const status = row.blocked ? 'Blocked' : 'Sun';
+                html += '<tr class="' + cls + '">' +
+                    '<td>' + row.time + '</td>' +
+                    '<td>' + row.azimuth + '°</td>' +
+                    '<td>' + row.altitude + '°</td>' +
+                    '<td>' + status + '</td></tr>';
+            }
+            html += '</table>';
+            document.getElementById('probe-table').innerHTML = html;
+            resetProbePosition();
+            panel.classList.add('visible');
+        }
+
         // ─── INIT ───
         initThree();
         initWebIfc();
-        // Leaflet must init after DOM is ready and step-4 is visible at least once
+        initProbeDrag();
+        // Leaflet must init after DOM is ready and step-5 is visible at least once
         // We defer map init to when step 4 opens
         let mapInitialized = false;
     </script>
