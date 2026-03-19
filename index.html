@@ -1038,6 +1038,10 @@
                 <p class="hint">Click ground or roof surfaces to select the whole mesh. Click vertical walls to select coplanar faces. Double-click a vertical surface to select or deselect all faces on that mesh.</p>
                 <div class="selected-mesh-name" id="selected-mesh-name">No meshes selected</div>
                 <div id="ground-suggestions" style="margin-bottom:8px;"></div>
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <button class="btn btn-secondary" style="flex:1;" onclick="event.stopPropagation(); selectAllGroundMeshes();">Select All</button>
+                    <button class="btn btn-secondary" style="flex:1;" onclick="event.stopPropagation(); clearGroundSelection();">Clear</button>
+                </div>
                 <button class="btn btn-primary" id="confirm-ground-btn" onclick="event.stopPropagation(); confirmGroundMesh();" disabled>Confirm Selection</button>
             </div>
         </div>
@@ -2046,6 +2050,38 @@
                 document.getElementById('selected-mesh-name').textContent = parts.join(', ');
                 document.getElementById('confirm-ground-btn').disabled = false;
             }
+        }
+
+        function selectAllGroundMeshes() {
+            // Add all meshes that aren't already selected
+            for (const mesh of allMeshes) {
+                if (!selectedGroundMeshes.includes(mesh)) {
+                    selectedGroundMeshes.push(mesh);
+                    addHighlight(mesh);
+                }
+            }
+            updateSelectedMeshLabel();
+        }
+
+        function clearGroundSelection() {
+            // Remove all ground mesh highlights
+            for (const mesh of [...selectedGroundMeshes]) {
+                removeHighlight(mesh);
+            }
+            selectedGroundMeshes = [];
+
+            // Remove all vertical face highlights
+            for (const vf of selectedVerticalFaces) {
+                if (vf.highlight) {
+                    if (vf.highlight.parent) vf.highlight.parent.remove(vf.highlight);
+                    else scene.remove(vf.highlight);
+                    vf.highlight.geometry.dispose();
+                    vf.highlight.material.dispose();
+                }
+            }
+            selectedVerticalFaces = [];
+
+            updateSelectedMeshLabel();
         }
 
         document.getElementById('viewport').addEventListener('click', (event) => {
