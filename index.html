@@ -1046,29 +1046,13 @@
             </div>
         </div>
 
-        <!-- STEP 4: EXCLUDE SHADE EMITTERS -->
+        <!-- STEP 4: DEFINE ANALYSIS AREA -->
         <div class="step upcoming" id="step-4" onclick="openStep(4)">
             <div class="step-header">
                 <div class="step-number">4</div>
-                <div class="step-title">Exclude Shade Emitters</div>
-                <span class="step-check">&#10003;</span>
-                <span class="step-summary" id="step4-summary"></span>
-            </div>
-            <div class="step-body">
-                <p class="hint">All non-ground meshes cast shadows by default. Click on any mesh in the 3D view to exclude it from shadow casting (e.g. space volumes). Click again to re-include.</p>
-                <div class="selected-mesh-name" id="excluded-emitters-label">0 meshes excluded</div>
-                <div id="shade-emitter-list" style="max-height:120px; overflow-y:auto; margin-bottom:8px; font-size:11px; color:#aaa;"></div>
-                <button class="btn btn-primary" id="confirm-emitters-btn" onclick="event.stopPropagation(); confirmShadeEmitters();">Confirm Shade Emitters</button>
-            </div>
-        </div>
-
-        <!-- STEP 5: DEFINE ANALYSIS AREA -->
-        <div class="step upcoming" id="step-5" onclick="openStep(5)">
-            <div class="step-header">
-                <div class="step-number">5</div>
                 <div class="step-title">Define Analysis Area</div>
                 <span class="step-check">&#10003;</span>
-                <span class="step-summary" id="step5-summary"></span>
+                <span class="step-summary" id="step4-summary"></span>
             </div>
             <div class="step-body">
                 <div style="display:flex; gap:8px; margin-bottom:10px;">
@@ -1144,13 +1128,13 @@
             </div>
         </div>
 
-        <!-- STEP 6: RESULTS -->
-        <div class="step upcoming" id="step-6" onclick="openStep(6)">
+        <!-- STEP 5: RESULTS -->
+        <div class="step upcoming" id="step-5" onclick="openStep(5)">
             <div class="step-header">
-                <div class="step-number">6</div>
+                <div class="step-number">5</div>
                 <div class="step-title">Results</div>
                 <span class="step-check">&#10003;</span>
-                <span class="step-summary" id="step6-summary"></span>
+                <span class="step-summary" id="step5-summary"></span>
             </div>
             <div class="step-body">
                 <div class="results-panel visible" id="results-panel">
@@ -1262,10 +1246,7 @@
         let selectedGroundMeshes = [];  // array of selected ground THREE.Mesh objects
         let selectedVerticalFaces = []; // Each entry: { mesh, faceIndices, normal, highlight: THREE.Mesh }
         let groundHighlights = [];      // cyan wireframe overlays
-        let excludedEmitters = [];      // meshes excluded from shadow casting
-        let emitterHighlights = [];     // red wireframe overlays for excluded emitters
-        let emitterPickMode = false;    // pick mode for step 4 emitter exclusion
-        let shadowBVH = null;       // BVH of all meshes EXCEPT ground & excluded
+        let shadowBVH = null;       // BVH of all non-ground meshes for shadow casting
         let heatmapGroup = null;
         let bboxHelper = null;
         let groundPlane = null;
@@ -1438,7 +1419,7 @@
             const step = document.getElementById('step-' + n);
             if (step.classList.contains('upcoming')) return;
             // Only allow opening completed steps or current step
-            for (let i = 1; i <= 6; i++) {
+            for (let i = 1; i <= 5; i++) {
                 const s = document.getElementById('step-' + i);
                 if (i === n) {
                     s.classList.add('active');
@@ -1460,21 +1441,20 @@
             if (n === 2) { switchToOrtho(); }
             else switchToPersp();
             setPickMode(n === 3);
-            setEmitterPickMode(n === 4);
-            if (n !== 6) clearRayProbe();
+            if (n !== 5) clearRayProbe();
 
             // Show compass only during orientation step
             document.getElementById('north-arrow').style.display = (n === 2) ? 'block' : 'none';
 
-            // Mesh visibility: when going back to step 3 or 4 (select/exclude mesh), show meshes
-            // and gray out previous results. On step 6 (results), hide meshes.
-            if ((n === 3 || n === 4) && Object.keys(seasonHeatmaps).length > 0) {
+            // Mesh visibility: when going back to step 3 (select mesh), show meshes
+            // and gray out previous results. On step 5 (results), hide meshes.
+            if (n === 3 && Object.keys(seasonHeatmaps).length > 0) {
                 showCalculationMeshes();
                 grayOutResults();
-            } else if (n === 6) {
+            } else if (n === 5) {
                 hideCalculationMeshes();
                 restoreResults();
-            } else if (n !== 3 && n !== 4) {
+            } else if (n !== 3) {
                 // For other steps, ensure meshes are visible and results normal
                 showCalculationMeshes();
                 if (Object.keys(seasonHeatmaps).length > 0) {
@@ -1482,8 +1462,8 @@
                 }
             }
 
-            // Lazy-init Leaflet map when step 5 first opens
-            if (n === 5 && !mapInitialized) {
+            // Lazy-init Leaflet map when step 4 first opens
+            if (n === 4 && !mapInitialized) {
                 mapInitialized = true;
                 setTimeout(() => {
                     initLocationMap();
@@ -1500,7 +1480,7 @@
             if (sumEl) sumEl.textContent = summary;
             // Advance to next
             const next = n + 1;
-            if (next <= 6) {
+            if (next <= 5) {
                 const ns = document.getElementById('step-' + next);
                 ns.classList.remove('upcoming');
                 openStep(next);
@@ -1549,8 +1529,6 @@
                 vf.highlight.material.dispose();
             }
             selectedVerticalFaces = [];
-            excludedEmitters = [];
-            clearEmitterHighlights();
             shadowBVH = null;
             ifcLoaded = false;
             lastAnalysisResults = null;
@@ -1562,13 +1540,11 @@
             document.getElementById('upload-zone').classList.remove('loaded');
             document.getElementById('north-rotation').value = '0';
             document.getElementById('selected-mesh-name').textContent = 'No meshes selected';
-            document.getElementById('excluded-emitters-label').textContent = '0 meshes excluded';
-            document.getElementById('shade-emitter-list').innerHTML = '';
             document.getElementById('ground-suggestions').innerHTML = '';
             document.getElementById('bbox-fields').style.display = 'none';
             document.getElementById('bbox-fields2').style.display = 'none';
 
-            for (let i = 1; i <= 6; i++) {
+            for (let i = 1; i <= 5; i++) {
                 const s = document.getElementById('step-' + i);
                 s.classList.remove('completed', 'active', 'upcoming');
                 if (i === 1) s.classList.add('active');
@@ -2090,10 +2066,6 @@
                 handleMeshPick(event);
                 return;
             }
-            if (emitterPickMode) {
-                handleEmitterPick(event);
-                return;
-            }
             if (bboxMode) {
                 handleBboxClick(event);
                 return;
@@ -2248,146 +2220,7 @@
             completeStep(3, totalSurfaces + ' surface' + (totalSurfaces > 1 ? 's' : '') + ' selected');
         }
 
-        // ─── STEP 4: EXCLUDE SHADE EMITTERS ───
-        function setEmitterPickMode(on) {
-            emitterPickMode = on;
-            const viewport = document.getElementById('viewport');
-            const overlay = document.getElementById('pick-overlay');
-            viewport.classList.toggle('picking-mesh', on);
-            overlay.classList.toggle('visible', on);
-        }
-
-        function addEmitterHighlight(mesh) {
-            if (!mesh.userData._origColorEmitter) {
-                mesh.userData._origColorEmitter = mesh.material.color.getHex();
-                mesh.userData._origOpacityEmitter = mesh.material.opacity;
-                mesh.userData._origTransparentEmitter = mesh.material.transparent;
-            }
-            mesh.material = mesh.material.clone();
-            mesh.material.color.setHex(0xFF4444);
-            mesh.material.opacity = 0.45;
-            mesh.material.transparent = true;
-
-            const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
-            const hl = new THREE.LineSegments(edges,
-                new THREE.LineBasicMaterial({ color: 0xFF2222, linewidth: 2 }));
-            hl.position.copy(mesh.position);
-            hl.rotation.copy(mesh.rotation);
-            hl.scale.copy(mesh.scale);
-            hl.userData._emitterRef = mesh;
-            if (mesh.parent) {
-                mesh.parent.add(hl);
-            } else {
-                scene.add(hl);
-            }
-            emitterHighlights.push(hl);
-        }
-
-        function removeEmitterHighlight(mesh) {
-            if (mesh.userData._origColorEmitter !== undefined) {
-                mesh.material = mesh.material.clone();
-                mesh.material.color.setHex(mesh.userData._origColorEmitter);
-                mesh.material.opacity = mesh.userData._origOpacityEmitter;
-                mesh.material.transparent = mesh.userData._origTransparentEmitter;
-            }
-
-            const idx = emitterHighlights.findIndex(hl => hl.userData._emitterRef === mesh);
-            if (idx === -1) return;
-            const hl = emitterHighlights[idx];
-            if (hl.parent) hl.parent.remove(hl);
-            else scene.remove(hl);
-            hl.geometry.dispose();
-            hl.material.dispose();
-            emitterHighlights.splice(idx, 1);
-        }
-
-        function clearEmitterHighlights() {
-            for (const hl of emitterHighlights) {
-                if (hl.parent) hl.parent.remove(hl);
-                else scene.remove(hl);
-                hl.geometry.dispose();
-                hl.material.dispose();
-            }
-            emitterHighlights = [];
-            // Restore original materials
-            for (const mesh of excludedEmitters) {
-                if (mesh.userData._origColorEmitter !== undefined) {
-                    mesh.material = mesh.material.clone();
-                    mesh.material.color.setHex(mesh.userData._origColorEmitter);
-                    mesh.material.opacity = mesh.userData._origOpacityEmitter;
-                    mesh.material.transparent = mesh.userData._origTransparentEmitter;
-                }
-            }
-        }
-
-        function updateExcludedEmittersLabel() {
-            const count = excludedEmitters.length;
-            document.getElementById('excluded-emitters-label').textContent =
-                count + ' mesh' + (count !== 1 ? 'es' : '') + ' excluded';
-
-            const listEl = document.getElementById('shade-emitter-list');
-            if (count === 0) {
-                listEl.innerHTML = '';
-            } else {
-                const names = excludedEmitters.map(m => {
-                    const meta = allMeshMeta.find(mm => mm.mesh === m);
-                    return meta ? meta.name : m.name;
-                });
-                listEl.innerHTML = names.map(n =>
-                    '<div style="padding:2px 0; border-bottom:1px solid #1a1a2e;">' + n + '</div>'
-                ).join('');
-            }
-        }
-
-        function handleEmitterPick(event) {
-            const container = document.getElementById('viewport');
-            const rect = container.getBoundingClientRect();
-            const mouse = flyMode
-                ? new THREE.Vector2(0, 0)
-                : new THREE.Vector2(
-                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-                    -((event.clientY - rect.top) / rect.height) * 2 + 1
-                );
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(mouse, camera);
-
-            // Only allow picking non-ground meshes
-            const groundSet = new Set(selectedGroundMeshes);
-            const pickable = allMeshes.filter(m => !groundSet.has(m));
-            const hits = raycaster.intersectObjects(pickable, false);
-            if (hits.length === 0) return;
-
-            const hitMesh = hits[0].object;
-            const existingIdx = excludedEmitters.indexOf(hitMesh);
-
-            if (existingIdx !== -1) {
-                // Re-include — toggle off exclusion
-                excludedEmitters.splice(existingIdx, 1);
-                removeEmitterHighlight(hitMesh);
-            } else {
-                // Exclude — toggle on
-                excludedEmitters.push(hitMesh);
-                addEmitterHighlight(hitMesh);
-            }
-
-            updateExcludedEmittersLabel();
-        }
-
-        function confirmShadeEmitters() {
-            setEmitterPickMode(false);
-            clearEmitterHighlights();
-
-            buildShadowBVH();
-
-            const excluded = excludedEmitters.length;
-            const total = allMeshes.length - selectedGroundMeshes.length;
-            const active = total - excluded;
-            const summary = active + ' caster' + (active !== 1 ? 's' : '') +
-                (excluded > 0 ? ' (' + excluded + ' excluded)' : '');
-            completeStep(4, summary);
-        }
-
-        // ─── BUILD SHADOW BVH (all meshes except ground & excluded) ───
+        // ─── BUILD SHADOW BVH (all non-ground meshes) ───
         function buildShadowBVH() {
             showStatus('Building BVH for shadow casters...');
             // Concatenate all non-ground mesh triangles into one set of arrays
@@ -2395,7 +2228,7 @@
             const allIdx = [];
             let offset = 0;
 
-            const skipSet = new Set([...selectedGroundMeshes, ...excludedEmitters]);
+            const skipSet = new Set(selectedGroundMeshes);
             for (const mesh of allMeshes) {
                 if (skipSet.has(mesh)) continue;
                 const geo = mesh.geometry;
@@ -2941,10 +2774,6 @@
 
         // ─── RAY CAST SUN HOURS (uses cached cell data) ───
         async function runTerrainAnalysis(latitude, longitude, timeStep, dateStr, cellData) {
-            if (!shadowBVH) {
-                throw new Error('Shadow casters must be set');
-            }
-
             const sunPositions = getSunPositions(latitude, longitude, dateStr, timeStep);
             if (sunPositions.length === 0) {
                 throw new Error('No sun positions above horizon for given date/location');
@@ -2977,7 +2806,8 @@
                         const oy = cd.centroid.y + cd.normal.y * 0.01;
                         const oz = cd.centroid.z + cd.normal.z * 0.01;
 
-                        if (!shadowBVH.intersectsAny(ox, oy, oz, dx, dy, dz)) {
+                        // If no shadow casters, all cells receive full sun
+                        if (!shadowBVH || !shadowBVH.intersectsAny(ox, oy, oz, dx, dy, dz)) {
                             cellSunHours[j] += timeStep;
                         }
                     }
@@ -3181,7 +3011,7 @@
                     const label = s === 'spring' ? 'Spr' : s === 'winter' ? 'Win' : 'Sum';
                     return label + ' ' + seasonResults[s].summary.avg_hours + 'h';
                 });
-                completeStep(5, avgList.join(' | '));
+                completeStep(4, avgList.join(' | '));
 
                 // Hide the IFC meshes so only heatmap is visible
                 hideCalculationMeshes();
@@ -4123,7 +3953,7 @@
         initThree();
         initWebIfc();
         initProbeDrag();
-        // Leaflet must init after DOM is ready and step-5 is visible at least once
+        // Leaflet must init after DOM is ready and step-4 is visible at least once
         // We defer map init to when step 4 opens
         let mapInitialized = false;
     </script>
