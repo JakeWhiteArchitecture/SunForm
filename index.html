@@ -2029,13 +2029,41 @@
         }
 
         function selectAllGroundMeshes() {
-            // Add all meshes that aren't already selected
+            // Add all meshes as ground/roof surfaces
             for (const mesh of allMeshes) {
                 if (!selectedGroundMeshes.includes(mesh)) {
                     selectedGroundMeshes.push(mesh);
                     addHighlight(mesh);
                 }
             }
+
+            // Also detect and add all vertical faces from every mesh
+            for (const mesh of allMeshes) {
+                // Skip if this mesh already has vertical faces selected
+                if (selectedVerticalFaces.some(s => s.mesh === mesh)) continue;
+
+                const geo = mesh.geometry;
+                const pos = geo.attributes.position.array;
+                const idx = geo.index ? geo.index.array : null;
+                const faceCount = idx ? idx.length / 3 : pos.length / 9;
+                const visited = new Set();
+
+                for (let f = 0; f < faceCount; f++) {
+                    if (visited.has(f)) continue;
+                    const result = getCoplanarFaces(mesh, f);
+                    if (!result) { visited.add(f); continue; }
+                    // Only add if vertical
+                    const n = result.normal;
+                    if (Math.abs(n[1]) >= Math.sin(Math.PI / 180)) {
+                        result.faceIndices.forEach(fi => visited.add(fi));
+                        continue;
+                    }
+                    result.faceIndices.forEach(fi => visited.add(fi));
+                    const highlight = addVerticalFaceHighlight(mesh, result.faceIndices);
+                    selectedVerticalFaces.push({ ...result, highlight });
+                }
+            }
+
             updateSelectedMeshLabel();
         }
 
@@ -2220,17 +2248,15 @@
             completeStep(3, totalSurfaces + ' surface' + (totalSurfaces > 1 ? 's' : '') + ' selected');
         }
 
-        // ─── BUILD SHADOW BVH (all non-ground meshes) ───
+        // ─── BUILD SHADOW BVH (all meshes cast shadows) ───
         function buildShadowBVH() {
             showStatus('Building BVH for shadow casters...');
-            // Concatenate all non-ground mesh triangles into one set of arrays
+            // Concatenate all mesh triangles into one set of arrays
             const allVerts = [];
             const allIdx = [];
             let offset = 0;
 
-            const skipSet = new Set(selectedGroundMeshes);
             for (const mesh of allMeshes) {
-                if (skipSet.has(mesh)) continue;
                 const geo = mesh.geometry;
                 const pos = geo.attributes.position.array;
                 const idx = geo.index ? geo.index.array : null;
